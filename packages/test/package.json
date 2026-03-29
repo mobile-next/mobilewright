@@ -1,0 +1,26 @@
+{
+  "name": "@mobilewright/test",
+  "version": "0.0.1",
+  "description": "Test fixtures for Mobilewright",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "mobilewright": "^0.0.1",
+    "@mobilewright/core": "^0.0.1",
+    "@mobilewright/protocol": "^0.0.1",
+    "@playwright/test": "1.58.2",
+    "playwright": "1.58.2"
+  }
+}

@@ -1,12 +1,28 @@
 {
   "name": "mobilewright",
   "version": "0.0.1",
-  "description": "mobilewright",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "license": "Apache-2.0",
-  "files": [
-    "index.js",
-    "index.d.ts"
-  ]
+  "description": "Mobile device automation framework inspired by Playwright",
+  "engines": {
+    "node": ">=18"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "example": "npm run build && tsx",
+    "test": "playwright test --config=tests/mobilewright.config.ts",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@mobilewright/test": "*",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.19.15",
+    "mobilewright": "*",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@mobilenext/mobilecli": "^0.1.62"
+  }
 }

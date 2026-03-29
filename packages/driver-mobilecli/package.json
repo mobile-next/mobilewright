@@ -1,0 +1,27 @@
+{
+  "name": "@mobilewright/driver-mobilecli",
+  "version": "0.0.1",
+  "description": "mobilecli driver for Mobilewright",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@mobilewright/protocol": "^0.0.1",
+    "fast-xml-parser": "^5.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0"
+  }
+}

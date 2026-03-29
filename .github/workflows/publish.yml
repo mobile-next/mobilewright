@@ -1,8 +1,9 @@
 name: Publish to npm
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '*.*.*'
 
 jobs:
   publish:
@@ -16,4 +17,15 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - run: npm install --ignore-scripts
+      - run: npm run build
       - run: npm publish --access public --provenance
+        working-directory: packages/protocol
+      - run: npm publish --access public --provenance
+        working-directory: packages/mobilewright-core
+      - run: npm publish --access public --provenance
+        working-directory: packages/driver-mobilecli
+      - run: npm publish --access public --provenance
+        working-directory: packages/mobilewright
+      - run: npm publish --access public --provenance
+        working-directory: packages/test

@@ -1,0 +1,25 @@
+{
+  "name": "@mobilewright/core",
+  "version": "0.0.1",
+  "description": "Core API for Mobilewright mobile automation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mobilewright/protocol": "^0.0.1",
+    "sharp": "^0.34.5"
+  }
+}
