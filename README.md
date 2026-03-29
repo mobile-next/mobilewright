@@ -30,6 +30,7 @@ await screen.getByLabel('Password').fill('password123');
 await screen.getByRole('button', { name: 'Sign In' }).tap();
 
 await expect(screen.getByText('Welcome back')).toBeVisible();
+const screenshot = await screen.screenshot();
 
 await device.close();
 ```
