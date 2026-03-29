@@ -29,7 +29,8 @@
     "directory": "packages/mobilewright"
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "dependencies": {
     "@mobilewright/core": "^0.0.1",
