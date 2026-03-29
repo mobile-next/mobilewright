@@ -39,6 +39,14 @@ await device.close();
 - Node.js >= 18
 - A booted iOS simulator, Android emulator, or connected real device
 
+Run `mobilewright doctor` to verify your environment is ready:
+
+```bash
+npx mobilewright doctor
+```
+
+It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and tells you exactly what's missing and how to fix it. Add `--json` for machine-readable output.
+
 ## Packages
 
 | Package | Description |
@@ -275,6 +283,14 @@ The `device` fixture connects once per worker (reading from `mobilewright.config
 ## CLI
 
 ```bash
+# Scaffold a mobilewright.config.ts and example test in the current directory
+npx mobilewright init
+
+# Check your environment for mobile development readiness
+npx mobilewright doctor
+npx mobilewright doctor --json           # machine-readable output
+npx mobilewright doctor --category ios  # system | ios | android
+
 # List all connected devices, simulators, and emulators
 npx mobilewright devices
 ```
