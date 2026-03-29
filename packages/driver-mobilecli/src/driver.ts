@@ -159,12 +159,32 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
+    const screen = await this.getScreenSize();
+    const centerX = screen.width / 2;
+    const centerY = screen.height / 2;
+
+    const startX = opts?.startX ?? centerX;
+    const startY = opts?.startY ?? centerY;
+
+    const isHorizontal = direction === 'left' || direction === 'right';
+    const defaultDistance = (isHorizontal ? screen.width : screen.height) * 0.5;
+    const distance = opts?.distance ?? defaultDistance;
+
+    let endX = startX;
+    let endY = startY;
+    switch (direction) {
+      case 'up':    endY = startY - distance; break;
+      case 'down':  endY = startY + distance; break;
+      case 'left':  endX = startX - distance; break;
+      case 'right': endX = startX + distance; break;
+    }
+
     await this.call('device.io.swipe', {
-      direction,
-      ...(opts?.distance !== undefined && { distance: opts.distance }),
+      x1: Math.round(startX),
+      y1: Math.round(startY),
+      x2: Math.round(endX),
+      y2: Math.round(endY),
       ...(opts?.duration !== undefined && { duration: opts.duration }),
-      ...(opts?.startX !== undefined && { startX: opts.startX }),
-      ...(opts?.startY !== undefined && { startY: opts.startY }),
     });
   }
 
