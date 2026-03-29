@@ -4,8 +4,13 @@ import { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { createRequire } from 'node:module';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { ensureMobilecliReachable } from './server.js';
+import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
+
+const _require = createRequire(import.meta.url);
+const _pkg = _require('../package.json') as { version: string };
 
 const HTML_REPORT_DIR = 'mobilewright-report';
 
@@ -123,6 +128,32 @@ program
     } finally {
       if (serverProcess) await serverProcess.kill();
     }
+  });
+
+// ── doctor ─────────────────────────────────────────────────────────────
+program
+  .command('doctor')
+  .description('check your environment for mobile development readiness')
+  .option('--json', 'output as JSON — machine-readable, ideal for AI agent consumption')
+  .option('--category <name>', 'run checks for one category only: system | ios | android')
+  .action((opts: { json?: boolean; category?: string }) => {
+    const validCategories = ['system', 'ios', 'android'] as const;
+    type Category = typeof validCategories[number];
+
+    if (opts.category && !validCategories.includes(opts.category as Category)) {
+      console.error(`Unknown category "${opts.category}". Valid options: ${validCategories.join(', ')}`);
+      process.exit(1);
+    }
+
+    const checks = gatherChecks(opts.category as Category | undefined);
+
+    if (opts.json) {
+      console.log(JSON.stringify(renderJSON(checks, _pkg.version), null, 2));
+    } else {
+      process.stdout.write(renderTerminal(checks, _pkg.version));
+    }
+
+    if (checks.some(c => c.status === 'error')) process.exitCode = 1;
   });
 
 function padRight(str: string, len: number): string {
