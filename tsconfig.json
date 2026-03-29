@@ -18,5 +18,12 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true
-  }
+  },
+  "references": [
+    { "path": "packages/protocol" },
+    { "path": "packages/mobilewright-core" },
+    { "path": "packages/driver-mobilecli" },
+    { "path": "packages/mobilewright" },
+    { "path": "packages/test" }
+  ]
 }

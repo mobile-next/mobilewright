@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "tsc -b",
     "example": "npm run build && tsx",
     "test": "playwright test --config=tests/mobilewright.config.ts",
     "lint": "tsc --noEmit"
