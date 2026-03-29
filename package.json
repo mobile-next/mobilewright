@@ -1,5 +1,5 @@
 {
-  "name": "mobilewright",
+  "name": "mobilewright-monorepo",
   "version": "0.0.1",
   "description": "Mobile device automation framework inspired by Playwright",
   "engines": {
