@@ -1,6 +1,12 @@
 # Mobilewright
 
+Any device - Any app - Any platform: One API - Agent-ready.
+- Control iOS & Android devices with a unified API.
+- Deterministic execution, no flaky tests, full tracing.
+- Built for developers and AI agents.
+
 A TypeScript framework for mobile device automation, inspired by [Playwright](https://playwright.dev/)'s architecture and developer experience. Mobilewright targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
+
 
 ## Features
 
