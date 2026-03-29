@@ -295,16 +295,6 @@ created  mobilewright.config.ts
 created  example.test.ts
 ```
 
-### `mobilewright doctor`
-
-Check your environment for mobile development readiness — Xcode, Android SDK, simulators, ADB, and more.
-
-```bash
-npx mobilewright doctor
-npx mobilewright doctor --category ios      # system | ios | android
-npx mobilewright doctor --json              # machine-readable output for AI agents
-```
-
 ### `mobilewright devices`
 
 List all connected devices, simulators, and emulators.
