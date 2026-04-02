@@ -2,7 +2,9 @@
 
 import { Command } from 'commander';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
@@ -14,6 +16,7 @@ const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
 
 const HTML_REPORT_DIR = 'mobilewright-report';
+const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
 const program = new Command();
 program.name('mobilewright');
@@ -165,6 +168,27 @@ program
     }
 
     if (checks.some(c => c.status === 'error')) process.exitCode = 1;
+  });
+
+// ── init ───────────────────────────────────────────────────────────────
+program
+  .command('init')
+  .description('scaffold a mobilewright.config.ts and example test in the current directory')
+  .action(async () => {
+    const files = [
+      { src: 'mobilewright.config.ts', dest: resolve(process.cwd(), 'mobilewright.config.ts') },
+      { src: 'example.test.ts', dest: resolve(process.cwd(), 'example.test.ts') },
+    ];
+
+    for (const { src, dest } of files) {
+      if (existsSync(dest)) {
+        console.log(`skipped  ${src} (already exists)`);
+        continue;
+      }
+      const content = await readFile(resolve(TEMPLATES_DIR, src), 'utf8');
+      await writeFile(dest, content, 'utf8');
+      console.log(`created  ${src}`);
+    }
   });
 
 function padRight(str: string, len: number): string {
