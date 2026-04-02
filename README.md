@@ -113,6 +113,8 @@ screen.getByText(/welcome/i)                        // RegExp match
 screen.getByText('welcome', { exact: false })       // substring match
 screen.getByType('TextField')                       // element type
 screen.getByRole('button', { name: 'Sign In' })     // semantic role + name filter
+screen.getByPlaceholder('Search...')                 // placeholder text
+screen.getByPlaceholder('search', { exact: false })  // substring match
 ```
 
 **Direct actions:**
@@ -144,7 +146,11 @@ await locator.fill('hello@example.com')              // tap to focus + type text
 ```typescript
 await locator.isVisible()                            // boolean
 await locator.isEnabled()                            // boolean
+await locator.isSelected()                           // boolean
+await locator.isFocused()                            // boolean
+await locator.isChecked()                            // boolean
 await locator.getText()                              // waits for visibility first
+await locator.getValue()                             // raw value (e.g. text field content)
 ```
 
 **Explicit waiting:**
