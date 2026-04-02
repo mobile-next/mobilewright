@@ -1,3 +1,6 @@
+## [0.0.18] (2026-04-02)
+* General: Fix mobilecli binary resolution using `createRequire` to work reliably from npx caches, global installs, and local node_modules ([#7](https://github.com/mobile-next/mobilewright/pull/7))
+
 ## [0.0.17] (2026-04-02)
 * General: Add `mobilewright init` command to scaffold config and example test ([#2](https://github.com/mobile-next/mobilewright/pull/2))
 * General: Improve html test report template with click-to-fullscreen screenshots ([#6](https://github.com/mobile-next/mobilewright/pull/6))
