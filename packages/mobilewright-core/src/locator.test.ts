@@ -256,6 +256,86 @@ test.describe('Locator', () => {
     });
   });
 
+  test.describe('collection methods', () => {
+    const listTree: ViewNode[] = [
+      node({
+        type: 'Window',
+        children: [
+          node({ type: 'Cell', label: 'Apple', bounds: { x: 0, y: 0, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Banana', bounds: { x: 0, y: 44, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Cherry', bounds: { x: 0, y: 88, width: 390, height: 44 } }),
+        ],
+      }),
+    ];
+
+    test('count returns number of matching elements', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const result = await locator.count();
+      expect(result).toBe(3);
+    });
+
+    test('count returns zero when nothing matches', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Button' });
+
+      const result = await locator.count();
+      expect(result).toBe(0);
+    });
+
+    test('all returns a locator for each match', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const locators = await locator.all();
+      expect(locators).toHaveLength(3);
+
+      const texts = await Promise.all(locators.map(l => l.getText()));
+      expect(texts).toEqual(['Apple', 'Banana', 'Cherry']);
+    });
+
+    test('first returns the first match', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const text = await locator.first().getText();
+      expect(text).toBe('Apple');
+    });
+
+    test('last returns the last match', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const text = await locator.last().getText();
+      expect(text).toBe('Cherry');
+    });
+
+    test('nth returns the element at the given index', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const text = await locator.nth(1).getText();
+      expect(text).toBe('Banana');
+    });
+
+    test('nth supports negative indices', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const text = await locator.nth(-2).getText();
+      expect(text).toBe('Banana');
+    });
+
+    test('nth taps the correct element', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      await locator.nth(2).tap();
+      expect(driver._tracker.tapCalls).toEqual([[195, 110]]);
+    });
+  });
+
   test.describe('chaining', () => {
     test('supports chained locators', async () => {
       const treeWithList: ViewNode[] = [
