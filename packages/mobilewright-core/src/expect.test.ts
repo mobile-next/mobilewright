@@ -272,7 +272,7 @@ test.describe('expect', () => {
     });
   });
 
-  test.describe('toHaveFocus', () => {
+  test.describe('toBeFocused', () => {
     test('passes when element is focused', async () => {
       const focusedTree: ViewNode[] = [
         node({
@@ -290,7 +290,46 @@ test.describe('expect', () => {
       ];
       const driver = createMockDriver(focusedTree);
       const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
-      await mwExpect(locator).toHaveFocus();
+      await mwExpect(locator).toBeFocused();
+    });
+  });
+
+  test.describe('toBeHidden', () => {
+    test('passes when element is not visible', async () => {
+      const hiddenTree: ViewNode[] = [
+        node({
+          type: 'Window',
+          children: [
+            node({
+              type: 'Button',
+              label: 'Secret',
+              identifier: 'secretBtn',
+              isVisible: false,
+              bounds: { x: 0, y: 0, width: 100, height: 44 },
+            }),
+          ],
+        }),
+      ];
+      const driver = createMockDriver(hiddenTree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'secretBtn' });
+      await mwExpect(locator).toBeHidden();
+    });
+
+    test('passes when element does not exist', async () => {
+      const emptyTree: ViewNode[] = [
+        node({ type: 'Window', children: [] }),
+      ];
+      const driver = createMockDriver(emptyTree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'nonexistent' });
+      await mwExpect(locator).toBeHidden();
+    });
+
+    test('fails when element is visible', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+      await expect(mwExpect(locator).toBeHidden({ timeout: 200 })).rejects.toThrow(
+        /Expected element to be hidden/,
+      );
     });
   });
 

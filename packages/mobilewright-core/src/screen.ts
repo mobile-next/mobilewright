@@ -59,4 +59,8 @@ export class Screen {
   async tap(x: number, y: number): Promise<void> {
     return this.driver.tap(x, y);
   }
+
+  async goBack(): Promise<void> {
+    return this.driver.pressButton('BACK');
+  }
 }
