@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { ensureMobilecliReachable } from './server.js';
+import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
 
@@ -139,6 +140,61 @@ program
             padRight(d.state, 10),
         );
       }
+    } finally {
+      if (serverProcess) await serverProcess.kill();
+    }
+  });
+
+// ── screenshot ────────────────────────────────────────────────────────
+
+async function resolveDeviceId(
+  explicit: string | undefined,
+  driver: MobilecliDriver,
+): Promise<string> {
+  if (explicit) {
+    return explicit;
+  }
+
+  const config = await loadConfig();
+  if (config.deviceId) {
+    return config.deviceId;
+  }
+
+  const devices = await driver.listDevices();
+  const online = devices.filter(d => d.state === 'online');
+  if (online.length === 0) {
+    console.error('No online devices found. Specify one with --device <id>.');
+    process.exit(1);
+  }
+  if (online.length > 1) {
+    console.error(
+      'Multiple devices found. Specify one with --device <id>:\n' +
+        online.map(d => `  ${d.id}  ${d.name}`).join('\n'),
+    );
+    process.exit(1);
+  }
+  return online[0].id;
+}
+
+program
+  .command('screenshot')
+  .description('take a screenshot of a connected device')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
+  .option('-o, --output <file>', 'output file path', 'screenshot.png')
+  .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
+  .action(async (opts: { device?: string; output: string; url: string }) => {
+    const { serverProcess } = await ensureMobilecliReachable(opts.url, { autoStart: true });
+    try {
+      const driver = new MobilecliDriver({ url: opts.url });
+      const deviceId = await resolveDeviceId(opts.device, driver);
+
+      await driver.connect({ deviceId, url: opts.url });
+      const buffer = await driver.screenshot();
+      await driver.disconnect();
+
+      const outputPath = resolve(process.cwd(), opts.output);
+      await writeFile(outputPath, buffer);
+      console.log(`Screenshot saved to ${outputPath}`);
     } finally {
       if (serverProcess) await serverProcess.kill();
     }
