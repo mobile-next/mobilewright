@@ -59,6 +59,41 @@ export class Locator {
     );
   }
 
+  // ─── Collection ──────────────────────────────────────────────
+
+  first(): Locator {
+    return this.nth(0);
+  }
+
+  last(): Locator {
+    return this.nth(-1);
+  }
+
+  nth(index: number): Locator {
+    return new Locator(
+      this.driver,
+      { kind: 'nth', parent: this.strategy, index },
+      this.options,
+    );
+  }
+
+  async count(): Promise<number> {
+    const roots = await this.driver.getViewHierarchy();
+    return queryAll(roots, this.strategy).length;
+  }
+
+  async all(): Promise<Locator[]> {
+    const roots = await this.driver.getViewHierarchy();
+    const matches = queryAll(roots, this.strategy);
+    return matches.map((_, i) =>
+      new Locator(
+        this.driver,
+        { kind: 'nth', parent: this.strategy, index: i },
+        this.options,
+      ),
+    );
+  }
+
   // ─── Actions ─────────────────────────────────────────────────
 
   async tap(opts?: { timeout?: number }): Promise<void> {
