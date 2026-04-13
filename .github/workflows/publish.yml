@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -34,3 +34,10 @@ jobs:
         working-directory: packages/mobilewright
       - run: npm publish --access public --provenance
         working-directory: packages/test
+      - name: Create GitHub release
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/p; /^## \[/!p; }" CHANGELOG.md > release-notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
