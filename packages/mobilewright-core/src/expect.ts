@@ -31,25 +31,37 @@ class LocatorAssertions {
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isVisible({ timeout: 0 }),
-      (visible) => (this.negated ? !visible : visible),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT be visible, but it was'
-        : 'Expected element to be visible, but it was not',
-    );
+    await this.assertBoolean('visible', () => this.locator.isVisible({ timeout: 0 }), opts);
+  }
+
+  async toBeHidden(opts?: ExpectOptions): Promise<void> {
+    await this.assertBoolean('hidden', async () => {
+      const visible = await this.locator.isVisible({ timeout: 0 });
+      return !visible;
+    }, opts);
   }
 
   async toBeEnabled(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isEnabled({ timeout: 0 }),
-      (enabled) => (this.negated ? !enabled : enabled),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT be enabled, but it was'
-        : 'Expected element to be enabled, but it was not',
-    );
+    await this.assertBoolean('enabled', () => this.locator.isEnabled({ timeout: 0 }), opts);
+  }
+
+  async toBeDisabled(opts?: ExpectOptions): Promise<void> {
+    await this.assertBoolean('disabled', async () => {
+      const enabled = await this.locator.isEnabled({ timeout: 0 });
+      return !enabled;
+    }, opts);
+  }
+
+  async toBeSelected(opts?: ExpectOptions): Promise<void> {
+    await this.assertBoolean('selected', () => this.locator.isSelected({ timeout: 0 }), opts);
+  }
+
+  async toBeFocused(opts?: ExpectOptions): Promise<void> {
+    await this.assertBoolean('focused', () => this.locator.isFocused({ timeout: 0 }), opts);
+  }
+
+  async toBeChecked(opts?: ExpectOptions): Promise<void> {
+    await this.assertBoolean('checked', () => this.locator.isChecked({ timeout: 0 }), opts);
   }
 
   async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
@@ -63,50 +75,6 @@ class LocatorAssertions {
     await this.assertText(
       (text) => text.includes(expected),
       expected, opts,
-    );
-  }
-
-  async toBeDisabled(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isEnabled({ timeout: 0 }),
-      (enabled) => (this.negated ? enabled : !enabled),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT be disabled, but it was'
-        : 'Expected element to be disabled, but it was not',
-    );
-  }
-
-  async toBeSelected(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isSelected({ timeout: 0 }),
-      (selected) => (this.negated ? !selected : selected),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT be selected, but it was'
-        : 'Expected element to be selected, but it was not',
-    );
-  }
-
-  async toHaveFocus(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isFocused({ timeout: 0 }),
-      (focused) => (this.negated ? !focused : focused),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT have focus, but it did'
-        : 'Expected element to have focus, but it did not',
-    );
-  }
-
-  async toBeChecked(opts?: ExpectOptions): Promise<void> {
-    await this.retryUntil(
-      () => this.locator.isChecked({ timeout: 0 }),
-      (checked) => (this.negated ? !checked : checked),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      this.negated
-        ? 'Expected element to NOT be checked, but it was'
-        : 'Expected element to be checked, but it was not',
     );
   }
 
@@ -125,6 +93,21 @@ class LocatorAssertions {
       () => this.negated
         ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
         : `Expected element to have value "${expected}", but got "${lastValue}"`,
+    );
+  }
+
+  private async assertBoolean(
+    name: string,
+    poll: () => Promise<boolean>,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    await this.retryUntil(
+      poll,
+      (result) => (this.negated ? !result : result),
+      opts?.timeout ?? DEFAULT_TIMEOUT,
+      this.negated
+        ? `Expected element to NOT be ${name}, but it was`
+        : `Expected element to be ${name}, but it was not`,
     );
   }
 
@@ -159,7 +142,10 @@ class LocatorAssertions {
     const deadline = Date.now() + timeout;
 
     while (true) {
-      if (predicate(await poll())) return;
+      const value = await poll();
+      if (predicate(value)) {
+        return;
+      }
 
       if (Date.now() >= deadline) {
         throw new ExpectError(typeof failMessage === 'function' ? failMessage() : failMessage);

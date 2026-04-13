@@ -61,6 +61,10 @@ export class Screen {
     return this.driver.tap(x, y);
   }
 
+  async goBack(): Promise<void> {
+    return this.driver.pressButton('BACK');
+  }
+  
   // ─── View tree ──────────────────────────────────────────────────
 
   async viewTree(): Promise<ViewNode[]> {
