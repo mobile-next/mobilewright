@@ -8,7 +8,8 @@ export type LocatorStrategy =
   | { kind: 'type'; value: string }
   | { kind: 'role'; value: string; name?: string | RegExp }
   | { kind: 'placeholder'; value: string; exact?: boolean }
-  | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy };
+  | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
+  | { kind: 'nth'; parent: LocatorStrategy; index: number };
 
 /**
  * Query all ViewNodes in a tree that match a locator strategy.
@@ -18,6 +19,13 @@ export function queryAll(
   roots: ViewNode[],
   strategy: LocatorStrategy,
 ): ViewNode[] {
+  if (strategy.kind === 'nth') {
+    const all = queryAll(roots, strategy.parent);
+    const index = strategy.index < 0 ? all.length + strategy.index : strategy.index;
+    const node = all[index];
+    return node ? [node] : [];
+  }
+
   if (strategy.kind === 'chain') {
     // Root parent means "search the whole tree" — skip chaining
     if (strategy.parent.kind === 'root') {
@@ -114,6 +122,9 @@ function matchesStrategy(
     case 'chain':
       // Handled above in queryAll
       return false;
+
+    default:
+      throw new Error(`Unknown strategy kind: ${(strategy as any).kind}`);
   }
 }
 
