@@ -1,3 +1,8 @@
+## [0.0.19] (2026-04-13)
+* General: Add `screen.viewTree()` to dump the UI view hierarchy ([#12](https://github.com/mobile-next/mobilewright/pull/12))
+* General: Add `mobilewright screenshot` CLI command ([#9](https://github.com/mobile-next/mobilewright/pull/9))
+* General: Update mobilecli to 0.1.64
+
 ## [0.0.18] (2026-04-02)
 * General: Fix mobilecli binary resolution using `createRequire` to work reliably from npx caches, global installs, and local node_modules ([#7](https://github.com/mobile-next/mobilewright/pull/7))
 
