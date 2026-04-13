@@ -1,3 +1,10 @@
+## [0.0.20] (2026-04-13)
+* General: Add `count()`, `all()`, `first()`, `last()`, `nth()` to Locator for collection operations ([#10](https://github.com/mobile-next/mobilewright/pull/10))
+* General: Add `screen.goBack()` convenience method for Android ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Add `toBeHidden()` assertion ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Rename `toHaveFocus()` to `toBeFocused()` for naming consistency ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Copy README into mobilewright package before npm publish ([#14](https://github.com/mobile-next/mobilewright/pull/14))
+
 ## [0.0.19] (2026-04-13)
 * General: Add `screen.viewTree()` to dump the UI view hierarchy ([#12](https://github.com/mobile-next/mobilewright/pull/12))
 * General: Add `mobilewright screenshot` CLI command ([#9](https://github.com/mobile-next/mobilewright/pull/9))
