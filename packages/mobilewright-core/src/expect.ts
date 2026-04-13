@@ -9,15 +9,21 @@ export interface ExpectOptions {
 }
 
 /**
- * Playwright-style expect with auto-retry for mobile locators.
+ * Playwright-style expect for mobile locators and plain values.
  *
  * Usage:
  *   expect(locator).toBeVisible()
  *   expect(locator).not.toBeVisible()
  *   expect(locator).toHaveText('Hello')
+ *   expect(42).toBe(42)
  */
-export function expect(locator: Locator): LocatorAssertions {
-  return new LocatorAssertions(locator, false);
+export function expect(actual: Locator): LocatorAssertions;
+export function expect<T>(actual: T): ValueAssertions<T>;
+export function expect(actual: unknown): any {
+  if (actual && typeof actual === 'object' && 'tap' in actual && 'getText' in actual) {
+    return new LocatorAssertions(actual as Locator, false);
+  }
+  return new ValueAssertions(actual, false);
 }
 
 class LocatorAssertions {
@@ -154,6 +160,76 @@ class LocatorAssertions {
       await sleep(POLL_INTERVAL);
     }
   }
+}
+
+class ValueAssertions<T> {
+  constructor(
+    private readonly actual: T,
+    private readonly negated: boolean,
+  ) {}
+
+  get not(): ValueAssertions<T> {
+    return new ValueAssertions(this.actual, !this.negated);
+  }
+
+  toBe(expected: T): void {
+    const pass = Object.is(this.actual, expected);
+    this.assert(pass, `Expected ${fmt(expected)}, but received ${fmt(this.actual)}`);
+  }
+
+  toEqual(expected: T): void {
+    const pass = JSON.stringify(this.actual) === JSON.stringify(expected);
+    this.assert(pass, `Expected ${fmt(expected)}, but received ${fmt(this.actual)}`);
+  }
+
+  toBeTruthy(): void {
+    this.assert(!!this.actual, `Expected truthy, but received ${fmt(this.actual)}`);
+  }
+
+  toBeFalsy(): void {
+    this.assert(!this.actual, `Expected falsy, but received ${fmt(this.actual)}`);
+  }
+
+  toBeGreaterThan(expected: number): void {
+    this.assert((this.actual as number) > expected, `Expected ${fmt(this.actual)} > ${expected}`);
+  }
+
+  toBeLessThan(expected: number): void {
+    this.assert((this.actual as number) < expected, `Expected ${fmt(this.actual)} < ${expected}`);
+  }
+
+  toBeCloseTo(expected: number, precision = 2): void {
+    const tolerance = Math.pow(10, -precision) / 2;
+    const pass = Math.abs((this.actual as number) - expected) < tolerance;
+    this.assert(pass, `Expected ${fmt(this.actual)} to be close to ${expected} (precision ${precision})`);
+  }
+
+  toContain(expected: unknown): void {
+    const actual = this.actual as any;
+    const pass = Array.isArray(actual)
+      ? actual.includes(expected)
+      : typeof actual === 'string' ? actual.includes(expected as string) : false;
+    this.assert(pass, `Expected ${fmt(this.actual)} to contain ${fmt(expected)}`);
+  }
+
+  toBeNull(): void {
+    this.assert(this.actual === null, `Expected null, but received ${fmt(this.actual)}`);
+  }
+
+  toBeUndefined(): void {
+    this.assert(this.actual === undefined, `Expected undefined, but received ${fmt(this.actual)}`);
+  }
+
+  private assert(pass: boolean, message: string): void {
+    const ok = this.negated ? !pass : pass;
+    if (!ok) {
+      throw new ExpectError(this.negated ? `Negation failed: ${message}` : message);
+    }
+  }
+}
+
+function fmt(value: unknown): string {
+  return typeof value === 'string' ? `"${value}"` : String(value);
 }
 
 export class ExpectError extends Error {

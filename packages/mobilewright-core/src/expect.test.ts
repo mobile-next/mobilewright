@@ -417,6 +417,83 @@ test.describe('expect', () => {
     });
   });
 
+  test.describe('value assertions', () => {
+    test('toBe passes with equal values', () => {
+      mwExpect(42).toBe(42);
+      mwExpect('hello').toBe('hello');
+      mwExpect(true).toBe(true);
+    });
+
+    test('toBe fails with different values', () => {
+      expect(() => mwExpect(236.25).toBe(431.93)).toThrow(ExpectError);
+    });
+
+    test('toBe uses Object.is semantics', () => {
+      expect(() => mwExpect(NaN).toBe(NaN)).not.toThrow();
+      expect(() => mwExpect(0).toBe(-0)).toThrow(ExpectError);
+    });
+
+    test('not.toBe passes with different values', () => {
+      mwExpect(1).not.toBe(2);
+    });
+
+    test('not.toBe fails with equal values', () => {
+      expect(() => mwExpect(42).not.toBe(42)).toThrow(ExpectError);
+    });
+
+    test('toEqual passes with deep equality', () => {
+      mwExpect({ a: 1, b: [2, 3] }).toEqual({ a: 1, b: [2, 3] });
+    });
+
+    test('toEqual fails with different objects', () => {
+      expect(() => mwExpect({ a: 1 }).toEqual({ a: 2 })).toThrow(ExpectError);
+    });
+
+    test('toBeTruthy and toBeFalsy', () => {
+      mwExpect(1).toBeTruthy();
+      mwExpect('yes').toBeTruthy();
+      mwExpect(0).toBeFalsy();
+      mwExpect('').toBeFalsy();
+      mwExpect(null).toBeFalsy();
+    });
+
+    test('toBeGreaterThan and toBeLessThan', () => {
+      mwExpect(10).toBeGreaterThan(5);
+      mwExpect(5).toBeLessThan(10);
+      expect(() => mwExpect(5).toBeGreaterThan(10)).toThrow(ExpectError);
+      expect(() => mwExpect(10).toBeLessThan(5)).toThrow(ExpectError);
+    });
+
+    test('toBeCloseTo passes within precision', () => {
+      mwExpect(0.1 + 0.2).toBeCloseTo(0.3);
+      mwExpect(1.005).toBeCloseTo(1.0, 1);
+    });
+
+    test('toBeCloseTo fails outside precision', () => {
+      expect(() => mwExpect(0.5).toBeCloseTo(1.0)).toThrow(ExpectError);
+    });
+
+    test('toContain works with arrays and strings', () => {
+      mwExpect([1, 2, 3]).toContain(2);
+      mwExpect('hello world').toContain('world');
+      expect(() => mwExpect([1, 2]).toContain(5)).toThrow(ExpectError);
+    });
+
+    test('toBeNull and toBeUndefined', () => {
+      mwExpect(null).toBeNull();
+      mwExpect(undefined).toBeUndefined();
+      expect(() => mwExpect(0).toBeNull()).toThrow(ExpectError);
+      expect(() => mwExpect(null).toBeUndefined()).toThrow(ExpectError);
+    });
+
+    test('locators still route to LocatorAssertions', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+      // This should use LocatorAssertions, not ValueAssertions
+      await mwExpect(locator).toBeVisible();
+    });
+  });
+
   test.describe('auto-retry', () => {
     test('retries until assertion passes', async () => {
       const initialTree: ViewNode[] = [
