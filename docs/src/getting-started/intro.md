@@ -72,6 +72,8 @@ Run the example test:
 npx mobilewright test
 ```
 
+![Running tests](../images/running-tests.png)
+
 ## HTML test reports
 
 Run tests with the HTML reporter:
@@ -87,3 +89,5 @@ npx mobilewright show-report
 ```
 
 This starts a local server at `localhost:9323` with an interactive report where you can filter results, inspect errors, and view screenshots.
+
+![HTML test report](../images/html-report.png)
