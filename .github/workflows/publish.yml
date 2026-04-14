@@ -19,7 +19,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Set version from tag
         run: node utils/set-versions.js ${GITHUB_REF_NAME#v}
-      - run: npm install --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npm audit
       - run: npm run build
       - run: npm publish --access public --provenance
