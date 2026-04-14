@@ -1,3 +1,8 @@
+## [0.0.21] (2026-04-14)
+* General: Support plain value assertions in `expect()` — `toBe`, `toEqual`, `toBeTruthy`, `toBeFalsy`, `toContain`, `toMatch`, and more ([#17](https://github.com/mobile-next/mobilewright/pull/17))
+* CI: Add explicit permissions and `npm audit` to CI workflow ([#19](https://github.com/mobile-next/mobilewright/pull/19))
+* CI: Use `npm ci` instead of `npm install` and add CODEOWNERS ([#20](https://github.com/mobile-next/mobilewright/pull/20))
+
 ## [0.0.20] (2026-04-13)
 * General: Add `count()`, `all()`, `first()`, `last()`, `nth()` to Locator for collection operations ([#10](https://github.com/mobile-next/mobilewright/pull/10))
 * General: Add `screen.goBack()` convenience method for Android ([#11](https://github.com/mobile-next/mobilewright/pull/11))
@@ -20,6 +25,6 @@
 * General: Add `toBeDisabled`, `toBeSelected`, `toHaveFocus`, `toBeChecked`, and `toHaveValue` assertions ([#4](https://github.com/mobile-next/mobilewright/pull/4))
 * General: Add `isSelected`, `isFocused`, `isChecked`, and `getValue` locator queries ([#4](https://github.com/mobile-next/mobilewright/pull/4))
 * General: Support `testId` matching against full Android `resourceId` for Appium migration ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* General: Fix swipe command to convert direction to start/end coordinates for mobilecli RPC ([#5](https://github.com/mobile-next/mobilewright/pull/5))
 * Android: Map React Native view types (ReactViewGroup, ReactTextView, ReactEditText, ReactImageView, ReactScrollView) to semantic roles ([#4](https://github.com/mobile-next/mobilewright/pull/4))
 * Android: Parse `isChecked` state from UI hierarchy ([#4](https://github.com/mobile-next/mobilewright/pull/4))
-* General: Fix swipe command to convert direction to start/end coordinates for mobilecli RPC ([#5](https://github.com/mobile-next/mobilewright/pull/5))
