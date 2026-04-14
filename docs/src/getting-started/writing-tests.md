@@ -68,7 +68,7 @@ await screen.swipe('down', { distance: 300 });
 
 ```typescript
 await screen.pressButton('HOME');
-await screen.pressButton('BACK');
+await screen.pressButton('BACK'); // android only
 ```
 
 ## Assertions
