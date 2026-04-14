@@ -1,0 +1,19 @@
+name: Trigger Docs Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/src/**'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger docs build in mobilewrightdev-www
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DOCS_TRIGGER_PAT }}
+          repository: ${{ secrets.DOCS_REPO }}
+          event-type: docs-updated
