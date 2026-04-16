@@ -163,7 +163,7 @@ async function resolveDeviceId(
   const devices = driver.listDevices();
   const online = devices.filter(d => d.state === 'online');
   if (online.length === 0) {
-    console.error('No online devices found. Specify one with --device <id>.');
+    console.error('No online devices found. Specify one with --device <id>, or try \'mobilewright doctor\' to check your environment.');
     process.exit(1);
   }
   if (online.length > 1) {
