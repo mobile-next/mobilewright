@@ -138,7 +138,7 @@ program
     const devices = driver.listDevices();
 
     if (devices.length === 0) {
-      console.log('No devices found.');
+      console.log('No devices found, try using \'mobilewright doctor\' command');
       return;
     }
 
