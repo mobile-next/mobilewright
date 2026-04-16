@@ -21,6 +21,7 @@ import { spawnSync, SpawnSyncOptions } from 'node:child_process';
 import { accessSync, constants, readdirSync } from 'node:fs';
 import { arch, homedir, release } from 'node:os';
 import { join } from 'node:path';
+import { resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -173,22 +174,6 @@ function checkWindows(): CheckResult | null {
   });
 }
 
-function checkHomebrew(): CheckResult | null {
-  if (!isMac()) return null;
-
-  const brewPath = which('brew');
-  if (!brewPath) {
-    return check('homebrew', 'Homebrew', 'system', 'error', {
-      details: 'Homebrew is the primary package manager for macOS dev tooling.',
-      fix: [
-        '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-        '# Follow the "Next steps" printed by the installer to add brew to your PATH',
-      ],
-    });
-  }
-  const version = run('brew', ['--version'])?.split('\n')[0]?.replace('Homebrew ', '');
-  return check('homebrew', 'Homebrew', 'system', 'ok', { version, path: brewPath });
-}
 
 function checkWingetOrChoco(): CheckResult | null {
   if (!isWin()) return null;
@@ -275,6 +260,73 @@ function checkNpm(): CheckResult {
   return check('npm', 'npm', 'system', 'ok', { version: run('npm', ['--version']), path: p });
 }
 
+function checkMobilecli(): CheckResult {
+  let binary: string;
+  try {
+    binary = resolveMobilecliBinary();
+  } catch {
+    return check('mobilecli', 'mobilecli', 'system', 'error', {
+      details: 'mobilecli binary not found.',
+      fix: ['npm install mobilecli'],
+    });
+  }
+
+  const version = run(binary, ['--version']);
+  if (!version) {
+    return check('mobilecli', 'mobilecli', 'system', 'error', {
+      details: 'mobilecli found but failed to report version.',
+      path: binary,
+    });
+  }
+
+  return check('mobilecli', 'mobilecli', 'system', 'ok', {
+    version: version.trim(),
+    path: binary,
+  });
+}
+
+function checkMobilecliDevices(): CheckResult {
+  let binary: string;
+  try {
+    binary = resolveMobilecliBinary();
+  } catch {
+    return check('mobilecli_devices', 'mobilecli devices', 'system', 'error', {
+      details: 'mobilecli binary not found.',
+    });
+  }
+
+  const output = run(binary, ['devices']);
+  if (!output) {
+    return check('mobilecli_devices', 'mobilecli devices', 'system', 'warning', {
+      details: 'Could not list devices via mobilecli.',
+    });
+  }
+
+  try {
+    const response = JSON.parse(output) as { status: string; data: { devices: Array<{ id: string; name: string; state: string }> } };
+    const devices = response.data.devices;
+    const online = devices.filter(d => d.state === 'online');
+
+    if (online.length === 0) {
+      return check('mobilecli_devices', 'mobilecli devices', 'system', 'warning', {
+        version: `${devices.length} device${devices.length !== 1 ? 's' : ''} found, none online`,
+        details: devices.length > 0
+          ? 'Devices: ' + devices.map(d => `${d.name} (${d.id}) [${d.state}]`).join(', ')
+          : null,
+      });
+    }
+
+    return check('mobilecli_devices', 'mobilecli devices', 'system', 'ok', {
+      version: `${online.length} online device${online.length !== 1 ? 's' : ''}`,
+      details: online.map(d => `${d.name} (${d.id})`).join(', '),
+    });
+  } catch {
+    return check('mobilecli_devices', 'mobilecli devices', 'system', 'warning', {
+      details: 'Could not parse mobilecli devices output.',
+    });
+  }
+}
+
 // ─── iOS checks (macOS only) ──────────────────────────────────────────────────
 
 function checkXcode(): CheckResult | null {
@@ -318,7 +370,6 @@ function checkXcodeCLT(): CheckResult | null {
   }
   return check('xcode_clt', 'Xcode Command Line Tools', 'ios', 'ok', {
     path: cltPath,
-    details: cltPath.includes('Xcode.app') ? 'Provided by full Xcode install' : 'Standalone CLT install',
   });
 }
 
@@ -346,8 +397,10 @@ function checkIOSSimulators(): CheckResult | null {
     });
   }
 
+  type SimDevice = { isAvailable?: boolean; udid?: string; name?: string; state?: string };
+
   try {
-    const data = JSON.parse(raw) as { devices?: Record<string, Array<{ isAvailable?: boolean }>> };
+    const data = JSON.parse(raw) as { devices?: Record<string, SimDevice[]> };
     const iosDevices = Object.entries(data.devices ?? {})
       .filter(([runtime]) => runtime.toLowerCase().includes('ios'))
       .flatMap(([, devs]) => devs.filter(d => d.isAvailable));
@@ -359,8 +412,14 @@ function checkIOSSimulators(): CheckResult | null {
       });
     }
 
+    const booted = iosDevices.filter(d => d.state === 'Booted');
+    const bootedDetails = booted.length > 0
+      ? booted.map(d => `${d.name} (${d.udid})`).join(', ')
+      : null;
+
     return check('ios_simulators', 'iOS Simulators', 'ios', 'ok', {
-      version: `${iosDevices.length} simulator${iosDevices.length !== 1 ? 's' : ''} available`,
+      version: `${iosDevices.length} available, ${booted.length} booted`,
+      details: bootedDetails,
     });
   } catch {
     return check('ios_simulators', 'iOS Simulators', 'ios', 'warning', {
@@ -481,10 +540,8 @@ function checkAndroidHome(): CheckResult {
     });
   }
 
-  const envVar = process.env['ANDROID_HOME'] ? 'ANDROID_HOME' : 'ANDROID_SDK_ROOT';
   return check('android_home', 'ANDROID_HOME', 'android', 'ok', {
     path: androidHome,
-    details: `Set via ${envVar}`,
   });
 }
 
@@ -757,11 +814,12 @@ export function gatherChecks(categoryFilter?: CheckCategory): CheckResult[] {
     // System
     checkMacOS(),
     checkWindows(),
-    checkHomebrew(),
     checkWingetOrChoco(),
     checkGit(),
     checkNode(),
     checkNpm(),
+    checkMobilecli(),
+    checkMobilecliDevices(),
     // iOS (macOS only — each returns null on other platforms)
     checkXcode(),
     checkXcodeCLT(),
