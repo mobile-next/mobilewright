@@ -174,7 +174,6 @@ function checkWindows(): CheckResult | null {
   });
 }
 
-
 function checkWingetOrChoco(): CheckResult | null {
   if (!isWin()) return null;
 
@@ -285,6 +284,9 @@ function checkMobilecli(): CheckResult {
   });
 }
 
+type MobilecliDeviceEntry = { id: string; name: string; state: string };
+type MobilecliDevicesResponse = { status: string; data: { devices: MobilecliDeviceEntry[] } };
+
 function checkMobilecliDevices(): CheckResult {
   let binary: string;
   try {
@@ -303,7 +305,7 @@ function checkMobilecliDevices(): CheckResult {
   }
 
   try {
-    const response = JSON.parse(output) as { status: string; data: { devices: Array<{ id: string; name: string; state: string }> } };
+    const response = JSON.parse(output) as MobilecliDevicesResponse;
     const devices = response.data.devices;
     const online = devices.filter(d => d.state === 'online');
 
