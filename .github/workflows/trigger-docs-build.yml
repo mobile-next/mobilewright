@@ -7,6 +7,8 @@ on:
     paths:
       - 'docs/src/**'
 
+permissions: {}
+
 jobs:
   trigger:
     runs-on: ubuntu-latest
