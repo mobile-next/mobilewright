@@ -29,7 +29,7 @@
     "dist"
   ],
   "dependencies": {
-    "@mobilenext/mobilecli": "0.1.64",
+    "mobilecli": "0.3.66",
     "@mobilewright/protocol": "^0.0.1",
     "fast-xml-parser": "^5.0.0",
     "ws": "^8.18.0"

@@ -16,6 +16,6 @@ export function resolveMobilecliBinary(): string {
   }
 
   const _require = createRequire(import.meta.url);
-  const pkgJson = _require.resolve('@mobilenext/mobilecli/package.json');
+  const pkgJson = _require.resolve('mobilecli/package.json');
   return join(dirname(pkgJson), 'bin', binary);
 }
