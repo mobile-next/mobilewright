@@ -1,3 +1,12 @@
+## [0.0.22] (2026-04-16)
+* General: Add `mobilewright install` command to install agents on devices ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* General: Switch `listDevices()` to use mobilecli cli instead of launching server ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* General: Upgrade mobilecli to `mobilecli@0.3.66` ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* Doctor: Show mobilecli version and detected devices with agent install status ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* Doctor: Show booted iOS simulators with UDIDs ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* Doctor: Remove Homebrew check ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* CI: Add explicit permissions to docs build workflow ([#28](https://github.com/mobile-next/mobilewright/pull/28))
+
 ## [0.0.21] (2026-04-14)
 * General: Support plain value assertions in `expect()` — `toBe`, `toEqual`, `toBeTruthy`, `toBeFalsy`, `toContain`, `toMatch`, and more ([#17](https://github.com/mobile-next/mobilewright/pull/17))
 * CI: Add explicit permissions and `npm audit` to CI workflow ([#19](https://github.com/mobile-next/mobilewright/pull/19))
