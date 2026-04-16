@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
-import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
+import type { DeviceInfo } from '@mobilewright/protocol';
+import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 import { ensureMobilecliReachable } from './server.js';
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
@@ -106,43 +108,41 @@ program
     await pwProgram.parseAsync(args);
   });
 
+function printDevicesTable(devices: DeviceInfo[]): void {
+  console.log(
+    padRight('ID', 40) +
+      padRight('Name', 25) +
+      padRight('Platform', 10) +
+      padRight('Type', 12) +
+      padRight('State', 10),
+  );
+  console.log('-'.repeat(97));
+
+  for (const d of devices) {
+    console.log(
+      padRight(d.id, 40) +
+        padRight(d.name, 25) +
+        padRight(d.platform, 10) +
+        padRight(d.type, 12) +
+        padRight(d.state, 10),
+    );
+  }
+}
+
 // ── devices ────────────────────────────────────────────────────────────
 program
   .command('devices')
   .description('list all connected devices, simulators, and emulators')
-  .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
-  .action(async (opts: { url: string }) => {
-    const { serverProcess } = await ensureMobilecliReachable(opts.url, { autoStart: true });
-    try {
-      const driver = new MobilecliDriver({ url: opts.url });
-      const devices = await driver.listDevices();
+  .action(() => {
+    const driver = new MobilecliDriver();
+    const devices = driver.listDevices();
 
-      if (devices.length === 0) {
-        console.log('No devices found.');
-        return;
-      }
-
-      console.log(
-        padRight('ID', 40) +
-          padRight('Name', 25) +
-          padRight('Platform', 10) +
-          padRight('Type', 12) +
-          padRight('State', 10),
-      );
-      console.log('-'.repeat(97));
-
-      for (const d of devices) {
-        console.log(
-          padRight(d.id, 40) +
-            padRight(d.name, 25) +
-            padRight(d.platform, 10) +
-            padRight(d.type, 12) +
-            padRight(d.state, 10),
-        );
-      }
-    } finally {
-      if (serverProcess) await serverProcess.kill();
+    if (devices.length === 0) {
+      console.log('No devices found, try using \'mobilewright doctor\' command');
+      return;
     }
+
+    printDevicesTable(devices);
   });
 
 // ── screenshot ────────────────────────────────────────────────────────
@@ -160,17 +160,15 @@ async function resolveDeviceId(
     return config.deviceId;
   }
 
-  const devices = await driver.listDevices();
+  const devices = driver.listDevices();
   const online = devices.filter(d => d.state === 'online');
   if (online.length === 0) {
-    console.error('No online devices found. Specify one with --device <id>.');
+    console.error('No online devices found. Specify one with --device <id>, or try \'mobilewright doctor\' to check your environment.');
     process.exit(1);
   }
   if (online.length > 1) {
-    console.error(
-      'Multiple devices found. Specify one with --device <id>:\n' +
-        online.map(d => `  ${d.id}  ${d.name}`).join('\n'),
-    );
+    console.error('Multiple devices found. Specify one with --device <id>:\n');
+    printDevicesTable(online);
     process.exit(1);
   }
   return online[0].id;
@@ -197,6 +195,33 @@ program
       console.log(`Screenshot saved to ${outputPath}`);
     } finally {
       if (serverProcess) await serverProcess.kill();
+    }
+  });
+
+// ── install ───────────────────────────────────────────────────────
+program
+  .command('install')
+  .description('install the agent on a connected device')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
+  .option('--force', 'force reinstall the agent')
+  .option('--provisioning-profile <profile>', 'provisioning profile to use (iOS)')
+  .action(async (opts: { device?: string; force?: boolean; provisioningProfile?: string }) => {
+    const driver = new MobilecliDriver();
+    const deviceId = await resolveDeviceId(opts.device, driver);
+
+    const binary = resolveMobilecliBinary();
+    const args = ['agent', 'install', '--device', deviceId];
+    if (opts.force) {
+      args.push('--force');
+    }
+    if (opts.provisioningProfile) {
+      args.push('--provisioning-profile', opts.provisioningProfile);
+    }
+
+    try {
+      execFileSync(binary, args, { stdio: ['inherit', 'inherit', 'inherit'] });
+    } catch (err: unknown) {
+      process.exit(1);
     }
   });
 

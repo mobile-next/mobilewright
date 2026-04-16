@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import type {
   AppInfo,
   ConnectionConfig,
@@ -21,6 +22,7 @@ import type {
   ViewNode,
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
+import { resolveMobilecliBinary } from './resolve-binary.js';
 
 export const DEFAULT_URL = 'ws://localhost:12000/ws';
 
@@ -79,8 +81,9 @@ interface MobilecliUIDumpResponse {
   elements: MobilecliElement[];
 }
 
-interface MobilecliDevicesListResponse {
-  devices: MobilecliDeviceEntry[];
+interface MobilecliDevicesResponse {
+  status: string;
+  data: { devices: MobilecliDeviceEntry[]; };
 }
 
 function elementToViewNode(el: MobilecliElement): ViewNode {
@@ -278,26 +281,28 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   // ─── Device Operations ───────────────────────────────────────
 
-  async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
-    const rpc = new RpcClient(this.serverUrl);
-    await rpc.connect();
-    try {
-      const result = await rpc.call<MobilecliDevicesListResponse>(
-        'devices.list', opts ? { ...opts } : undefined,
-      );
+  listDevices(opts?: ListDevicesOptions): DeviceInfo[] {
+    const binary = resolveMobilecliBinary();
+    const output = execFileSync(binary, ['devices'], { encoding: 'utf8' });
+    const response = JSON.parse(output) as MobilecliDevicesResponse;
+    let devices = response.data.devices;
 
-      return result.devices.map((d) => ({
-        id: d.id ?? d.udid ?? '',
-        name: d.name,
-        platform: d.platform as Platform,
-        type: d.type as DeviceType,
-        state: d.state as DeviceState,
-        model: d.model,
-        osVersion: d.version,
-      }));
-    } finally {
-      await rpc.disconnect();
+    if (opts?.platform) {
+      devices = devices.filter((d) => d.platform === opts.platform);
     }
+    if (opts?.state) {
+      devices = devices.filter((d) => d.state === opts.state);
+    }
+
+    return devices.map((d) => ({
+      id: d.id ?? d.udid ?? '',
+      name: d.name,
+      platform: d.platform as Platform,
+      type: d.type as DeviceType,
+      state: d.state as DeviceState,
+      model: d.model,
+      osVersion: d.version,
+    }));
   }
 
   async openUrl(url: string): Promise<void> {

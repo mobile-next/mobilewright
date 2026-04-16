@@ -15,7 +15,7 @@ export interface LaunchOptions {
 
 interface PlatformLauncher {
   launch(opts?: LaunchOptions): Promise<Device>;
-  devices(opts?: { url?: string }): Promise<DeviceInfo[]>;
+  devices(): DeviceInfo[];
 }
 
 function createLauncher(platform: Platform): PlatformLauncher {
@@ -27,7 +27,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
       });
 
       const driver = new MobilecliDriver({ url });
-      const deviceId = opts.deviceId ?? await resolveDeviceId(driver, platform, opts.deviceName);
+      const deviceId = opts.deviceId ?? resolveDeviceId(driver, platform, opts.deviceName);
 
       const device = new Device(driver);
       await device.connect({ url, deviceId, platform, timeout: opts.timeout });
@@ -43,21 +43,19 @@ function createLauncher(platform: Platform): PlatformLauncher {
       return device;
     },
 
-    async devices(opts: { url?: string } = {}): Promise<DeviceInfo[]> {
-      const url = opts.url ?? DEFAULT_URL;
-      await ensureMobilecliReachable(url);
-      const driver = new MobilecliDriver({ url });
+    devices(): DeviceInfo[] {
+      const driver = new MobilecliDriver();
       return driver.listDevices({ platform });
     },
   };
 }
 
-async function resolveDeviceId(
+function resolveDeviceId(
   driver: MobilecliDriver,
   platform: Platform,
   deviceName?: RegExp,
-): Promise<string> {
-  const allDevices = await driver.listDevices();
+): string {
+  const allDevices = driver.listDevices();
 
   const online = allDevices.filter(
     (d) => d.platform === platform && d.state === 'online',
