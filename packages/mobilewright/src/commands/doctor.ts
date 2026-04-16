@@ -286,6 +286,26 @@ function checkMobilecli(): CheckResult {
 
 type MobilecliDeviceEntry = { id: string; name: string; state: string };
 type MobilecliDevicesResponse = { status: string; data: { devices: MobilecliDeviceEntry[] } };
+type AgentStatusResponse = { status: string; data: { message: string; agent?: { version: string; bundleId: string } } };
+
+function getAgentStatus(binary: string, deviceId: string): string {
+  const output = run(binary, ['agent', 'status', '--device', deviceId]);
+  if (!output) {
+    return 'agent: unknown';
+  }
+
+  try {
+    const response = JSON.parse(output) as AgentStatusResponse;
+    if (response.status !== 'ok' || !response.data.agent) {
+      return 'agent: not installed';
+    }
+    const agent = response.data.agent;
+    const version = agent.version || 'unknown';
+    return `agent: ${agent.bundleId} v${version}`;
+  } catch {
+    return 'agent: unknown';
+  }
+}
 
 function checkMobilecliDevices(): CheckResult {
   let binary: string;
@@ -318,9 +338,14 @@ function checkMobilecliDevices(): CheckResult {
       });
     }
 
+    const deviceLines = online.map(d => {
+      const agentStatus = getAgentStatus(binary, d.id);
+      return `${d.name} (${d.id}) — ${agentStatus}`;
+    });
+
     return check('mobilecli_devices', 'mobilecli devices', 'system', 'ok', {
       version: `${online.length} online device${online.length !== 1 ? 's' : ''}`,
-      details: online.map(d => `${d.name} (${d.id})`).join(', '),
+      details: deviceLines.join('\n'),
     });
   } catch {
     return check('mobilecli_devices', 'mobilecli devices', 'system', 'warning', {
@@ -876,7 +901,9 @@ export function renderTerminal(checks: CheckResult[], version: string): string {
 
       if (item.details) {
         const dc = item.status === 'error' ? C.red : item.status === 'warning' ? C.yellow : C.gray;
-        out.push(`       ${dc}${item.details}${C.reset}`);
+        for (const line of item.details.split('\n')) {
+          out.push(`       ${dc}${line}${C.reset}`);
+        }
       }
 
       if (item.fix) {
