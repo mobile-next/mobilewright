@@ -18,7 +18,10 @@ type MobilewrightWorkerFixtures = {
 };
 
 export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixtures>({
-  bundleId: [undefined, { option: true }],
+  bundleId: [async ({}, use) => {
+    const config = await loadConfig();
+    await use(config.bundleId);
+  }, { option: true }],
   platform: [undefined, { option: true, scope: 'worker' }],
   deviceId: [undefined, { option: true, scope: 'worker' }],
   deviceName: [undefined, { option: true, scope: 'worker' }],
