@@ -1,3 +1,5 @@
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type {
   HardwareButton,
   MobilewrightDriver,
@@ -43,7 +45,12 @@ export class Screen {
   // ─── Direct screen actions ──────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
-    return this.driver.screenshot(opts);
+    const buffer = await this.driver.screenshot(opts);
+    if (opts?.path) {
+      mkdirSync(dirname(opts.path), { recursive: true });
+      writeFileSync(opts.path, buffer);
+    }
+    return buffer;
   }
 
   async swipe(

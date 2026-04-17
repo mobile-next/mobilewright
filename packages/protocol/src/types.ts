@@ -126,6 +126,7 @@ export type ScreenshotFormat = 'png' | 'jpeg';
 export interface ScreenshotOptions {
   format?: ScreenshotFormat;
   quality?: number;
+  path?: string;
 }
 
 export interface ScreenSize {
