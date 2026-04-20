@@ -1,12 +1,43 @@
 # Mobilewright
 
-Any device - Any app - Any platform: One API - Agent-ready.
-- Control iOS & Android devices with a unified API.
-- Deterministic execution, no flaky tests, full tracing.
-- Built for developers and AI agents.
+[![npm](https://img.shields.io/npm/dw/mobilewright?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/mobilewright)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-A TypeScript framework for mobile device automation, inspired by [Playwright](https://playwright.dev/)'s architecture and developer experience. Mobilewright targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
+Playwright for mobile. One API to control iOS & Android — for testing, scripting, and AI agents.
 
+[Get Started](#quick-start) · [API Docs](#api-reference) · [Cloud (mobile-use.com)](https://mobile-use.com)
+
+<!-- TODO: GIF of a test running on a real device -->
+
+## Why Mobilewright?
+
+If you've used Playwright, you already know Mobilewright.
+
+| | Mobilewright | Appium | Detox | XCTest/Espresso |
+|---|---|---|---|---|
+| API style | Playwright (`getByRole`, `expect`) | Selenium (WebDriver) | Custom | Native framework |
+| Auto-wait | Built-in, every action | Manual waits | Partial | Manual |
+| Setup | `npm install mobilewright` | Server + drivers + caps | React Native only | Xcode/AS only |
+| Cross-platform | iOS + Android, one API | Yes, verbose | React Native only | Single platform |
+| AI agent support | First-class (accessibility tree) | Limited | No | No |
+| Real devices in the cloud | Via [mobile-use.com](https://mobile-use.com) | Yes (complex) | Simulators only | Yes |
+| Locators | Semantic roles + labels | XPath, CSS, ID | Test IDs | Native queries |
+
+## Built for AI agents
+
+Your agent needs a phone, not a screenshot.
+
+Mobilewright exposes the device's accessibility tree — deterministic, token-efficient, no vision model needed. Use it with [mobile-mcp](https://github.com/mobile-next/mobile-mcp), Claude, Cursor, or any coding agent.
+
+```typescript
+// An AI agent can control a real phone with readable, semantic actions
+await screen.getByRole('button', { name: 'Sign In' }).tap();
+await screen.getByLabel('Email').fill('user@example.com');
+await expect(screen.getByText('Welcome')).toBeVisible();
+```
+
+No XPath. No coordinates. No vision model. The agent reads the accessibility tree and acts on it directly.
 
 ## Features
 
@@ -82,22 +113,21 @@ const device = await ios.launch();
 const device = await ios.launch({ bundleId: 'com.example.app' });
 
 // Target a specific simulator by name
-const device = await ios.launch({ deviceName: 'My.*iPhone' });
+const device = await ios.launch({ deviceName: /My.*iPhone/ });
 
 // Explicit device UDID (skips discovery)
 const device = await ios.launch({ deviceId: '5A5FCFCA-...' });
 
 // List available devices
-const devices = await ios.devices();
-const devices = await android.devices();
+const devices = ios.devices();
+const devices = android.devices();
 ```
 
 `launch()` handles the full lifecycle:
 1. Checks if mobilecli is reachable (auto-starts it for local URLs if not running)
-2. Checks mobilecli version (warns if older than minimum supported)
-3. Discovers booted devices (prefers simulators over real devices)
-4. Connects and optionally launches the app
-5. On `device.close()`, kills the auto-started server
+2. Discovers booted devices (prefers simulators over real devices)
+3. Connects and optionally launches the app
+4. On `device.close()`, kills the auto-started server
 
 ### Screen
 
@@ -113,8 +143,6 @@ screen.getByText(/welcome/i)                        // RegExp match
 screen.getByText('welcome', { exact: false })       // substring match
 screen.getByType('TextField')                       // element type
 screen.getByRole('button', { name: 'Sign In' })     // semantic role + name filter
-screen.getByPlaceholder('Search...')                 // placeholder text
-screen.getByPlaceholder('search', { exact: false })  // substring match
 ```
 
 **Direct actions:**
@@ -234,8 +262,10 @@ await expect(locator).toBeVisible({ timeout: 10_000 });
 | `checkbox` | -- | Checkbox |
 | `slider` | Slider | SeekBar |
 | `list` | Table, CollectionView, ScrollView | ListView, RecyclerView, ReactScrollView |
-| `header` | NavigationBar | Toolbar |
+| `header` | NavigationBar | Toolbar, Header |
 | `link` | Link | Link |
+| `listitem` | Cell | LinearLayout, RelativeLayout, Other |
+| `tab` | Tab, TabBar | Tab, TabBar |
 
 \* ReactViewGroup matches `button` only when the element has `clickable="true"` or `accessible="true"` in its raw attributes, to avoid false positives since React Native uses ReactViewGroup for all container views.
 
@@ -263,8 +293,13 @@ All options:
 | `platform` | `'ios' \| 'android'` | Device platform (optional) |
 | `bundleId` | `string` | App bundle ID (optional) |
 | `deviceId` | `string` | Explicit device UDID (optional) |
-| `deviceName` | `string` | RegExp to match device name (optional) |
+| `deviceName` | `RegExp` | RegExp to match device name (optional) |
 | `timeout` | `number` | Global locator timeout in ms (optional) |
+| `testDir` | `string` | Directory to search for test files (optional) |
+| `testMatch` | `string \| RegExp \| Array` | Glob patterns for test files (optional) |
+| `reporter` | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional) |
+| `retries` | `number` | Maximum retry count for flaky tests (optional) |
+| `projects` | `MobilewrightProjectConfig[]` | Multi-device / multi-platform project matrix (optional) |
 
 Config values are used as defaults — `LaunchOptions` passed to `ios.launch()` always take precedence.
 
@@ -348,6 +383,12 @@ npx mobilewright show-report
 npx mobilewright show-report mobilewright-report/
 ```
 
+## Run on real devices with mobile-use.com
+
+Need real phones in the cloud? [mobile-use.com](https://mobile-use.com) gives you API access to hundreds of real Android and iOS devices. Your Mobilewright scripts run with zero modification — point your config at the mobile-use.com endpoint and go.
+
+mobile-use.com is the only device cloud with native Mobilewright support.
+
 ## Contributing
 
 ```bash
@@ -370,4 +411,8 @@ npm test
 | Kotlin Multiplatform (shared UI) | ⏳ | ✅ | Android native works; iOS Compose Multiplatform support in progress |
 | Cordova / Capacitor | ✅ | ✅ | WebView content accessible via native accessibility tree |
 | NativeScript | ✅ | ✅ | Renders to native views on both platforms |
+
+## License
+
+This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
 
