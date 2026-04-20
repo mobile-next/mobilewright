@@ -254,8 +254,13 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async listApps(): Promise<AppInfo[]> {
-    const result = await this.call<{ apps: MobilecliAppEntry[] }>('device.apps.list');
-    return result.apps.map((app) => ({
+    const result = await this.call<{ apps?: MobilecliAppEntry[] }>('device.apps.list');
+    if (!Array.isArray(result.apps)) {
+      throw new Error('Invalid response for device.apps.list: expected result.apps array');
+    }
+    const apps = result.apps;
+
+    return apps.map((app) => ({
       bundleId: app.bundleId ?? app.packageName ?? '',
       name: app.appName,
       version: app.version,

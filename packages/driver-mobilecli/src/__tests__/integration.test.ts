@@ -8,7 +8,7 @@
  *   - MOBILEWRIGHT_DEVICE_ID=<udid> environment variable
  */
 import { test, expect } from '@playwright/test';
-import { MobilecliDriver } from './driver.js';
+import { MobilecliDriver } from '../driver.js';
 
 const INTEGRATION = process.env['MOBILEWRIGHT_INTEGRATION'] === '1';
 const DEVICE_ID = process.env['MOBILEWRIGHT_DEVICE_ID'] ?? '';
