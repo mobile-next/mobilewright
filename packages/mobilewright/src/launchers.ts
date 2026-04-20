@@ -1,8 +1,10 @@
-import type { Platform, DeviceInfo } from '@mobilewright/protocol';
+import type { Platform, DeviceInfo, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
+import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
 import { ensureMobilecliReachable } from './server.js';
 import { MobilewrightError } from './errors.js';
+import type { DriverConfig } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
@@ -11,6 +13,7 @@ export interface LaunchOptions {
   url?: string;
   timeout?: number;
   autoStart?: boolean;
+  driver?: DriverConfig;
 }
 
 interface PlatformLauncher {
@@ -18,23 +21,48 @@ interface PlatformLauncher {
   devices(): DeviceInfo[];
 }
 
+function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
+  const type = driverConfig?.type ?? 'mobilecli';
+  if (type === 'mobile-use') {
+    return new MobileUseDriver();
+  }
+  return new MobilecliDriver({ url });
+}
+
 function createLauncher(platform: Platform): PlatformLauncher {
   return {
     async launch(opts: LaunchOptions = {}): Promise<Device> {
+      const driverConfig = opts.driver;
       const url = opts.url ?? DEFAULT_URL;
-      const { serverProcess } = await ensureMobilecliReachable(url, {
-        autoStart: opts.autoStart ?? true,
-      });
 
-      const driver = new MobilecliDriver({ url });
-      const deviceId = opts.deviceId ?? resolveDeviceId(driver, platform, opts.deviceName);
+      if (!driverConfig || driverConfig.type === 'mobilecli') {
+        const { serverProcess } = await ensureMobilecliReachable(url, {
+          autoStart: opts.autoStart ?? true,
+        });
+
+        const driver = createDriver(driverConfig, url);
+        const deviceId = opts.deviceId ?? resolveDeviceId(driver as MobilecliDriver, platform, opts.deviceName);
+
+        const device = new Device(driver);
+        await device.connect({ url, deviceId, platform, timeout: opts.timeout });
+
+        if (serverProcess) {
+          device.onClose(() => serverProcess.kill());
+        }
+
+        if (opts.bundleId) {
+          await device.launchApp(opts.bundleId);
+        }
+
+        return device;
+      }
+
+      // mobile-use driver path
+      const driver = createDriver(driverConfig);
+      const deviceId = opts.deviceId ?? '';
 
       const device = new Device(driver);
       await device.connect({ url, deviceId, platform, timeout: opts.timeout });
-
-      if (serverProcess) {
-        device.onClose(() => serverProcess.kill());
-      }
 
       if (opts.bundleId) {
         await device.launchApp(opts.bundleId);

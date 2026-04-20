@@ -35,6 +35,7 @@
   "dependencies": {
     "@mobilewright/core": "^0.0.1",
     "@mobilewright/driver-mobilecli": "^0.0.1",
+    "@mobilewright/driver-mobile-use": "^0.0.1",
     "@mobilewright/protocol": "^0.0.1",
     "@mobilewright/test": "^0.0.1",
     "commander": "^14.0.3",

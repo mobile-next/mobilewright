@@ -23,6 +23,7 @@
     { "path": "packages/protocol" },
     { "path": "packages/mobilewright-core" },
     { "path": "packages/driver-mobilecli" },
+    { "path": "packages/driver-mobile-use" },
     { "path": "packages/mobilewright" },
     { "path": "packages/test" }
   ]

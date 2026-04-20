@@ -1,0 +1,35 @@
+{
+  "name": "@mobilewright/driver-mobile-use",
+  "version": "0.0.1",
+  "description": "mobile-use.com driver for Mobilewright",
+  "homepage": "https://mobilewright.dev",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mobile-next/mobilewright.git",
+    "directory": "packages/driver-mobile-use"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mobilewright/protocol": "^0.0.1"
+  },
+  "devDependencies": {}
+}

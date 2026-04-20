@@ -41,6 +41,19 @@ export interface MobilewrightProjectConfig {
 
 // ─── Config ───────────────────────────────────────────────────────
 
+export interface DriverConfigMobilecli {
+  type: 'mobilecli';
+}
+
+export interface DriverConfigMobileUse {
+  type: 'mobile-use';
+  region?: string;
+  username?: string;
+  password?: string;
+}
+
+export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileUse;
+
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────
   /** Default platform. */
@@ -57,6 +70,8 @@ export interface MobilewrightConfig {
   mobilecliPath?: string;
   /** Auto-start mobilecli server if not running. Default: true. */
   autoStart?: boolean;
+  /** Driver to use. Default: { type: 'mobilecli' }. */
+  driver?: DriverConfig;
 
   // ── Test runner ─────────────────────────────────────────────
   /** Directory to search for test files. Default: config file directory. */
