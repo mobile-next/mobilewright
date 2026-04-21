@@ -279,7 +279,10 @@ class ValueAssertions<T> {
   }
 
   toThrow(expected?: string | RegExp): void {
-    const fn = this.actual as unknown as () => unknown;
+    if (typeof this.actual !== 'function') {
+      throw new ExpectError(`Expected a function, but received ${fmt(this.actual)}`);
+    }
+    const fn = this.actual as () => unknown;
     let threw = false;
     let error: unknown;
     try {

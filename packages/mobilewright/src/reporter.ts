@@ -32,10 +32,19 @@ export function brandReport(reportPath: string): void {
 
   const faviconDataUrl = getFaviconDataUrl();
 
-  html = html.replaceAll("Playwright", "Mobilewright");
-  html = html.replaceAll("playwright", "mobilewright");
+  // 1. Replace title
+  html = html.replace(
+    '<title>Playwright Test Report</title>',
+    `<title>Mobilewright Test Report</title>`,
+  );
 
-  // Add favicon link and custom styles/scripts in <head>
+  // 2. Replace the JS-side document.title fallback
+  html = html.replace(
+    /document\.title="Playwright Test Report"/g,
+    'document.title="Mobilewright Test Report"',
+  );
+
+  // 3. Add favicon link and custom styles/scripts in <head>
   const headInjection = `
     <link rel="icon" type="image/png" href="${faviconDataUrl}">
     <style>
@@ -94,7 +103,7 @@ export function brandReport(reportPath: string): void {
   `;
   html = html.replace('</head>', headInjection + '\n  </head>');
 
-  // Add script for branding injection and screenshot fullscreen
+  // 4. Add script for branding injection and screenshot fullscreen
   const bodyScript = `
     <script>
     (function() {
@@ -175,7 +184,7 @@ export function brandReport(reportPath: string): void {
     })();
     </script>
   `;
-
   html = html.replace('</body>', bodyScript + '\n  </body>');
+
   writeFileSync(indexPath, html, 'utf-8');
 }
