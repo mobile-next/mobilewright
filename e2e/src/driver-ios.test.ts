@@ -40,7 +40,7 @@ test('should save screenshot to file', async ({ screen }) => {
 
 // ─── Find, Tap, Swipe ───────────────────────────────────────
 
-test.only('should swipe a list and tap an element', async ({ device, screen }) => {
+test('should swipe a list and tap an element', async ({ device, screen }) => {
   await device.terminateApp('com.apple.Preferences');
   await device.launchApp('com.apple.Preferences');
   await wait(1000);
