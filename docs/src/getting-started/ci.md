@@ -27,8 +27,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
       - run: npm ci
       - run: npx mobilewright test --reporter html
+
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
@@ -54,22 +56,4 @@ npx mobilewright show-report ./path/to/downloaded/mobilewright-report
 
 The workflow above already triggers on pull requests to `main`. Test results appear in the Actions tab of the pull request, so failing tests are visible before merging.
 
-## Sharding
-
-For large test suites, you can split tests across multiple jobs using Playwright's built-in sharding:
-
-```yaml
-jobs:
-  test:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        shard: [1/3, 2/3, 3/3]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npm ci
-      - run: npx mobilewright test --shard ${{ matrix.shard }}
 ```
