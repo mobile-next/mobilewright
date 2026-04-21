@@ -1,3 +1,20 @@
+## [0.0.23] (2026-04-20)
+* General: Add `@mobilewright/driver-mobile-use` package for mobile-use.com cloud device support
+* General: Refactor `ConnectionConfig` — replace required `deviceId` with required `platform`, optional `deviceId`, `deviceName`, `osVersion`
+* General: Move device resolution into drivers — mobilecli resolves locally
+* General: Add missing `scale` field to getScreenSize response
+* General: Default `workers: 1` in `defineConfig` — mobile tests target a single device, changeable for cloud
+* General: Add `debug` logging to both drivers (`DEBUG=mw:*` to enable)
+* General: Improve WebSocket error messages with close code and reason
+* General: Add `toMatch`, `toBeInstanceOf`, `toBeDefined`, `toBeGreaterThanOrEqual`, `toBeLessThanOrEqual`, `toBeNaN`, `toContainEqual`, `toHaveLength`, `toHaveProperty`, `toMatchObject`, `toStrictEqual`, `toThrow` assertions
+* General: Handle both flat array and `{ apps: [...] }` response in `listApps`, thanks to [emor](https://github.com/emor)
+* Docs: Add troubleshooting guide with `DEBUG=mw:*` and `mobilewright doctor` usage
+* Tests: Add cross-driver integration test suite (`e2e/`)
+* Fix: `LaunchOptions.locale` renamed to `locales` (to match mobilecli server protocol)
+* Fix: `gesture()` now sends `actions` param to match OpenRPC spec (was incorrectly sending `pointers`)
+* Fix: `startRecording` no longer drops `timeLimit: 0`
+* Fix: `disconnect()` now properly awaits WebSocket close
+
 ## [0.0.22] (2026-04-16)
 * General: Add `mobilewright install` command to install agents on devices ([#29](https://github.com/mobile-next/mobilewright/pull/29))
 * General: Switch `listDevices()` to use mobilecli cli instead of launching server ([#29](https://github.com/mobile-next/mobilewright/pull/29))

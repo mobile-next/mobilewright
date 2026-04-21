@@ -1,0 +1,18 @@
+{
+  "name": "@mobilewright/e2e",
+  "version": "0.0.1",
+  "private": true,
+  "description": "End-to-end tests for mobilewright drivers",
+  "type": "module",
+  "scripts": {
+    "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli npx mobilewright test",
+    "test:mobile-use": "MOBILEWRIGHT_DRIVER=mobile-use npx mobilewright test"
+  },
+  "dependencies": {
+    "mobilewright": "^0.0.1",
+    "@mobilewright/test": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

@@ -6,8 +6,6 @@ import { join } from 'node:path';
 export interface MobilewrightUseOptions {
   /** Platform for this project. */
   platform?: 'ios' | 'android';
-  /** Device ID for this project. */
-  deviceId?: string;
   /** Regex to match device name. */
   deviceName?: RegExp;
   /** App bundle ID for this project. */
@@ -41,11 +39,23 @@ export interface MobilewrightProjectConfig {
 
 // ─── Config ───────────────────────────────────────────────────────
 
+export interface DriverConfigMobilecli {
+  type: 'mobilecli';
+}
+
+export interface DriverConfigMobileUse {
+  type: 'mobile-use';
+  region?: string;
+  apiKey?: string;
+}
+
+export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileUse;
+
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────
   /** Default platform. */
   platform?: 'ios' | 'android';
-  /** Default device ID. */
+  /** Specific device identifier (local drivers only). */
   deviceId?: string;
   /** Regex to match device name (e.g. /iPhone 17/). */
   deviceName?: RegExp;
@@ -57,6 +67,8 @@ export interface MobilewrightConfig {
   mobilecliPath?: string;
   /** Auto-start mobilecli server if not running. Default: true. */
   autoStart?: boolean;
+  /** Driver to use. Default: { type: 'mobilecli' }. */
+  driver?: DriverConfig;
 
   // ── Test runner ─────────────────────────────────────────────
   /** Directory to search for test files. Default: config file directory. */
@@ -91,7 +103,9 @@ export interface MobilewrightConfig {
 
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
-  return config;
+  // Default to 1 worker — Playwright defaults to half the CPU cores, but mobile
+  // tests typically target a single device so parallel workers cause conflicts.
+  return { workers: 1, ...config };
 }
 
 const CONFIG_FILES = [

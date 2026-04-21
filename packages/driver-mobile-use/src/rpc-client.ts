@@ -43,8 +43,12 @@ export class RpcClient {
   ) {}
 
   async connect(): Promise<void> {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
-    if (this.connectionPromise) return this.connectionPromise;
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      return;
+    }
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
 
     this.connectionPromise = new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -70,6 +74,8 @@ export class RpcClient {
         this.connectionPromise = null;
         if (!settled) {
           settled = true;
+          // Node may wrap connection failures in AggregateError (e.g. IPv4+IPv6).
+          // Unwrap to surface the actual error message.
           if (err instanceof AggregateError && err.errors.length > 0) {
             reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
           } else {
@@ -155,19 +161,18 @@ export class RpcClient {
     try {
       response = JSON.parse(data.toString()) as JsonRpcResponse;
     } catch {
-      return; // Ignore malformed messages
+      return;
     }
 
     const pending = this.pending.get(response.id);
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
 
     this.pending.delete(response.id);
     clearTimeout(pending.timer);
 
     if (response.error) {
-      // Surface the detail from mobilecli — response.error.data often
-      // contains the real error (e.g. "exit status 4") while
-      // response.error.message is just "Server error".
       const detail =
         typeof response.error.data === 'string'
           ? response.error.data

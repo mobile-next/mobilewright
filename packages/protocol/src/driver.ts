@@ -49,7 +49,7 @@ export interface MobilewrightDriver {
   uninstallApp(bundleId: string): Promise<void>;
 
   // Device
-  listDevices(opts?: ListDevicesOptions): DeviceInfo[] | Promise<DeviceInfo[]>;
+  listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]>;
   openUrl(url: string): Promise<void>;
 
   // Recording

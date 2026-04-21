@@ -8,7 +8,7 @@ export { expect } from '@mobilewright/core';
 export { Device, Screen, Locator } from '@mobilewright/core';
 
 // Configuration
-export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions } from './config.js';
+export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileUse } from './config.js';
 
 // Errors
 export { MobilewrightError } from './errors.js';

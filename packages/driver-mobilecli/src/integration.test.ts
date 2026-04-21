@@ -5,13 +5,14 @@
  *   - mobilecli server running on localhost:12000
  *   - A booted iOS simulator or Android emulator
  *   - MOBILEWRIGHT_INTEGRATION=1 environment variable
- *   - MOBILEWRIGHT_DEVICE_ID=<udid> environment variable
+ *   - MOBILEWRIGHT_PLATFORM=ios|android environment variable (default: ios)
  */
 import { test, expect } from '@playwright/test';
+import type { Platform } from '@mobilewright/protocol';
 import { MobilecliDriver } from './driver.js';
 
 const INTEGRATION = process.env['MOBILEWRIGHT_INTEGRATION'] === '1';
-const DEVICE_ID = process.env['MOBILEWRIGHT_DEVICE_ID'] ?? '';
+const PLATFORM = (process.env['MOBILEWRIGHT_PLATFORM'] ?? 'ios') as Platform;
 
 test.describe('mobilecli integration', () => {
   test.skip(!INTEGRATION, 'Requires MOBILEWRIGHT_INTEGRATION=1');
@@ -20,7 +21,7 @@ test.describe('mobilecli integration', () => {
     const driver = new MobilecliDriver();
 
     const session = await driver.connect({
-      deviceId: DEVICE_ID,
+      platform: PLATFORM,
     });
 
     expect(session.platform).toMatch(/^(ios|android)$/);

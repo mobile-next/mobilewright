@@ -1,7 +1,7 @@
 {
-  "name": "mobilewright",
+  "name": "@mobilewright/driver-mobile-use",
   "version": "0.0.1",
-  "description": "Mobile device automation framework inspired by Playwright",
+  "description": "mobile-use.com driver for Mobilewright",
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
@@ -20,29 +20,21 @@
     "build": "tsc -b",
     "prepublishOnly": "tsc -b"
   },
-  "bin": {
-    "mobilewright": "./dist/cli.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mobile-next/mobilewright.git",
-    "directory": "packages/mobilewright"
+    "directory": "packages/driver-mobile-use"
   },
   "files": [
-    "dist",
-    "assets"
+    "dist"
   ],
   "dependencies": {
-    "@mobilewright/core": "^0.0.1",
-    "@mobilewright/driver-mobilecli": "^0.0.1",
-    "@mobilewright/driver-mobile-use": "^0.0.1",
     "@mobilewright/protocol": "^0.0.1",
-    "@mobilewright/test": "^0.0.1",
-    "commander": "^14.0.3",
-    "playwright": "1.58.2",
+    "debug": "^4.4.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.13",
     "@types/ws": "^8.5.0"
   }
 }

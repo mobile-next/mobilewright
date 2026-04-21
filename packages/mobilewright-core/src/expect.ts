@@ -220,6 +220,86 @@ class ValueAssertions<T> {
     this.assert(this.actual === undefined, `Expected undefined, but received ${fmt(this.actual)}`);
   }
 
+  toMatch(pattern: RegExp | string): void {
+    const str = String(this.actual);
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    this.assert(regex.test(str), `Expected ${fmt(this.actual)} to match ${regex}`);
+  }
+
+  toBeInstanceOf(expected: Function): void {
+    const pass = this.actual instanceof expected;
+    this.assert(pass, `Expected instance of ${expected.name}, but received ${fmt(this.actual)}`);
+  }
+
+  toBeDefined(): void {
+    this.assert(this.actual !== undefined, `Expected defined, but received undefined`);
+  }
+
+  toBeGreaterThanOrEqual(expected: number): void {
+    this.assert((this.actual as number) >= expected, `Expected ${fmt(this.actual)} >= ${expected}`);
+  }
+
+  toBeLessThanOrEqual(expected: number): void {
+    this.assert((this.actual as number) <= expected, `Expected ${fmt(this.actual)} <= ${expected}`);
+  }
+
+  toBeNaN(): void {
+    this.assert(Number.isNaN(this.actual), `Expected NaN, but received ${fmt(this.actual)}`);
+  }
+
+  toContainEqual(expected: unknown): void {
+    const actual = this.actual as unknown[];
+    const pass = Array.isArray(actual) && actual.some((item) => JSON.stringify(item) === JSON.stringify(expected));
+    this.assert(pass, `Expected ${fmt(this.actual)} to contain equal ${fmt(expected)}`);
+  }
+
+  toHaveLength(expected: number): void {
+    const actual = this.actual as any;
+    const length = actual?.length ?? 0;
+    this.assert(length === expected, `Expected length ${expected}, but received ${length}`);
+  }
+
+  toHaveProperty(key: string, value?: unknown): void {
+    const actual = this.actual as any;
+    const hasKey = actual != null && key in actual;
+    const pass = value === undefined ? hasKey : hasKey && Object.is(actual[key], value);
+    this.assert(pass, `Expected ${fmt(this.actual)} to have property "${key}"${value !== undefined ? ` with value ${fmt(value)}` : ''}`);
+  }
+
+  toMatchObject(expected: Record<string, unknown>): void {
+    const actual = this.actual as Record<string, unknown>;
+    const pass = actual != null && Object.keys(expected).every((key) => JSON.stringify(actual[key]) === JSON.stringify(expected[key]));
+    this.assert(pass, `Expected ${fmt(this.actual)} to match object ${fmt(expected)}`);
+  }
+
+  toStrictEqual(expected: T): void {
+    const pass = JSON.stringify(this.actual) === JSON.stringify(expected)
+      && Object.getPrototypeOf(this.actual) === Object.getPrototypeOf(expected);
+    this.assert(pass, `Expected ${fmt(expected)}, but received ${fmt(this.actual)}`);
+  }
+
+  toThrow(expected?: string | RegExp): void {
+    if (typeof this.actual !== 'function') {
+      throw new ExpectError(`Expected a function, but received ${fmt(this.actual)}`);
+    }
+    const fn = this.actual as () => unknown;
+    let threw = false;
+    let error: unknown;
+    try {
+      fn();
+    } catch (e) {
+      threw = true;
+      error = e;
+    }
+    if (expected === undefined) {
+      this.assert(threw, `Expected function to throw`);
+    } else {
+      const message = threw && error instanceof Error ? error.message : String(error);
+      const matches = typeof expected === 'string' ? message.includes(expected) : expected.test(message);
+      this.assert(threw && matches, `Expected function to throw matching ${fmt(expected)}, but got ${fmt(message)}`);
+    }
+  }
+
   private assert(pass: boolean, message: string): void {
     const ok = this.negated ? !pass : pass;
     if (!ok) {

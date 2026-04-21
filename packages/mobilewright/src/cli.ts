@@ -46,7 +46,7 @@ program
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
     if (opts.retries) overrides.retries = Number(opts.retries);
-    if (opts.workers) overrides.workers = opts.workers;
+    if (opts.workers) overrides.workers = Number(opts.workers);
     if (opts.reporter) {
       const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {
@@ -133,9 +133,9 @@ function printDevicesTable(devices: DeviceInfo[]): void {
 program
   .command('devices')
   .description('list all connected devices, simulators, and emulators')
-  .action(() => {
+  .action(async () => {
     const driver = new MobilecliDriver();
-    const devices = driver.listDevices();
+    const devices = await driver.listDevices();
 
     if (devices.length === 0) {
       console.log('No devices found, try using \'mobilewright doctor\' command');
@@ -160,7 +160,7 @@ async function resolveDeviceId(
     return config.deviceId;
   }
 
-  const devices = driver.listDevices();
+  const devices = await driver.listDevices();
   const online = devices.filter(d => d.state === 'online');
   if (online.length === 0) {
     console.error('No online devices found. Specify one with --device <id>, or try \'mobilewright doctor\' to check your environment.');
@@ -186,7 +186,7 @@ program
       const driver = new MobilecliDriver({ url: opts.url });
       const deviceId = await resolveDeviceId(opts.device, driver);
 
-      await driver.connect({ deviceId, url: opts.url });
+      await driver.connect({ platform: 'ios', deviceId, url: opts.url });
       const buffer = await driver.screenshot();
       await driver.disconnect();
 

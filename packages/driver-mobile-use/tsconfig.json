@@ -6,9 +6,6 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../protocol" },
-    { "path": "../mobilewright-core" },
-    { "path": "../driver-mobilecli" },
-    { "path": "../driver-mobile-use" }
+    { "path": "../protocol" }
   ]
 }
