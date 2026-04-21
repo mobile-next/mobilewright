@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-Playwright for mobile. One API to control iOS & Android — for testing, scripting, and AI agents.
+Framework for mobile device automation, inspired by Playwright's architecture and developer experience. 
+
+**Mobilewright** targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
 
 [Get Started](#quick-start) · [API Docs](#api-reference) · [Cloud (mobile-use.com)](https://mobile-use.com)
-
-<!-- TODO: GIF of a test running on a real device -->
 
 ## Why Mobilewright?
 
