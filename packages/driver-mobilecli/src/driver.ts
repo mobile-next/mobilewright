@@ -287,11 +287,10 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async listApps(): Promise<AppInfo[]> {
-    const result = await this.call<{ apps?: MobilecliAppEntry[] }>('device.apps.list');
-    if (!Array.isArray(result.apps)) {
-      throw new Error('Invalid response for device.apps.list: expected result.apps array');
-    }
-    const apps = result.apps;
+    // iOS returns a flat array, Android returns { apps: [...] }. Support both
+    // until the Android mobilecli response is aligned.
+    const result = await this.call<MobilecliAppEntry[] | { apps: MobilecliAppEntry[] }>('device.apps.list');
+    const apps = Array.isArray(result) ? result : result.apps;
 
     return apps.map((app) => ({
       bundleId: app.bundleId ?? app.packageName ?? '',

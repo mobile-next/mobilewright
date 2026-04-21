@@ -103,7 +103,9 @@ export interface MobilewrightConfig {
 
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
-  return config;
+  // Default to 1 worker — Playwright defaults to half the CPU cores, but mobile
+  // tests typically target a single device so parallel workers cause conflicts.
+  return { workers: 1, ...config };
 }
 
 const CONFIG_FILES = [
