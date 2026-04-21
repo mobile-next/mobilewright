@@ -89,7 +89,8 @@ export class RpcClient {
     params?: Record<string, unknown>,
   ): Promise<T> {
     await this.connect();
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected');
     }
 
@@ -115,7 +116,7 @@ export class RpcClient {
         timer,
       });
 
-      this.ws!.send(JSON.stringify(request));
+      ws.send(JSON.stringify(request));
     });
   }
 

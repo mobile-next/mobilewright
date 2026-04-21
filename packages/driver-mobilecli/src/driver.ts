@@ -265,7 +265,9 @@ export class MobilecliDriver implements MobilewrightDriver {
     });
     let b64 = result.data;
     const commaIdx = b64.indexOf(',');
-    if (commaIdx !== -1) b64 = b64.slice(commaIdx + 1);
+    if (commaIdx !== -1) {
+      b64 = b64.slice(commaIdx + 1);
+    }
     return Buffer.from(b64, 'base64');
   }
 

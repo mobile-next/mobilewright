@@ -1,5 +1,16 @@
 import WebSocket from 'ws';
 
+export class RpcError extends Error {
+  constructor(
+    message: string,
+    readonly code: number,
+    readonly data?: unknown,
+  ) {
+    super(message);
+    this.name = 'RpcError';
+  }
+}
+
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
   id: number;
@@ -103,7 +114,8 @@ export class RpcClient {
     params?: Record<string, unknown>,
   ): Promise<T> {
     await this.connect();
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected');
     }
 
@@ -129,7 +141,7 @@ export class RpcClient {
         timer,
       });
 
-      this.ws!.send(JSON.stringify(request));
+      ws.send(JSON.stringify(request));
     });
   }
 
@@ -165,10 +177,7 @@ export class RpcClient {
         typeof response.error.data === 'string'
           ? response.error.data
           : response.error.message;
-      const err = new Error(detail);
-      (err as Error & { code: number }).code = response.error.code;
-      (err as Error & { data: unknown }).data = response.error.data;
-      pending.reject(err);
+      pending.reject(new RpcError(detail, response.error.code, response.error.data));
     } else {
       pending.resolve(response.result);
     }
