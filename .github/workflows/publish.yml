@@ -34,6 +34,8 @@ jobs:
         working-directory: packages/mobilewright
       - run: npm publish --access public --provenance
         working-directory: packages/mobilewright
+      - run: cp ../../README.md .
+        working-directory: packages/test
       - run: npm publish --access public --provenance
         working-directory: packages/test
       - name: Create GitHub release
