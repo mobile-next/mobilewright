@@ -12,7 +12,6 @@ type MobilewrightTestFixtures = {
 
 type MobilewrightWorkerFixtures = {
   platform: 'ios' | 'android' | undefined;
-  deviceId: string | undefined;
   deviceName: RegExp | undefined;
   device: Device;
 };
@@ -23,15 +22,13 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
     await use(config.bundleId);
   }, { option: true }],
   platform: [undefined, { option: true, scope: 'worker' }],
-  deviceId: [undefined, { option: true, scope: 'worker' }],
   deviceName: [undefined, { option: true, scope: 'worker' }],
 
-  device: [async ({ platform, deviceId, deviceName }, use) => {
+  device: [async ({ platform, deviceName }, use) => {
     const config = await loadConfig();
     const merged = {
       ...config,
       ...(platform && { platform }),
-      ...(deviceId && { deviceId }),
       ...(deviceName && { deviceName }),
     };
 

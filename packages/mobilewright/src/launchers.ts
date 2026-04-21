@@ -3,13 +3,12 @@ import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
 import { ensureMobilecliReachable } from './server.js';
-import { MobilewrightError } from './errors.js';
 import type { DriverConfig, DriverConfigMobileUse } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
-  deviceName?: RegExp;
   deviceId?: string;
+  deviceName?: RegExp;
   url?: string;
   timeout?: number;
   autoStart?: boolean;
@@ -27,8 +26,7 @@ function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDr
     const config = driverConfig as DriverConfigMobileUse;
     return new MobileUseDriver({
       region: config.region,
-      username: config.username,
-      password: config.password,
+      apiKey: config.apiKey,
     });
   }
   return new MobilecliDriver({ url });
@@ -46,10 +44,8 @@ function createLauncher(platform: Platform): PlatformLauncher {
         });
 
         const driver = createDriver(driverConfig, url);
-        const deviceId = opts.deviceId ?? resolveDeviceId(driver as MobilecliDriver, platform, opts.deviceName);
-
         const device = new Device(driver);
-        await device.connect({ url, deviceId, platform, timeout: opts.timeout });
+        await device.connect({ url, platform, deviceId: opts.deviceId, deviceName: opts.deviceName, timeout: opts.timeout });
 
         if (serverProcess) {
           device.onClose(() => serverProcess.kill());
@@ -64,10 +60,8 @@ function createLauncher(platform: Platform): PlatformLauncher {
 
       // mobile-use driver path
       const driver = createDriver(driverConfig);
-      const deviceId = opts.deviceId ?? '';
-
       const device = new Device(driver);
-      await device.connect({ url, deviceId, platform, timeout: opts.timeout });
+      await device.connect({ url, platform, deviceName: opts.deviceName, timeout: opts.timeout });
 
       if (opts.bundleId) {
         await device.launchApp(opts.bundleId);
@@ -81,47 +75,6 @@ function createLauncher(platform: Platform): PlatformLauncher {
       return driver.listDevices({ platform });
     },
   };
-}
-
-function resolveDeviceId(
-  driver: MobilecliDriver,
-  platform: Platform,
-  deviceName?: RegExp,
-): string {
-  const allDevices = driver.listDevices();
-
-  const online = allDevices.filter(
-    (d) => d.platform === platform && d.state === 'online',
-  );
-
-  let candidates = online.filter(
-    (d) => d.type === 'simulator' || d.type === 'emulator',
-  );
-  if (candidates.length === 0) {
-    candidates = online;
-  }
-
-  if (deviceName) {
-    candidates = candidates.filter((d) => deviceName.test(d.name));
-    if (candidates.length === 0) {
-      const available = online.map((d) => d.name).join(', ');
-      throw new MobilewrightError(
-        `No online ${platform} device matching ${deviceName} found.\n` +
-          (available ? `Available: ${available}` : `No online ${platform} devices found.`),
-      );
-    }
-  }
-
-  if (candidates.length === 0) {
-    throw new MobilewrightError(
-      `No online ${platform} devices found.\n\n` +
-        (platform === 'ios'
-          ? `Start a simulator in Xcode, or boot one with:\n  xcrun simctl boot "<simulator name>"`
-          : `Start an emulator in Android Studio, or boot one with:\n  emulator -avd <avd_name>`),
-    );
-  }
-
-  return candidates[0].id;
 }
 
 /** iOS platform launcher */

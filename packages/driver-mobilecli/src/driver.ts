@@ -117,19 +117,52 @@ export class MobilecliDriver implements MobilewrightDriver {
     const rpc = new RpcClient(url, config.timeout);
     await rpc.connect();
 
-    let platform: Platform;
-    if (config.platform) {
-      platform = config.platform;
-    } else {
-      const result = await rpc.call<MobilecliDeviceInfoResponse>(
-        'device.info', { deviceId: config.deviceId },
-      );
-      const info = result.device ?? (result as unknown as { platform: string });
-      platform = info.platform?.toLowerCase() === 'android' ? 'android' : 'ios';
+    const platform = config.platform;
+    const deviceId = config.deviceId ?? this.resolveDeviceId(platform, config.deviceName);
+
+    this.session = { deviceId, platform, rpc };
+    return { deviceId, platform };
+  }
+
+  private resolveDeviceId(
+    platform: Platform,
+    deviceName?: RegExp | string,
+  ): string {
+    const allDevices = this.listDevices();
+
+    const online = allDevices.filter(
+      (d) => d.platform === platform && d.state === 'online',
+    );
+
+    let candidates = online.filter(
+      (d) => d.type === 'simulator' || d.type === 'emulator',
+    );
+    if (candidates.length === 0) {
+      candidates = online;
     }
 
-    this.session = { deviceId: config.deviceId, platform, rpc };
-    return { deviceId: config.deviceId, platform };
+    if (deviceName) {
+      const pattern = typeof deviceName === 'string' ? new RegExp(deviceName) : deviceName;
+      candidates = candidates.filter((d) => pattern.test(d.name));
+      if (candidates.length === 0) {
+        const available = online.map((d) => d.name).join(', ');
+        throw new Error(
+          `No online ${platform} device matching ${deviceName} found.\n` +
+            (available ? `Available: ${available}` : `No online ${platform} devices found.`),
+        );
+      }
+    }
+
+    if (candidates.length === 0) {
+      throw new Error(
+        `No online ${platform} devices found.\n\n` +
+          (platform === 'ios'
+            ? `Start a simulator in Xcode, or boot one with:\n  xcrun simctl boot "<simulator name>"`
+            : `Start an emulator in Android Studio, or boot one with:\n  emulator -avd <avd_name>`),
+      );
+    }
+
+    return candidates[0].id;
   }
 
   async disconnect(): Promise<void> {

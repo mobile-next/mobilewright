@@ -62,12 +62,16 @@ export interface LaunchOptions {
 // ─── Connection ──────────────────────────────────────────────────
 
 export interface ConnectionConfig {
-  /** WebSocket or HTTP URL of the mobilecli server */
+  /** WebSocket or HTTP URL of the server */
   url?: string;
-  /** Target device id */
-  deviceId: string;
-  /** Known platform — skips device.info call if provided */
-  platform?: Platform;
+  /** Target platform (required). */
+  platform: Platform;
+  /** Specific device identifier (local drivers only). */
+  deviceId?: string;
+  /** Regex or string to match device name. */
+  deviceName?: RegExp | string;
+  /** OS version filter (e.g. '18.0', '>=17'). */
+  osVersion?: string;
   /** Connection timeout in ms */
   timeout?: number;
 }

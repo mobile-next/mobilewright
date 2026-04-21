@@ -29,7 +29,10 @@
     "dist"
   ],
   "dependencies": {
-    "@mobilewright/protocol": "^0.0.1"
+    "@mobilewright/protocol": "^0.0.1",
+    "ws": "^8.18.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/ws": "^8.5.0"
+  }
 }

@@ -6,8 +6,6 @@ import { join } from 'node:path';
 export interface MobilewrightUseOptions {
   /** Platform for this project. */
   platform?: 'ios' | 'android';
-  /** Device ID for this project. */
-  deviceId?: string;
   /** Regex to match device name. */
   deviceName?: RegExp;
   /** App bundle ID for this project. */
@@ -48,8 +46,7 @@ export interface DriverConfigMobilecli {
 export interface DriverConfigMobileUse {
   type: 'mobile-use';
   region?: string;
-  username?: string;
-  password?: string;
+  apiKey?: string;
 }
 
 export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileUse;
@@ -58,7 +55,7 @@ export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────
   /** Default platform. */
   platform?: 'ios' | 'android';
-  /** Default device ID. */
+  /** Specific device identifier (local drivers only). */
   deviceId?: string;
   /** Regex to match device name (e.g. /iPhone 17/). */
   deviceName?: RegExp;
