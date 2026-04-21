@@ -29,12 +29,14 @@
     "dist"
   ],
   "dependencies": {
-    "mobilecli": "0.3.66",
     "@mobilewright/protocol": "^0.0.1",
+    "debug": "^4.4.3",
     "fast-xml-parser": "^5.0.0",
+    "mobilecli": "0.3.66",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.13",
     "@types/ws": "^8.5.0"
   }
 }

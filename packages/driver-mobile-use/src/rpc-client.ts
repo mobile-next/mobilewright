@@ -63,7 +63,13 @@ export class RpcClient {
         this.connectionPromise = null;
         if (!settled) {
           settled = true;
-          reject(err);
+          // Node may wrap connection failures in AggregateError (e.g. IPv4+IPv6).
+          // Unwrap to surface the actual error message.
+          if (err instanceof AggregateError && err.errors.length > 0) {
+            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
+          } else {
+            reject(new Error(`Failed to connect to ${this.url}: ${err.message}`));
+          }
         }
       });
 

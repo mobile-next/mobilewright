@@ -1,3 +1,4 @@
+import createDebug from 'debug';
 import type {
   AppInfo,
   ConnectionConfig,
@@ -48,7 +49,7 @@ interface MobileUseAppEntry {
 interface MobileUseDeviceInfoResponse {
   device: {
     platform: string;
-    screenSize?: { width: number; height: number };
+    screenSize?: { width: number; height: number; scale: number };
     screenWidth?: number;
     screenHeight?: number;
     [k: string]: unknown;
@@ -126,6 +127,8 @@ type DeviceFilter =
   | { attribute: 'name'; operator: 'EQUALS' | 'STARTS_WITH' | 'CONTAINS'; value: string }
   | { attribute: 'version'; operator: 'EQUALS' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUALS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUALS'; value: string };
 
+const debug = createDebug('mw:driver-mobile-use');
+
 export class MobileUseDriver implements MobilewrightDriver {
   private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
   private readonly options: MobileUseDriverOptions;
@@ -141,12 +144,16 @@ export class MobileUseDriver implements MobilewrightDriver {
     const url = this.options.apiKey
       ? appendQueryParam(baseUrl, 'token', this.options.apiKey)
       : baseUrl;
+    debug('connecting to %s', baseUrl);
     const rpc = new RpcClient(url, config.timeout);
     await rpc.connect();
+    debug('websocket connected');
 
     const platform = config.platform;
     const filters = this.buildFilters(config);
+    debug('allocating device with filters %o', filters);
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
+    debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
     const deviceId = result.device.id;
 
     this.session = { deviceId, platform, rpc };
@@ -155,9 +162,11 @@ export class MobileUseDriver implements MobilewrightDriver {
 
   async disconnect(): Promise<void> {
     const session = this.requireSession();
+    debug('releasing device %s', session.deviceId);
     await session.rpc.call('fleet.release', { deviceId: session.deviceId });
     session.rpc.disconnect();
     this.session = null;
+    debug('disconnected');
   }
 
   private buildFilters(config: ConnectionConfig): DeviceFilter[] {
@@ -261,7 +270,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   async getScreenSize(): Promise<ScreenSize> {
     const result = await this.call<MobileUseDeviceInfoResponse>('device.info');
     const info = result.device;
-    return info.screenSize ?? { width: info.screenWidth ?? 0, height: info.screenHeight ?? 0 };
+    return info.screenSize ?? { width: info.screenWidth ?? 0, height: info.screenHeight ?? 0, scale: 1 };
   }
 
   async getOrientation(): Promise<Orientation> {
@@ -300,8 +309,10 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async listApps(): Promise<AppInfo[]> {
-    const result = await this.call<{ apps: MobileUseAppEntry[] }>('device.apps.list');
-    return result.apps.map((app) => ({
+    // iOS returns a flat array, Android returns { apps: [...] }.
+    const result = await this.call<MobileUseAppEntry[] | { apps: MobileUseAppEntry[] }>('device.apps.list');
+    const apps = Array.isArray(result) ? result : result.apps;
+    return apps.map((app) => ({
       bundleId: app.bundleId ?? app.packageName ?? '',
       name: app.appName,
       version: app.version,

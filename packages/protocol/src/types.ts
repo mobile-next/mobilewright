@@ -136,6 +136,7 @@ export interface ScreenshotOptions {
 export interface ScreenSize {
   width: number;
   height: number;
+  scale: number;
 }
 
 // ─── List Devices ────────────────────────────────────────────────

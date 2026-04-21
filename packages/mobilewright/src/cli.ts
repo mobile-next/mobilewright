@@ -46,7 +46,7 @@ program
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
     if (opts.retries) overrides.retries = Number(opts.retries);
-    if (opts.workers) overrides.workers = opts.workers;
+    if (opts.workers) overrides.workers = Number(opts.workers);
     if (opts.reporter) {
       const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {

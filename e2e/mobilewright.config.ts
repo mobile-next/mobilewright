@@ -1,21 +1,35 @@
 import { defineConfig } from 'mobilewright';
 import type { DriverConfig, MobilewrightConfig } from 'mobilewright';
 
-function resolveDriver(): DriverConfig | undefined {
+function resolveDriver(): DriverConfig {
   const name = process.env['MOBILEWRIGHT_DRIVER'] ?? 'mobilecli';
-  if (name === 'mobile-use') {
-    return {
-      type: 'mobile-use',
-      apiKey: process.env['MOBILEWRIGHT_API_KEY'],
-      region: process.env['MOBILEWRIGHT_REGION'],
-    };
+  console.log(`Using driver: ${name}`);
+
+  switch (name) {
+    case 'mobile-use':
+      if (!process.env['MOBILEUSE_API_KEY']) {
+        throw new Error('MOBILEUSE_API_KEY is required for mobile-use driver');
+      }
+      
+      return {
+        type: 'mobile-use',
+        apiKey: process.env['MOBILEUSE_API_KEY'],
+      };
+
+    case 'mobilecli': 
+    return { type: 'mobilecli' };
+
+    default:
+      throw new Error(`Unknown driver: ${name}. Use ['mobilecli' or 'mobile-use']`);
   }
-  return { type: 'mobilecli' };
 }
 
 const config: MobilewrightConfig = defineConfig({
   testDir: './src',
+  testMatch: '**/*.test.ts',
+  retries: 0,
   platform: (process.env['MOBILEWRIGHT_PLATFORM'] as 'ios' | 'android') ?? 'ios',
   driver: resolveDriver(),
 });
+
 export default config;

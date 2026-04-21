@@ -58,10 +58,11 @@ function createLauncher(platform: Platform): PlatformLauncher {
         return device;
       }
 
-      // mobile-use driver path
+      // mobile-use driver path — don't pass mobilecli's default URL;
+      // the driver has its own default (wss://api.mobilenexthq.com/ws).
       const driver = createDriver(driverConfig);
       const device = new Device(driver);
-      await device.connect({ url, platform, deviceName: opts.deviceName, timeout: opts.timeout });
+      await device.connect({ ...(opts.url && { url: opts.url }), platform, deviceName: opts.deviceName, timeout: opts.timeout });
 
       if (opts.bundleId) {
         await device.launchApp(opts.bundleId);

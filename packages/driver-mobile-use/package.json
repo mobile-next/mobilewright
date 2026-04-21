@@ -30,9 +30,11 @@
   ],
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
+    "debug": "^4.4.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.13",
     "@types/ws": "^8.5.0"
   }
 }
