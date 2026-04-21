@@ -93,6 +93,7 @@ It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and te
 | `@mobilewright/test` | Test fixtures |
 | `@mobilewright/protocol` | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`) |
 | `@mobilewright/driver-mobilecli` | WebSocket JSON-RPC client for mobilecli |
+| `@mobilewright/driver-mobile-use` | WebSocket JSON-RPC client for [mobile-use.com](https://mobile-use.com) cloud devices |
 | `@mobilewright/mobilewright-core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
 
 Most users only need `mobilewright` (or `@mobilewright/test` for vitest integration).
