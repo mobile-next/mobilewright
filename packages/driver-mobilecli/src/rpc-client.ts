@@ -1,5 +1,16 @@
 import WebSocket from 'ws';
 
+export class RpcError extends Error {
+  constructor(
+    message: string,
+    readonly code: number,
+    readonly data?: unknown,
+  ) {
+    super(message);
+    this.name = 'RpcError';
+  }
+}
+
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
   id: number;
@@ -141,10 +152,7 @@ export class RpcClient {
         typeof response.error.data === 'string'
           ? response.error.data
           : response.error.message;
-      const err = new Error(detail);
-      (err as Error & { code: number }).code = response.error.code;
-      (err as Error & { data: unknown }).data = response.error.data;
-      pending.reject(err);
+      pending.reject(new RpcError(detail, response.error.code, response.error.data));
     } else {
       pending.resolve(response.result);
     }

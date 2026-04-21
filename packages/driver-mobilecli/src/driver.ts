@@ -1,3 +1,4 @@
+import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
 import type {
   AppInfo,
@@ -51,10 +52,11 @@ interface MobilecliAppEntry {
 interface MobilecliDeviceInfoResponse {
   device: {
     platform: string;
-    screenSize?: { width: number; height: number };
-    screenWidth?: number;
-    screenHeight?: number;
-    [k: string]: unknown;
+    screenSize?: { 
+      width: number; 
+      height: number;
+      scale: number;
+    };
   };
 }
 
@@ -86,6 +88,22 @@ interface MobilecliDevicesResponse {
   data: { devices: MobilecliDeviceEntry[]; };
 }
 
+const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
+const VALID_DEVICE_TYPES = new Set<string>(['real', 'simulator', 'emulator']);
+const VALID_DEVICE_STATES = new Set<string>(['online', 'offline']);
+
+function toPlatform(value: string): Platform | undefined {
+  return VALID_PLATFORMS.has(value) ? value as Platform : undefined;
+}
+
+function toDeviceType(value: string): DeviceType {
+  return VALID_DEVICE_TYPES.has(value) ? value as DeviceType : 'real';
+}
+
+function toDeviceState(value: string): DeviceState {
+  return VALID_DEVICE_STATES.has(value) ? value as DeviceState : 'offline';
+}
+
 function elementToViewNode(el: MobilecliElement): ViewNode {
   const bounds = el.rect ?? { x: 0, y: 0, width: 0, height: 0 };
   return {
@@ -98,9 +116,11 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
     isEnabled: el.enabled ?? true,
     bounds,
     children: el.children?.map(elementToViewNode) ?? [],
-    raw: el as unknown as Record<string, unknown>,
+    raw: { ...el },
   };
 }
+
+const debug = createDebug('mw:driver-mobilecli');
 
 export class MobilecliDriver implements MobilewrightDriver {
   private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
@@ -114,11 +134,14 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async connect(config: ConnectionConfig): Promise<Session> {
     const url = config.url ?? this.serverUrl;
+    debug('connecting to %s', url);
     const rpc = new RpcClient(url, config.timeout);
     await rpc.connect();
+    debug('websocket connected');
 
     const platform = config.platform;
     const deviceId = config.deviceId ?? this.resolveDeviceId(platform, config.deviceName);
+    debug('resolved device %s (platform=%s)', deviceId, platform);
 
     this.session = { deviceId, platform, rpc };
     return { deviceId, platform };
@@ -129,6 +152,7 @@ export class MobilecliDriver implements MobilewrightDriver {
     deviceName?: RegExp | string,
   ): string {
     const allDevices = this.listDevices();
+    debug('found %d devices, resolving for platform=%s deviceName=%s', allDevices.length, platform, deviceName);
 
     const online = allDevices.filter(
       (d) => d.platform === platform && d.state === 'online',
@@ -166,7 +190,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async disconnect(): Promise<void> {
-    this.requireSession().rpc.disconnect();
+    await this.requireSession().rpc.disconnect();
     this.session = null;
   }
 
@@ -248,7 +272,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   async getScreenSize(): Promise<ScreenSize> {
     const result = await this.call<MobilecliDeviceInfoResponse>('device.info');
     const info = result.device;
-    return info.screenSize ?? { width: info.screenWidth ?? 0, height: info.screenHeight ?? 0 };
+    return info.screenSize ?? { width: 0, height: 0, scale: 1 };
   }
 
   async getOrientation(): Promise<Orientation> {
@@ -265,7 +289,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   async startRecording(opts: RecordingOptions): Promise<void> {
     await this.call('device.screenrecord', {
       output: opts.output,
-      ...(opts.timeLimit && { timeLimit: opts.timeLimit }),
+      ...(opts.timeLimit !== undefined && { timeLimit: opts.timeLimit }),
     });
   }
 
@@ -331,15 +355,17 @@ export class MobilecliDriver implements MobilewrightDriver {
       devices = devices.filter((d) => d.state === opts.state);
     }
 
-    return devices.map((d) => ({
-      id: d.id ?? d.udid ?? '',
-      name: d.name,
-      platform: d.platform as Platform,
-      type: d.type as DeviceType,
-      state: d.state as DeviceState,
-      model: d.model,
-      osVersion: d.version,
-    }));
+    return devices
+      .filter((d) => toPlatform(d.platform) !== undefined)
+      .map((d) => ({
+        id: d.id ?? d.udid ?? '',
+        name: d.name,
+        platform: toPlatform(d.platform)!,
+        type: toDeviceType(d.type),
+        state: toDeviceState(d.state),
+        model: d.model,
+        osVersion: d.version,
+      }));
   }
 
   async openUrl(url: string): Promise<void> {
