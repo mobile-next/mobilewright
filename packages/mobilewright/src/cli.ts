@@ -133,9 +133,9 @@ function printDevicesTable(devices: DeviceInfo[]): void {
 program
   .command('devices')
   .description('list all connected devices, simulators, and emulators')
-  .action(() => {
+  .action(async () => {
     const driver = new MobilecliDriver();
-    const devices = driver.listDevices();
+    const devices = await driver.listDevices();
 
     if (devices.length === 0) {
       console.log('No devices found, try using \'mobilewright doctor\' command');
@@ -147,23 +147,46 @@ program
 
 // ── screenshot ────────────────────────────────────────────────────────
 
+async function resolveDeviceId(
+  explicit: string | undefined,
+  driver: MobilecliDriver,
+): Promise<string> {
+  if (explicit) {
+    return explicit;
+  }
+
+  const config = await loadConfig();
+  if (config.deviceId) {
+    return config.deviceId;
+  }
+
+  const devices = await driver.listDevices();
+  const online = devices.filter(d => d.state === 'online');
+  if (online.length === 0) {
+    console.error('No online devices found. Specify one with --device <id>, or try \'mobilewright doctor\' to check your environment.');
+    process.exit(1);
+  }
+  if (online.length > 1) {
+    console.error('Multiple devices found. Specify one with --device <id>:\n');
+    printDevicesTable(online);
+    process.exit(1);
+  }
+  return online[0].id;
+}
+
 program
   .command('screenshot')
   .description('take a screenshot of a connected device')
-  .option('-p, --platform <platform>', 'platform (ios or android)')
-  .option('-n, --device-name <name>', 'device name regex')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
   .option('-o, --output <file>', 'output file path', 'screenshot.png')
   .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
-  .action(async (opts: { platform?: string; deviceName?: string; output: string; url: string }) => {
-    const config = await loadConfig();
-    const platform = (opts.platform ?? config.platform ?? 'ios') as 'ios' | 'android';
-    const deviceName = opts.deviceName ?? config.deviceName;
-
+  .action(async (opts: { device?: string; output: string; url: string }) => {
     const { serverProcess } = await ensureMobilecliReachable(opts.url, { autoStart: true });
     try {
       const driver = new MobilecliDriver({ url: opts.url });
+      const deviceId = await resolveDeviceId(opts.device, driver);
 
-      await driver.connect({ platform, deviceName, url: opts.url });
+      await driver.connect({ platform: 'ios', deviceId, url: opts.url });
       const buffer = await driver.screenshot();
       await driver.disconnect();
 
@@ -179,19 +202,12 @@ program
 program
   .command('install')
   .description('install the agent on a connected device')
-  .option('-p, --platform <platform>', 'platform (ios or android)')
-  .option('-n, --device-name <name>', 'device name regex')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
   .option('--force', 'force reinstall the agent')
   .option('--provisioning-profile <profile>', 'provisioning profile to use (iOS)')
-  .action(async (opts: { platform?: string; deviceName?: string; force?: boolean; provisioningProfile?: string }) => {
-    const config = await loadConfig();
-    const platform = (opts.platform ?? config.platform ?? 'ios') as 'ios' | 'android';
-    const deviceName = opts.deviceName ?? config.deviceName;
-
+  .action(async (opts: { device?: string; force?: boolean; provisioningProfile?: string }) => {
     const driver = new MobilecliDriver();
-    const session = await driver.connect({ platform, deviceName });
-    const deviceId = session.deviceId;
-    await driver.disconnect();
+    const deviceId = await resolveDeviceId(opts.device, driver);
 
     const binary = resolveMobilecliBinary();
     const args = ['agent', 'install', '--device', deviceId];

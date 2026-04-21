@@ -214,7 +214,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── Input ──────────────────────────────────────────────────
 
   async tap(x: number, y: number): Promise<void> {
-    await this.call('device.io.tap', { x, y });
+    await this.call('device.io.tap', { x: Math.round(x), y: Math.round(y) });
   }
 
   async doubleTap(x: number, y: number): Promise<void> {
@@ -261,7 +261,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async gesture(gestures: GestureSequence): Promise<void> {
-    await this.call('device.io.gesture', { pointers: gestures.pointers });
+    await this.call('device.io.gesture', { actions: gestures.pointers });
   }
 
   async pressButton(button: HardwareButton): Promise<void> {
@@ -316,7 +316,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   async launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
     await this.call('device.apps.launch', {
       bundleId,
-      ...(opts?.locale && { locale: opts.locale }),
+      ...(opts?.locales && { locales: opts.locales }),
     });
   }
 

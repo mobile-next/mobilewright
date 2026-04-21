@@ -15,20 +15,6 @@ test('should connect and have a valid screen', async ({ device }) => {
   expect(size.scale).toBeLessThanOrEqual(3);
 });
 
-// ─── Screen info ─────────────────────────────────────────────
-
-false && test('should get/set orientation', async ({ device }) => {
-  // let's start with portrait
-  await device.setOrientation('portrait');
-  expect(await device.getOrientation()).toEqual("portrait");
-
-  await device.setOrientation('landscape');
-  expect(await device.getOrientation()).toEqual('landscape');
-
-  await device.setOrientation('portrait');
-  expect(await device.getOrientation()).toEqual("portrait");
-});
-
 // ─── Screenshot ──────────────────────────────────────────────
 
 test('should take a screenshot', async ({ screen }) => {
@@ -44,7 +30,7 @@ test('should take a screenshot', async ({ screen }) => {
 test('should save screenshot to file', async ({ screen }) => {
   const screenshotPath = `/tmp/mobilewright-e2e-${Date.now()}.png`;
   try {
-    const buffer = await screen.screenshot({path: screenshotPath});
+    await screen.screenshot({path: screenshotPath});
     verifyFileExists(screenshotPath);
     verifyFileSize(screenshotPath, 4096);
   } finally {
@@ -52,23 +38,33 @@ test('should save screenshot to file', async ({ screen }) => {
   }
 });
 
-// ─── UI hierarchy ───────────────────────────────────────────
+// ─── Find, Tap, Swipe ───────────────────────────────────────
 
-test('should find elements on screen', async ({ screen }) => {
-  await expect(screen.getByType('StaticText').first()).toBeVisible();
-});
+test.only('should swipe a list and tap an element', async ({ device, screen }) => {
+  await device.terminateApp('com.apple.Preferences');
+  await device.launchApp('com.apple.Preferences');
+  await wait(1000);
 
-// ─── Input ──────────────────────────────────────────────────
+  // Developer should not be visible at the top of Settings
+  const developer = screen.getByLabel('Developer');
+  await expect(developer).not.toBeVisible();
 
-test('should tap on screen center', async ({ device, screen }) => {
-  const size = await device.driver.getScreenSize();
-  const centerX = Math.round(size.width / 2);
-  const centerY = Math.round(size.height / 2);
-  await screen.tap(centerX, centerY);
-});
+  // Swipe up until "Developer" appears, maximum 10 times
+  for (let i = 0; i < 10; i++) {
+    if (await developer.isVisible()) {
+      break;
+    }
+    await screen.swipe('up');
+    await wait(500);
+  }
 
-test('should swipe up', async ({ screen }) => {
-  await screen.swipe('up');
+  await expect(developer).toBeVisible();
+
+  // Tap on the Developer element
+  await developer.tap();
+
+  // Verify we navigated into the Developer screen
+  await expect(screen.getByLabel('Enable UI Automation')).toBeVisible();
 });
 
 test('should press HOME button', async ({ device, screen }) => {

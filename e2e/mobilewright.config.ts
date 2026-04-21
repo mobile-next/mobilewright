@@ -28,7 +28,6 @@ const config: MobilewrightConfig = defineConfig({
   testDir: './src',
   testMatch: '**/*.test.ts',
   retries: 0,
-  platform: (process.env['MOBILEWRIGHT_PLATFORM'] as 'ios' | 'android') ?? 'ios',
   driver: resolveDriver(),
 });
 

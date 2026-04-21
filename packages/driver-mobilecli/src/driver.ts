@@ -140,18 +140,18 @@ export class MobilecliDriver implements MobilewrightDriver {
     debug('websocket connected');
 
     const platform = config.platform;
-    const deviceId = config.deviceId ?? this.resolveDeviceId(platform, config.deviceName);
+    const deviceId = config.deviceId ?? await this.resolveDeviceId(platform, config.deviceName);
     debug('resolved device %s (platform=%s)', deviceId, platform);
 
     this.session = { deviceId, platform, rpc };
     return { deviceId, platform };
   }
 
-  private resolveDeviceId(
+  private async resolveDeviceId(
     platform: Platform,
     deviceName?: RegExp | string,
-  ): string {
-    const allDevices = this.listDevices();
+  ): Promise<string> {
+    const allDevices = await this.listDevices();
     debug('found %d devices, resolving for platform=%s deviceName=%s', allDevices.length, platform, deviceName);
 
     const online = allDevices.filter(
@@ -202,7 +202,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async tap(x: number, y: number): Promise<void> {
-    await this.call('device.io.tap', { x, y });
+    await this.call('device.io.tap', { x: Math.round(x), y: Math.round(y) });
   }
 
   async doubleTap(x: number, y: number): Promise<void> {
@@ -249,7 +249,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async gesture(gestures: GestureSequence): Promise<void> {
-    await this.call('device.io.gesture', { pointers: gestures.pointers });
+    await this.call('device.io.gesture', { actions: gestures.pointers });
   }
 
   async pressButton(button: HardwareButton): Promise<void> {
@@ -304,7 +304,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   async launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
     await this.call('device.apps.launch', {
       bundleId,
-      ...(opts?.locale && { locale: opts.locale }),
+      ...(opts?.locales && { locales: opts.locales }),
     });
   }
 
@@ -344,7 +344,7 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   // ─── Device Operations ───────────────────────────────────────
 
-  listDevices(opts?: ListDevicesOptions): DeviceInfo[] {
+  async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
     const binary = resolveMobilecliBinary();
     const output = execFileSync(binary, ['devices'], { encoding: 'utf8' });
     const response = JSON.parse(output) as MobilecliDevicesResponse;

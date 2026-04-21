@@ -47,35 +47,54 @@ export class RpcClient {
     if (this.connectionPromise) return this.connectionPromise;
 
     this.connectionPromise = new Promise<void>((resolve, reject) => {
+      let settled = false;
       const ws = new WebSocket(this.url);
       const timeout = setTimeout(() => {
         ws.terminate();
-        reject(new Error(`Connection to ${this.url} timed out`));
+        if (!settled) {
+          settled = true;
+          reject(new Error(`Connection to ${this.url} timed out`));
+        }
       }, this.requestTimeout);
 
       ws.on('open', () => {
         clearTimeout(timeout);
         this.ws = ws;
         this.connectionPromise = null;
+        settled = true;
         resolve();
       });
 
       ws.on('error', (err) => {
         clearTimeout(timeout);
         this.connectionPromise = null;
-        reject(err);
+        if (!settled) {
+          settled = true;
+          if (err instanceof AggregateError && err.errors.length > 0) {
+            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
+          } else {
+            reject(new Error(`Failed to connect to ${this.url}: ${err.message}`));
+          }
+        }
       });
 
       ws.on('message', (data: WebSocket.Data) => {
         this.handleMessage(data);
       });
 
-      ws.on('close', () => {
+      ws.on('close', (code: number, reason: Buffer) => {
         this.ws = null;
-        // Reject all pending requests
+        const reasonStr = reason.toString() || 'no reason';
+        const msg = `WebSocket connection closed (code=${code}, reason=${reasonStr})`;
+        if (!settled) {
+          clearTimeout(timeout);
+          this.connectionPromise = null;
+          settled = true;
+          reject(new Error(msg));
+        }
         for (const [id, req] of this.pending) {
           clearTimeout(req.timer);
-          req.reject(new Error('WebSocket connection closed'));
+          req.reject(new Error(msg));
           this.pending.delete(id);
         }
       });

@@ -10,6 +10,10 @@
 * General: Handle both flat array and `{ apps: [...] }` response in `listApps`, thanks to [emor](https://github.com/emor)
 * Docs: Add troubleshooting guide with `DEBUG=mw:*` and `mobilewright doctor` usage
 * Tests: Add cross-driver integration test suite (`e2e/`)
+* Fix: `LaunchOptions.locale` renamed to `locales` (to match mobilecli server protocol)
+* Fix: `gesture()` now sends `actions` param to match OpenRPC spec (was incorrectly sending `pointers`)
+* Fix: `startRecording` no longer drops `timeLimit: 0`
+* Fix: `disconnect()` now properly awaits WebSocket close
 
 ## [0.0.22] (2026-04-16)
 * General: Add `mobilewright install` command to install agents on devices ([#29](https://github.com/mobile-next/mobilewright/pull/29))

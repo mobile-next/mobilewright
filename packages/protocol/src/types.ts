@@ -55,8 +55,8 @@ export interface AppInfo {
 }
 
 export interface LaunchOptions {
-  /** BCP 47 locale tag (e.g. 'fr-FR') */
-  locale?: string;
+  /** BCP 47 locale tags (e.g. ['fr-FR', 'en-GB']) */
+  locales?: string[];
 }
 
 // ─── Connection ──────────────────────────────────────────────────

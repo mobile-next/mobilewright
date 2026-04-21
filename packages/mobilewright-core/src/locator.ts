@@ -159,6 +159,11 @@ export class Locator {
     return node !== null && node.isChecked === true;
   }
 
+  async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number }> {
+    const node = await this.resolveVisible(opts?.timeout);
+    return { x: node.bounds.x, y: node.bounds.y, width: node.bounds.width, height: node.bounds.height };
+  }
+
   async getText(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
     return node.text ?? node.label ?? node.value ?? '';

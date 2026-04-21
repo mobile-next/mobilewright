@@ -17,7 +17,7 @@ export interface LaunchOptions {
 
 interface PlatformLauncher {
   launch(opts?: LaunchOptions): Promise<Device>;
-  devices(): DeviceInfo[];
+  devices(): Promise<DeviceInfo[]>;
 }
 
 function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
@@ -69,7 +69,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
       return device;
     },
 
-    devices(): DeviceInfo[] {
+    async devices(): Promise<DeviceInfo[]> {
       const driver = new MobilecliDriver();
       return driver.listDevices({ platform });
     },
