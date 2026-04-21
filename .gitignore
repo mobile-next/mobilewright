@@ -25,6 +25,10 @@ packages/*/src/**/*.js
 packages/*/src/**/*.js.map
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.d.ts.map
+e2e/**/*.js
+e2e/**/*.js.map
+e2e/**/*.d.ts
+e2e/**/*.d.ts.map
 
 # Hand-written declaration files — keep these
 !packages/*/src/playwright.d.ts

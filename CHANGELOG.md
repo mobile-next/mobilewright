@@ -1,3 +1,18 @@
+## [0.0.23] (2026-04-20)
+* General: Add `@mobilewright/driver-mobile-use` package for mobile-use.com cloud device support
+* General: Add `driver` config option with discriminated union type (`mobilecli` | `mobile-use`)
+* General: Refactor `ConnectionConfig` — replace required `deviceId` with required `platform`, optional `deviceId`, `deviceName`, `osVersion`
+* General: Move device resolution into drivers — mobilecli resolves locally, mobile-use calls `fleet.allocate`
+* General: Add `ScreenSize.scale` field to screen size response
+* General: Default `workers: 1` in `defineConfig` — mobile tests target a single device
+* General: Add `debug` logging to both drivers (`DEBUG=mw:*` to enable)
+* General: Improve WebSocket error messages with close code and reason
+* Expect: Add `toMatch`, `toBeInstanceOf`, `toBeDefined`, `toBeGreaterThanOrEqual`, `toBeLessThanOrEqual`, `toBeNaN`, `toContainEqual`, `toHaveLength`, `toHaveProperty`, `toMatchObject`, `toStrictEqual`, `toThrow` assertions
+* CLI: Update `screenshot` and `install` commands to use `--platform`/`--device-name` instead of `--device`
+* CLI: Fix `--workers` CLI flag to pass numeric value to Playwright
+* Fix: Handle both flat array and `{ apps: [...] }` response shapes in `listApps`
+* E2E: Add cross-driver integration test suite (`e2e/`)
+
 ## [0.0.22] (2026-04-16)
 * General: Add `mobilewright install` command to install agents on devices ([#29](https://github.com/mobile-next/mobilewright/pull/29))
 * General: Switch `listDevices()` to use mobilecli cli instead of launching server ([#29](https://github.com/mobile-next/mobilewright/pull/29))
