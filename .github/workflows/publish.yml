@@ -28,6 +28,8 @@ jobs:
         working-directory: packages/mobilewright-core
       - run: npm publish --access public --provenance
         working-directory: packages/driver-mobilecli
+      - run: npm publish --access public --provenance
+        working-directory: packages/driver-mobile-use
       - run: cp ../../README.md .
         working-directory: packages/mobilewright
       - run: npm publish --access public --provenance
