@@ -1,18 +1,34 @@
+# Dependencies
 node_modules/
+
+# Build artifacts
 dist/
 *.tsbuildinfo
-.DS_Store
+
+# Test and coverage outputs
 coverage
 playwright-report
 test-results/
+
+# OS and editor files
+.DS_Store
+.idea
+.vscode/
+
+# Environment and local runtime artifacts
+.env
+.env.*
+*.log
 
 # TypeScript build artifacts emitted outside dist/
 packages/*/src/**/*.js
 packages/*/src/**/*.js.map
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.d.ts.map
+
 # Hand-written declaration files — keep these
 !packages/*/src/playwright.d.ts
+
 scripts/**/*.js
 scripts/**/*.js.map
 scripts/**/*.d.ts
