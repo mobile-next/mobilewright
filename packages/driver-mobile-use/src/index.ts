@@ -1,1 +1,1 @@
-export { MobileUseDriver } from './driver.js';
+export { MobileUseDriver, type MobileUseDriverOptions } from './driver.js';

@@ -4,7 +4,7 @@ import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
 import { ensureMobilecliReachable } from './server.js';
 import { MobilewrightError } from './errors.js';
-import type { DriverConfig } from './config.js';
+import type { DriverConfig, DriverConfigMobileUse } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
@@ -24,7 +24,12 @@ interface PlatformLauncher {
 function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
   const type = driverConfig?.type ?? 'mobilecli';
   if (type === 'mobile-use') {
-    return new MobileUseDriver();
+    const config = driverConfig as DriverConfigMobileUse;
+    return new MobileUseDriver({
+      region: config.region,
+      username: config.username,
+      password: config.password,
+    });
   }
   return new MobilecliDriver({ url });
 }

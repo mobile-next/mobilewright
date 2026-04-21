@@ -18,7 +18,18 @@ import type {
   ViewNode,
 } from '@mobilewright/protocol';
 
+export interface MobileUseDriverOptions {
+  region?: string;
+  username?: string;
+  password?: string;
+}
+
 export class MobileUseDriver implements MobilewrightDriver {
+  private readonly options: MobileUseDriverOptions;
+
+  constructor(options: MobileUseDriverOptions = {}) {
+    this.options = options;
+  }
 
   // ─── Connection ──────────────────────────────────────────────
 
