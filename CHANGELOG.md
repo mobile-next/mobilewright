@@ -1,5 +1,12 @@
 ## [0.0.24] (2026-04-22)
 * Fix: `loadConfig()` now unwraps double-wrapped default exports caused by Playwright's TS transpiler, which prevented `driver` and other config options from being applied in test fixtures
+* Fix: Handle `allocating` state from `fleet.allocate` — poll `devices.list` until device is ready instead of crashing
+* Fix: Validate `fleet.allocate` response and throw a clear error with the server response on failure
+* Fix: `installApp` on mobile-use driver now uploads via `uploads.create` + S3 PUT before installing
+* General: Add `installApps` config option to install apps (APK/IPA) before launching
+* General: Add `autoAppLaunch` config option to skip automatic app launch (default: `true`)
+* General: Add RPC send/receive debug logging to mobile-use driver
+* General: Log screen recording download URL after `stopRecording`
 
 ## [0.0.23] (2026-04-20)
 * General: Add `@mobilewright/driver-mobile-use` package for mobile-use.com cloud device support
