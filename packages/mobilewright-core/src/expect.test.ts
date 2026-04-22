@@ -486,6 +486,112 @@ test.describe('expect', () => {
       expect(() => mwExpect(null).toBeUndefined()).toThrow(ExpectError);
     });
 
+    test('toMatch passes with regex', () => {
+      mwExpect('hello world').toMatch(/world/);
+      mwExpect('abc123').toMatch('\\d+');
+    });
+
+    test('toMatch fails when no match', () => {
+      expect(() => mwExpect('hello').toMatch(/xyz/)).toThrow(ExpectError);
+    });
+
+    test('toBeInstanceOf passes with correct type', () => {
+      mwExpect(new Error('test')).toBeInstanceOf(Error);
+      mwExpect([1, 2]).toBeInstanceOf(Array);
+    });
+
+    test('toBeInstanceOf fails with wrong type', () => {
+      expect(() => mwExpect('hello').toBeInstanceOf(Array)).toThrow(ExpectError);
+    });
+
+    test('toBeDefined passes with defined values', () => {
+      mwExpect(0).toBeDefined();
+      mwExpect('').toBeDefined();
+      mwExpect(null).toBeDefined();
+    });
+
+    test('toBeDefined fails with undefined', () => {
+      expect(() => mwExpect(undefined).toBeDefined()).toThrow(ExpectError);
+    });
+
+    test('toBeGreaterThanOrEqual and toBeLessThanOrEqual', () => {
+      mwExpect(10).toBeGreaterThanOrEqual(10);
+      mwExpect(10).toBeGreaterThanOrEqual(5);
+      mwExpect(5).toBeLessThanOrEqual(5);
+      mwExpect(5).toBeLessThanOrEqual(10);
+      expect(() => mwExpect(5).toBeGreaterThanOrEqual(10)).toThrow(ExpectError);
+      expect(() => mwExpect(10).toBeLessThanOrEqual(5)).toThrow(ExpectError);
+    });
+
+    test('toBeNaN passes with NaN', () => {
+      mwExpect(NaN).toBeNaN();
+    });
+
+    test('toBeNaN fails with number', () => {
+      expect(() => mwExpect(42).toBeNaN()).toThrow(ExpectError);
+    });
+
+    test('toContainEqual passes with deep match', () => {
+      mwExpect([{ a: 1 }, { b: 2 }]).toContainEqual({ b: 2 });
+    });
+
+    test('toContainEqual fails when no deep match', () => {
+      expect(() => mwExpect([{ a: 1 }]).toContainEqual({ a: 2 })).toThrow(ExpectError);
+    });
+
+    test('toHaveLength passes with correct length', () => {
+      mwExpect([1, 2, 3]).toHaveLength(3);
+      mwExpect('hello').toHaveLength(5);
+    });
+
+    test('toHaveLength fails with wrong length', () => {
+      expect(() => mwExpect([1, 2]).toHaveLength(5)).toThrow(ExpectError);
+    });
+
+    test('toHaveProperty passes with existing key', () => {
+      mwExpect({ name: 'Gil' }).toHaveProperty('name');
+      mwExpect({ name: 'Gil' }).toHaveProperty('name', 'Gil');
+    });
+
+    test('toHaveProperty fails with missing key or wrong value', () => {
+      expect(() => mwExpect({ a: 1 }).toHaveProperty('b')).toThrow(ExpectError);
+      expect(() => mwExpect({ a: 1 }).toHaveProperty('a', 2)).toThrow(ExpectError);
+    });
+
+    test('toMatchObject passes with subset', () => {
+      mwExpect({ a: 1, b: 2, c: 3 }).toMatchObject({ a: 1, c: 3 });
+    });
+
+    test('toMatchObject fails with different values', () => {
+      expect(() => mwExpect({ a: 1 }).toMatchObject({ a: 2 })).toThrow(ExpectError);
+    });
+
+    test('toStrictEqual passes with same type and value', () => {
+      mwExpect({ a: 1 }).toStrictEqual({ a: 1 });
+    });
+
+    test('toStrictEqual fails with different values', () => {
+      expect(() => mwExpect({ a: 1 }).toStrictEqual({ a: 2 })).toThrow(ExpectError);
+    });
+
+    test('toThrow passes when function throws', () => {
+      mwExpect(() => { throw new Error('boom'); }).toThrow();
+      mwExpect(() => { throw new Error('boom'); }).toThrow('boom');
+      mwExpect(() => { throw new Error('boom'); }).toThrow(/bo+m/);
+    });
+
+    test('toThrow fails when function does not throw', () => {
+      expect(() => mwExpect(() => {}).toThrow()).toThrow(ExpectError);
+    });
+
+    test('toThrow fails with non-function', () => {
+      expect(() => mwExpect(42).toThrow()).toThrow(ExpectError);
+    });
+
+    test('toThrow fails when error does not match', () => {
+      expect(() => mwExpect(() => { throw new Error('boom'); }).toThrow('bang')).toThrow(ExpectError);
+    });
+
     test('locators still route to LocatorAssertions', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
