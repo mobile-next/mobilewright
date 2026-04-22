@@ -141,7 +141,7 @@ interface FleetAllocateResponse {
     id: string;
     name: string;
     platform: string;
-    status: string;
+    state: string;
     model: string;
   };
 }
@@ -150,7 +150,7 @@ interface DevicesListDevice {
   id: string;
   name: string;
   platform: string;
-  status: string;
+  state: string;
   model: string;
   provider?: { type: string; sessionId?: string };
 }
@@ -217,7 +217,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   private async waitForAllocation(
     rpc: RpcClient,
     sessionId: string,
-    timeout = 120_000,
+    timeout = 300_000,
   ): Promise<DevicesListDevice> {
     const pollInterval = 5_000;
     const deadline = Date.now() + timeout;
@@ -232,7 +232,7 @@ export class MobileUseDriver implements MobilewrightDriver {
       if (!device) {
         continue;
       }
-      if (device.status !== 'allocating') {
+      if (device.state !== 'allocating') {
         return device;
       }
     }
