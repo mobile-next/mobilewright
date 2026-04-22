@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import type { MobilewrightDriver, ViewNode, Bounds } from '@mobilewright/protocol';
+import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy } from './query-engine.js';
 import { sleep } from './sleep.js';
 
@@ -7,6 +7,13 @@ export interface LocatorOptions {
   timeout?: number;
   pollInterval?: number;
   stabilityDelay?: number;
+}
+
+export interface ScrollIntoViewOptions {
+  /** Maximum number of swipe attempts before giving up (default: 10) */
+  maxSwipes?: number;
+  /** Swipe gesture direction — 'up' swipes up (scrolls content down), 'down' swipes down (scrolls content up). Default: 'up' */
+  direction?: 'up' | 'down';
 }
 
 const DEFAULT_TIMEOUT = 5_000;
@@ -126,6 +133,31 @@ export class Locator {
     const node = await this.resolveVisible(opts?.timeout);
     const fullScreenshot = await this.driver.screenshot();
     return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+  }
+
+  async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
+    const maxSwipes = opts?.maxSwipes ?? 10;
+    const direction: SwipeDirection = opts?.direction ?? 'up';
+    const screenSize = await this.driver.getScreenSize();
+    const POST_SWIPE_SETTLE = 200;
+
+    for (let i = 0; i < maxSwipes; i++) {
+      const roots = await this.driver.getViewHierarchy();
+      const node = queryAll(roots, this.strategy)[0] ?? null;
+
+      if (node && isWithinViewport(node.bounds, screenSize)) {
+        return;
+      }
+
+      const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
+      await this.driver.swipe(swipeDirection);
+      await sleep(POST_SWIPE_SETTLE);
+    }
+
+    throw new LocatorError(
+      `Element not scrolled into view after ${maxSwipes} swipes`,
+      this.strategy,
+    );
   }
 
   // ─── Queries (with auto-wait for visibility) ─────────────────
@@ -328,6 +360,23 @@ function checkState(
     case 'disabled':
       return node !== null && !node.isEnabled;
   }
+}
+
+function isWithinViewport(bounds: Bounds, screen: ScreenSize): boolean {
+  return bounds.y >= 0
+    && bounds.y + bounds.height <= screen.height
+    && bounds.x >= 0
+    && bounds.x + bounds.width <= screen.width;
+}
+
+function swipeDirectionToReveal(bounds: Bounds, screen: ScreenSize): SwipeDirection {
+  const centerY = bounds.y + bounds.height / 2;
+  // Element is below the viewport → swipe up to reveal it
+  if (centerY > screen.height) {
+    return 'up';
+  }
+  // Element is above the viewport → swipe down to reveal it
+  return 'down';
 }
 
 export class LocatorError extends Error {
