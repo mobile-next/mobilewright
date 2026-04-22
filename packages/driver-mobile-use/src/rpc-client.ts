@@ -1,4 +1,7 @@
+import createDebug from 'debug';
 import WebSocket from 'ws';
+
+const debug = createDebug('mw:driver-mobile-use');
 
 export class RpcError extends Error {
   constructor(
@@ -141,7 +144,9 @@ export class RpcClient {
         timer,
       });
 
-      ws.send(JSON.stringify(request));
+      const payload = JSON.stringify(request);
+      debug('rpc send %s %o', method, request.params);
+      ws.send(payload);
     });
   }
 
@@ -173,12 +178,14 @@ export class RpcClient {
     clearTimeout(pending.timer);
 
     if (response.error) {
+      debug('rpc recv error id=%d code=%d %s', response.id, response.error.code, response.error.message);
       const detail =
         typeof response.error.data === 'string'
           ? response.error.data
           : response.error.message;
       pending.reject(new RpcError(detail, response.error.code, response.error.data));
     } else {
+      debug('rpc recv result id=%d %o', response.id, response.result);
       pending.resolve(response.result);
     }
   }

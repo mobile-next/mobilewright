@@ -7,6 +7,8 @@ import type { DriverConfig } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
+  installApps?: string | string[];
+  autoAppLaunch?: boolean;
   deviceId?: string;
   deviceName?: RegExp;
   url?: string;
@@ -36,6 +38,10 @@ function createLauncher(platform: Platform): PlatformLauncher {
       const driverConfig = opts.driver;
       const url = opts.url ?? DEFAULT_URL;
 
+      const appsToInstall = opts.installApps
+        ? (Array.isArray(opts.installApps) ? opts.installApps : [opts.installApps])
+        : [];
+
       if (!driverConfig || driverConfig.type === 'mobilecli') {
         const { serverProcess } = await ensureMobilecliReachable(url, {
           autoStart: opts.autoStart ?? true,
@@ -49,7 +55,11 @@ function createLauncher(platform: Platform): PlatformLauncher {
           device.onClose(() => serverProcess.kill());
         }
 
-        if (opts.bundleId) {
+        for (const appPath of appsToInstall) {
+          await device.installApp(appPath);
+        }
+
+        if (opts.bundleId && opts.autoAppLaunch !== false) {
           await device.launchApp(opts.bundleId);
         }
 
@@ -62,7 +72,11 @@ function createLauncher(platform: Platform): PlatformLauncher {
       const device = new Device(driver);
       await device.connect({ ...(opts.url && { url: opts.url }), platform, deviceName: opts.deviceName, timeout: opts.timeout });
 
-      if (opts.bundleId) {
+      for (const appPath of appsToInstall) {
+        await device.installApp(appPath);
+      }
+
+      if (opts.bundleId && opts.autoAppLaunch !== false) {
         await device.launchApp(opts.bundleId);
       }
 

@@ -1,3 +1,5 @@
+import { readFile, stat } from 'node:fs/promises';
+import { basename } from 'node:path';
 import createDebug from 'debug';
 import type {
   AppInfo,
@@ -126,15 +128,35 @@ function appendQueryParam(url: string, key: string, value: string): string {
   return `${url}${separator}${key}=${encodeURIComponent(value)}`;
 }
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^0-9a-zA-Z_.]/g, '_');
+}
+
 interface FleetAllocateResponse {
   sessionId: string;
-  device: {
+  provisionId?: string;
+  state?: string;
+  device?: {
     id: string;
     name: string;
     platform: string;
     status: string;
     model: string;
   };
+}
+
+interface DevicesListDevice {
+  id: string;
+  name: string;
+  platform: string;
+  status: string;
+  model: string;
+  provider?: { type: string; sessionId?: string };
+}
+
+interface UploadCreateResponse {
+  uploadId: string;
+  uploadUrl: string;
 }
 
 type DeviceFilter =
@@ -169,11 +191,48 @@ export class MobileUseDriver implements MobilewrightDriver {
     const filters = this.buildFilters(config);
     debug('allocating device with filters %o', filters);
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
-    debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
-    const deviceId = result.device.id;
+
+    let deviceId: string;
+    if (result?.device?.id) {
+      debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
+      deviceId = result.device.id;
+    } else if (result?.state === 'allocating' && result.sessionId) {
+      debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
+      const device = await this.waitForAllocation(rpc, result.sessionId, config.timeout);
+      debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
+      deviceId = device.id;
+    } else {
+      throw new Error(`Device allocation failed: ${JSON.stringify(result)}`);
+    }
 
     this.session = { deviceId, platform, rpc };
     return { deviceId, platform };
+  }
+
+  private async waitForAllocation(
+    rpc: RpcClient,
+    sessionId: string,
+    timeout = 30_000,
+  ): Promise<DevicesListDevice> {
+    const pollInterval = 5_000;
+    const deadline = Date.now() + timeout;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      const elapsed = Math.round((timeout - (deadline - Date.now())) / 1000);
+      debug('waiting for device allocation, session=%s (%ds elapsed)', sessionId, elapsed);
+
+      const devices = await rpc.call<DevicesListDevice[]>('devices.list', {});
+      const device = devices.find((d) => d.provider?.sessionId === sessionId);
+      if (!device) {
+        continue;
+      }
+      if (device.status !== 'allocating') {
+        return device;
+      }
+    }
+
+    throw new Error(`Timed out waiting for device allocation after ${timeout / 1000}s (session=${sessionId})`);
   }
 
   async disconnect(): Promise<void> {
@@ -308,7 +367,12 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async stopRecording(): Promise<RecordingResult> {
-    return this.call<RecordingResult>('device.screenrecord.stop');
+    const result = await this.call<RecordingResult & { url?: string }>('device.screenrecord.stop');
+    if (result.url) {
+      const cleanUrl = result.url.split('?')[0];
+      debug('download screen recording from %s', cleanUrl);
+    }
+    return result;
   }
 
   // ─── Apps ───────────────────────────────────────────────────
@@ -344,8 +408,30 @@ export class MobileUseDriver implements MobilewrightDriver {
     };
   }
 
-  async installApp(path: string): Promise<void> {
-    await this.call('device.apps.install', { path });
+  async installApp(filePath: string): Promise<void> {
+    const fileInfo = await stat(filePath);
+    const filename = sanitizeFilename(basename(filePath));
+
+    debug('creating upload for %s (%d bytes)', filename, fileInfo.size);
+    const upload = await this.call<UploadCreateResponse>('uploads.create', {
+      filename,
+      filesize: fileInfo.size,
+    });
+
+    debug('uploading %s to S3 (uploadId=%s)', filename, upload.uploadId);
+    const body = await readFile(filePath);
+    const response = await fetch(upload.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`);
+    }
+    debug('upload complete, installing app (uploadId=%s)', upload.uploadId);
+
+    await this.call('device.apps.install', { uploadId: upload.uploadId });
+    debug('app installed successfully: %s', filename);
   }
 
   async uninstallApp(bundleId: string): Promise<void> {

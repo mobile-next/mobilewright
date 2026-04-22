@@ -48,6 +48,8 @@ You can override the following settings per-test or per-project, in addition to 
 | `deviceId` | `string` | Specific device ID |
 | `deviceName` | `RegExp` | Device name pattern |
 | `bundleId` | `string` | App bundle identifier |
+| `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching |
+| `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
 
 ```typescript
 import { test } from '@mobilewright/test';

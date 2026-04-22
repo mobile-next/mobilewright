@@ -61,6 +61,10 @@ export interface MobilewrightConfig {
   deviceName?: RegExp;
   /** Default app bundle ID. */
   bundleId?: string;
+  /** App paths (APK/IPA) to install on the device before launching. */
+  installApps?: string | string[];
+  /** Automatically launch the app after connecting. Default: true. */
+  autoAppLaunch?: boolean;
   /** mobilecli server URL (use for remote servers). */
   url?: string;
   /** Path to mobilecli binary (if not on PATH). */
@@ -126,7 +130,12 @@ export async function loadConfig(
     try {
       await access(fullPath);
       const mod = await import(fullPath);
-      return (mod.default ?? mod) as MobilewrightConfig;
+      let config = mod.default ?? mod;
+      // Some loaders (e.g. Playwright's TS transpiler) double-wrap the default export
+      if (config && typeof config === 'object' && 'default' in config) {
+        config = config.default;
+      }
+      return config as MobilewrightConfig;
     } catch {
       continue;
     }

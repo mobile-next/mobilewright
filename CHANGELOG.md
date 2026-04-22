@@ -1,3 +1,6 @@
+## [0.0.24] (2026-04-22)
+* Fix: `loadConfig()` now unwraps double-wrapped default exports caused by Playwright's TS transpiler, which prevented `driver` and other config options from being applied in test fixtures
+
 ## [0.0.23] (2026-04-20)
 * General: Add `@mobilewright/driver-mobile-use` package for mobile-use.com cloud device support
 * General: Refactor `ConnectionConfig` — replace required `deviceId` with required `platform`, optional `deviceId`, `deviceName`, `osVersion`

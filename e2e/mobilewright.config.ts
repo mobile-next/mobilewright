@@ -7,13 +7,13 @@ function resolveDriver(): DriverConfig {
 
   switch (name) {
     case 'mobile-use':
-      if (!process.env['MOBILEUSE_API_KEY']) {
-        throw new Error('MOBILEUSE_API_KEY is required for mobile-use driver');
+      if (!process.env['MOBILE_USE_API_KEY']) {
+        throw new Error('MOBILE_USE_API_KEY is required for mobile-use driver');
       }
       
       return {
         type: 'mobile-use',
-        apiKey: process.env['MOBILEUSE_API_KEY'],
+        apiKey: process.env['MOBILE_USE_API_KEY'],
       };
 
     case 'mobilecli': 
