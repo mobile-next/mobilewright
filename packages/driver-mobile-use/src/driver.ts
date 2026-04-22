@@ -141,7 +141,7 @@ interface FleetAllocateResponse {
     id: string;
     name: string;
     platform: string;
-    status: string;
+    state: string;
     model: string;
   };
 }
@@ -150,9 +150,13 @@ interface DevicesListDevice {
   id: string;
   name: string;
   platform: string;
-  status: string;
+  state: string;
   model: string;
   provider?: { type: string; sessionId?: string };
+}
+
+interface DevicesListResponse {
+  devices: DevicesListDevice[];
 }
 
 interface UploadCreateResponse {
@@ -194,14 +198,14 @@ export class MobileUseDriver implements MobilewrightDriver {
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
 
     let deviceId: string;
-    if (result?.device?.id) {
-      debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
-      deviceId = result.device.id;
-    } else if (result?.state === 'allocating' && result.sessionId) {
+    if (result?.state === 'allocating' && result.sessionId) {
       debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
       const device = await this.waitForAllocation(rpc, result.sessionId, config.timeout);
       debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
       deviceId = device.id;
+    } else if (result?.device?.id) {
+      debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
+      deviceId = result.device.id;
     } else {
       throw new Error(`Device allocation failed: ${JSON.stringify(result)}`);
     }
@@ -213,7 +217,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   private async waitForAllocation(
     rpc: RpcClient,
     sessionId: string,
-    timeout = 120_000,
+    timeout = 300_000,
   ): Promise<DevicesListDevice> {
     const pollInterval = 5_000;
     const deadline = Date.now() + timeout;
@@ -223,12 +227,12 @@ export class MobileUseDriver implements MobilewrightDriver {
       const elapsed = Math.round((timeout - (deadline - Date.now())) / 1000);
       debug('waiting for device allocation, session=%s (%ds elapsed)', sessionId, elapsed);
 
-      const devices = await rpc.call<DevicesListDevice[]>('devices.list', {});
-      const device = devices.find((d) => d.provider?.sessionId === sessionId);
+      const result = await rpc.call<DevicesListResponse>('devices.list', {});
+      const device = result.devices.find((d) => d.provider?.sessionId === sessionId);
       if (!device) {
         continue;
       }
-      if (device.status !== 'allocating') {
+      if (device.state !== 'allocating') {
         return device;
       }
     }
@@ -428,7 +432,8 @@ export class MobileUseDriver implements MobilewrightDriver {
         'Content-Length': String(fileInfo.size),
       },
       body,
-    });
+      duplex: 'half',
+    } as RequestInit);
     if (!response.ok) {
       throw new Error(`Upload failed with status ${response.status}`);
     }
