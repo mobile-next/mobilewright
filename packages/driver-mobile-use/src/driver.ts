@@ -213,7 +213,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   private async waitForAllocation(
     rpc: RpcClient,
     sessionId: string,
-    timeout = 30_000,
+    timeout = 120_000,
   ): Promise<DevicesListDevice> {
     const pollInterval = 5_000;
     const deadline = Date.now() + timeout;
