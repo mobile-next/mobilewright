@@ -1,4 +1,5 @@
-import { readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import createDebug from 'debug';
 import type {
@@ -419,10 +420,13 @@ export class MobileUseDriver implements MobilewrightDriver {
     });
 
     debug('uploading %s to S3 (uploadId=%s)', filename, upload.uploadId);
-    const body = await readFile(filePath);
+    const body = createReadStream(filePath);
     const response = await fetch(upload.uploadUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/octet-stream' },
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(fileInfo.size),
+      },
       body,
     });
     if (!response.ok) {

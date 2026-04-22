@@ -32,6 +32,15 @@ function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDr
   return new MobilecliDriver({ url });
 }
 
+async function installAndLaunchApps(device: Device, appsToInstall: string[], opts: LaunchOptions): Promise<void> {
+  for (const appPath of appsToInstall) {
+    await device.installApp(appPath);
+  }
+  if (opts.bundleId && opts.autoAppLaunch !== false) {
+    await device.launchApp(opts.bundleId);
+  }
+}
+
 function createLauncher(platform: Platform): PlatformLauncher {
   return {
     async launch(opts: LaunchOptions = {}): Promise<Device> {
@@ -55,14 +64,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
           device.onClose(() => serverProcess.kill());
         }
 
-        for (const appPath of appsToInstall) {
-          await device.installApp(appPath);
-        }
-
-        if (opts.bundleId && opts.autoAppLaunch !== false) {
-          await device.launchApp(opts.bundleId);
-        }
-
+        await installAndLaunchApps(device, appsToInstall, opts);
         return device;
       }
 
@@ -72,14 +74,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
       const device = new Device(driver);
       await device.connect({ ...(opts.url && { url: opts.url }), platform, deviceName: opts.deviceName, timeout: opts.timeout });
 
-      for (const appPath of appsToInstall) {
-        await device.installApp(appPath);
-      }
-
-      if (opts.bundleId && opts.autoAppLaunch !== false) {
-        await device.launchApp(opts.bundleId);
-      }
-
+      await installAndLaunchApps(device, appsToInstall, opts);
       return device;
     },
 
