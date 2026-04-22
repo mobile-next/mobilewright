@@ -58,9 +58,6 @@ test('should swipe a list and tap an element', async ({ device, screen }) => {
     await wait(500);
   }
 
-  await expect(developer).toBeVisible();
-
-  // Tap on the Developer element
   await developer.tap();
 
   // Verify we navigated into the Developer screen

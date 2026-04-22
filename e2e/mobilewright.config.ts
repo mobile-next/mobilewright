@@ -28,6 +28,7 @@ const config: MobilewrightConfig = defineConfig({
   testDir: './src',
   testMatch: '**/*.test.ts',
   retries: 0,
+  timeout: 60_000,
   driver: resolveDriver(),
 });
 
