@@ -32,6 +32,7 @@ export const DEFAULT_URL = 'ws://localhost:12000/ws';
 /** Element shape returned by mobilecli's device.dump.ui JSON response */
 interface MobilecliElement {
   type: string;
+  text?: string;
   label?: string;
   name?: string;
   value?: string;
@@ -111,7 +112,7 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
     label: el.label || undefined,
     identifier: el.identifier || el.name || undefined,
     value: el.value || undefined,
-    text: el.label || undefined,
+    text: el.text || el.label || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
     bounds,
