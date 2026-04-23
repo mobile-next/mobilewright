@@ -112,7 +112,7 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
     label: el.label || undefined,
     identifier: el.identifier || el.name || undefined,
     value: el.value || undefined,
-    text: el.text || el.label || undefined,
+    text: el.text || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
     bounds,
