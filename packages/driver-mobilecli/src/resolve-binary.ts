@@ -8,11 +8,20 @@ import { createRequire } from 'node:module';
 export function resolveMobilecliBinary(): string {
   let binary: string;
   switch (`${process.platform}-${process.arch}`) {
-    case 'darwin-arm64':  binary = 'mobilecli-darwin-arm64';  break;
-    case 'darwin-x64':    binary = 'mobilecli-darwin-amd64';  break;
-    case 'linux-arm64':   binary = 'mobilecli-linux-arm64';   break;
-    case 'linux-x64':     binary = 'mobilecli-linux-amd64';   break;
-    default: throw new Error(`Unsupported platform: ${process.platform}-${process.arch}`);
+    case 'darwin-arm64':
+      binary = 'mobilecli-darwin-arm64';
+      break;
+    case 'darwin-x64':
+      binary = 'mobilecli-darwin-amd64';
+      break;
+    case 'linux-arm64':
+      binary = 'mobilecli-linux-arm64';
+      break;
+    case 'linux-x64':
+      binary = 'mobilecli-linux-amd64';
+      break;
+    default:
+      throw new Error(`Unsupported platform: ${process.platform}-${process.arch}`);
   }
 
   const _require = createRequire(import.meta.url);
