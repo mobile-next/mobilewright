@@ -119,7 +119,7 @@ npx mobilewright doctor --category system
 Create a `mobilewright.config.ts` and `example.test.ts` in the current directory:
 
 ```bash
-npx mobilewright init
+npm init mobilewright
 ```
 
 Existing files are not overwritten.
