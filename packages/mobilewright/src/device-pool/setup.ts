@@ -1,0 +1,56 @@
+import { ensureMobilecliReachable } from '../server.js';
+import { DEFAULT_URL, MobilecliDriver } from '@mobilewright/driver-mobilecli';
+import { DevicePool } from './application/device-pool.js';
+import { DevicePoolHttpServer } from './adapters/http-server.js';
+import { MobilecliAllocator } from './adapters/mobilecli-allocator.js';
+import { MobileUseAllocator } from './adapters/mobile-use-allocator.js';
+import { COORDINATOR_URL_ENV } from './client-factory.js';
+import { loadConfig } from '../config.js';
+import type { DeviceAllocator } from './application/ports.js';
+
+interface ActiveCoordinator {
+  pool: DevicePool;
+  server: DevicePoolHttpServer;
+  serverProcess?: { kill: () => void };
+}
+
+let active: ActiveCoordinator | undefined;
+
+/** Playwright globalSetup entry point. Returns a teardown function. */
+export default async function setup(): Promise<() => Promise<void>> {
+  const config = await loadConfig();
+  const driverType = config.driver?.type ?? 'mobilecli';
+
+  let allocator: DeviceAllocator;
+  let serverProcess: { kill: () => void } | undefined;
+
+  if (driverType === 'mobilecli') {
+    const url = config.url ?? DEFAULT_URL;
+    const ensured = await ensureMobilecliReachable(url, { autoStart: config.autoStart ?? true });
+    serverProcess = ensured.serverProcess ?? undefined;
+    allocator = new MobilecliAllocator({ driver: new MobilecliDriver({ url }) });
+  } else {
+    allocator = new MobileUseAllocator();
+  }
+
+  const maxSlots = typeof config.workers === 'number' ? config.workers : 1;
+  const pool = new DevicePool({ allocator, maxSlots });
+  const server = new DevicePoolHttpServer({ pool });
+  const port = await server.listen();
+
+  process.env[COORDINATOR_URL_ENV] = `http://127.0.0.1:${port}`;
+  active = { pool, server, serverProcess };
+
+  return async () => {
+    if (!active) {
+      return;
+    }
+    await active.pool.shutdown();
+    await active.server.close();
+    if (active.serverProcess) {
+      active.serverProcess.kill();
+    }
+    delete process.env[COORDINATOR_URL_ENV];
+    active = undefined;
+  };
+}

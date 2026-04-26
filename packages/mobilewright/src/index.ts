@@ -12,3 +12,8 @@ export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightPro
 
 // Errors
 export { MobilewrightError } from './errors.js';
+
+// Internal — used by @mobilewright/test fixtures. Not part of the public API.
+export { createDevicePoolClient } from './device-pool/client-factory.js';
+export { connectDevice, installAndLaunchApps } from './launchers.js';
+export type { DevicePoolClient, AllocationHandle, AllocationCriteria } from './device-pool/application/ports.js';
