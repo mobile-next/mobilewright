@@ -140,6 +140,43 @@ test('install tracking persists across releases of the same slot', async () => {
   expect(pool.hasInstalled(second.allocationId, 'app.ipa')).toBe(true);
 });
 
+test('shutdown calls allocator.release for every available slot', async () => {
+  const released: string[] = [];
+  let counter = 0;
+  const allocator: DeviceAllocator = {
+    async allocate(): Promise<AllocateResult> {
+      counter++;
+      return { deviceId: `d${counter}`, platform: 'ios' };
+    },
+    async release(deviceId: string) { released.push(deviceId); },
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 2 });
+
+  const a = await pool.allocate({ platform: 'ios' });
+  const b = await pool.allocate({ platform: 'ios' });
+  await pool.release(a.allocationId);
+
+  await pool.shutdown();
+
+  expect(released.sort()).toEqual([a.deviceId, b.deviceId].sort());
+});
+
+test('shutdown rejects in-flight waiters', async () => {
+  const allocator: DeviceAllocator = {
+    async allocate() {
+      return new Promise<AllocateResult>(() => {});
+    },
+    async release() {},
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 1 });
+
+  const promise = pool.allocate({ platform: 'ios' });
+  await Promise.resolve();
+  await pool.shutdown();
+
+  await expect(promise).rejects.toThrow(/shutdown/i);
+});
+
 test('allocation that exceeds allocationTimeoutMs rejects with timeout error', async () => {
   const allocator: DeviceAllocator = {
     async allocate(_c, _t, signal) {

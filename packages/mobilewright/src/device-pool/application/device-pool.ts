@@ -26,6 +26,8 @@ export class DevicePool {
   private readonly slots: DeviceSlot[] = [];
   private readonly allocations = new Map<string, Allocation>();
   private readonly waiters: Waiter[] = [];
+  private readonly inFlightWaiters = new Set<Waiter>();
+  private isShutdown = false;
 
   constructor(options: DevicePoolOptions) {
     this.allocator = options.allocator;
@@ -34,10 +36,38 @@ export class DevicePool {
   }
 
   allocate(criteria: AllocationCriteria): Promise<AllocationHandle> {
+    if (this.isShutdown) {
+      return Promise.reject(new Error('device pool is shut down'));
+    }
     return new Promise<AllocationHandle>((resolve, reject) => {
       this.waiters.push({ criteria, resolve, reject });
       this.pump();
     });
+  }
+
+  async shutdown(): Promise<void> {
+    this.isShutdown = true;
+
+    const drained = this.waiters.splice(0);
+    for (const waiter of drained) {
+      waiter.reject(new Error('device pool shutdown'));
+    }
+
+    const inFlight = Array.from(this.inFlightWaiters);
+    this.inFlightWaiters.clear();
+    for (const waiter of inFlight) {
+      waiter.reject(new Error('device pool shutdown'));
+    }
+
+    const releases: Promise<void>[] = [];
+    for (const slot of this.slots) {
+      if (slot.state !== 'allocating' && slot.deviceId !== undefined) {
+        releases.push(this.allocator.release(slot.deviceId).catch(() => {}));
+      }
+    }
+    await Promise.all(releases);
+    this.slots.length = 0;
+    this.allocations.clear();
   }
 
   async release(allocationId: string): Promise<void> {
@@ -116,6 +146,7 @@ export class DevicePool {
     const slot = new DeviceSlot();
     this.slots.push(slot);
     const slotIndex = this.slots.length - 1;
+    this.inFlightWaiters.add(waiter);
 
     const abortController = new AbortController();
     const timer = setTimeout(() => abortController.abort(), this.allocationTimeoutMs);
@@ -128,13 +159,25 @@ export class DevicePool {
     allocatePromise.then(
       (result) => {
         clearTimeout(timer);
+        if (!this.inFlightWaiters.delete(waiter)) {
+          // Shutdown already rejected this waiter; just discard the device.
+          this.allocator.release(result.deviceId).catch(() => {});
+          return;
+        }
         slot.markAvailable(result.deviceId, result.platform);
         this.waiters.unshift(waiter);
         this.pump();
       },
       (err: Error) => {
         clearTimeout(timer);
-        this.slots.splice(slotIndex, 1);
+        if (!this.inFlightWaiters.delete(waiter)) {
+          // Shutdown already rejected this waiter.
+          return;
+        }
+        const slotPos = this.slots.indexOf(slot);
+        if (slotPos !== -1) {
+          this.slots.splice(slotPos, 1);
+        }
         const finalErr = abortController.signal.aborted
           ? new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`)
           : err;
