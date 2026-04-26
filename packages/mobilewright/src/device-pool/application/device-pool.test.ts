@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { DevicePool } from './device-pool.js';
+import { NoDeviceAvailableError } from './ports.js';
 import type { DeviceAllocator, AllocateResult } from './ports.js';
 
 function makeAllocator(devices: AllocateResult[]): DeviceAllocator {
@@ -75,6 +76,42 @@ test('waiter resolves when an existing allocated slot is released', async () => 
   await secondPromise;
 
   expect(secondHandle?.deviceId).toBe('d1');
+});
+
+test('NoDeviceAvailableError re-queues the waiter to be served on next release', async () => {
+  // Simulates 3 workers competing for 2 devices.
+  // Workers 0 and 1 allocate. Worker 2 gets NoDeviceAvailableError from the
+  // allocator. It should re-queue and be served when worker 0 releases.
+  let counter = 0;
+  const devices = ['sim-a', 'sim-b'];
+  const allocator: DeviceAllocator = {
+    async allocate(_c, takenDeviceIds): Promise<AllocateResult> {
+      const available = devices.filter(id => !takenDeviceIds.has(id));
+      if (available.length === 0) {
+        throw new NoDeviceAvailableError('no device available');
+      }
+      const deviceId = available[counter++ % available.length];
+      return { deviceId, platform: 'ios' };
+    },
+    async release() {},
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 3 });
+
+  const w0 = await pool.allocate({ platform: 'ios' });
+  const w1 = await pool.allocate({ platform: 'ios' });
+
+  // w2 should block because both devices are taken.
+  let w2Handle: { deviceId: string } | undefined;
+  const w2Promise = pool.allocate({ platform: 'ios' }).then(h => { w2Handle = h; });
+
+  await Promise.resolve();
+  expect(w2Handle).toBeUndefined();
+
+  // Releasing w0 should unblock w2.
+  await pool.release(w0.allocationId);
+  await w2Promise;
+
+  expect(w2Handle?.deviceId).toBe('sim-a');
 });
 
 test('allocation failure rejects the requesting waiter and drops the slot', async () => {

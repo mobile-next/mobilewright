@@ -1,5 +1,18 @@
 import type { Platform } from '@mobilewright/protocol';
 
+/**
+ * Thrown by a DeviceAllocator when no device is currently available but one
+ * may become available later (e.g. all matching devices are already taken).
+ * DevicePool treats this as a temporary condition and re-queues the waiter
+ * rather than rejecting it outright.
+ */
+export class NoDeviceAvailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoDeviceAvailableError';
+  }
+}
+
 export interface AllocationCriteria {
   platform?: Platform;
   /** Serialized regex source — `RegExp.prototype.source`. The allocator reconstructs `new RegExp(...)`. */

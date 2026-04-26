@@ -1,5 +1,6 @@
 import { DeviceSlot } from '../domain/device-slot.js';
 import { Allocation } from '../domain/allocation.js';
+import { NoDeviceAvailableError } from './ports.js';
 import type {
   AllocationCriteria,
   AllocationHandle,
@@ -178,10 +179,24 @@ export class DevicePool {
         if (slotPos !== -1) {
           this.slots.splice(slotPos, 1);
         }
-        const finalErr = abortController.signal.aborted
-          ? new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`)
-          : err;
-        waiter.reject(finalErr);
+        if (abortController.signal.aborted) {
+          waiter.reject(new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`));
+          this.pump();
+          return;
+        }
+        // NoDeviceAvailableError is a temporary condition: all matching devices
+        // are currently taken. Re-queue the waiter so it is served when an
+        // existing slot releases its device.
+        if (err instanceof NoDeviceAvailableError) {
+          this.waiters.push(waiter);
+          // Only pump if a free slot appeared concurrently while we were allocating.
+          const hasFreeSlot = this.findFreeSlot(waiter.criteria) !== -1;
+          if (hasFreeSlot) {
+            this.pump();
+          }
+          return;
+        }
+        waiter.reject(err);
         this.pump();
       },
     );

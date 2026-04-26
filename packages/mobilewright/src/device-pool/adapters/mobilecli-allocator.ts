@@ -1,4 +1,5 @@
 import type { DeviceInfo, Platform } from '@mobilewright/protocol';
+import { NoDeviceAvailableError } from '../application/ports.js';
 import type { AllocationCriteria, AllocateResult, DeviceAllocator } from '../application/ports.js';
 
 interface ListDevicesOpts {
@@ -51,7 +52,7 @@ export class MobilecliAllocator implements DeviceAllocator {
       return { deviceId: device.id, platform: device.platform };
     }
 
-    throw new Error(
+    throw new NoDeviceAvailableError(
       `no online device available matching criteria ${JSON.stringify(criteria)}`,
     );
   }

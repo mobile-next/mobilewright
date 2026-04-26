@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { DeviceInfo } from '@mobilewright/protocol';
 import { MobilecliAllocator } from './mobilecli-allocator.js';
+import { NoDeviceAvailableError } from '../application/ports.js';
 
 interface FakeDriver {
   listDevices(opts?: { platform?: string }): Promise<DeviceInfo[]>;
@@ -69,13 +70,14 @@ test('filters by exact deviceId', async () => {
   expect(result.deviceId).toBe('b');
 });
 
-test('throws when no device matches', async () => {
+test('throws NoDeviceAvailableError when no device matches', async () => {
   const driver = makeFakeDriver([
     { id: 'a', name: 'iPhone 14', platform: 'ios', type: 'simulator', state: 'offline' },
   ]);
   const allocator = new MobilecliAllocator({ driver });
 
-  await expect(allocator.allocate({ platform: 'ios' }, new Set())).rejects.toThrow(/no.*device.*available/i);
+  const err = await allocator.allocate({ platform: 'ios' }, new Set()).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(NoDeviceAvailableError);
 });
 
 test('release is a no-op for local devices', async () => {

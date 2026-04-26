@@ -46,7 +46,14 @@ program
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
     if (opts.retries) overrides.retries = Number(opts.retries);
-    if (opts.workers) overrides.workers = Number(opts.workers);
+    if (opts.workers) {
+      const n = Number(opts.workers);
+      if (!Number.isInteger(n) || n < 1) {
+        console.error(`error: --workers must be a positive integer, got: ${opts.workers}`);
+        process.exit(1);
+      }
+      overrides.workers = n;
+    }
     if (opts.reporter) {
       const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {
