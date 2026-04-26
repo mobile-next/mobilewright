@@ -47,16 +47,36 @@ export class DevicePoolHttpServer {
       res.end();
       return;
     }
-    if (req.url === '/allocate') {
-      await this.handleAllocate(req, res);
-      return;
+    switch (req.url) {
+      case '/allocate': await this.handleAllocate(req, res); return;
+      case '/release': await this.handleRelease(req, res); return;
+      case '/installed/has': await this.handleHasInstalled(req, res); return;
+      case '/installed/record': await this.handleRecordInstalled(req, res); return;
+      case '/shutdown': await this.handleShutdown(req, res); return;
+      default:
+        res.statusCode = 404;
+        res.end();
     }
-    if (req.url === '/release') {
-      await this.handleRelease(req, res);
-      return;
-    }
-    res.statusCode = 404;
-    res.end();
+  }
+
+  private async handleHasInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readJson<{ allocationId: string; bundleId: string }>(req);
+    const installed = this.pool.hasInstalled(body.allocationId, body.bundleId);
+    res.statusCode = 200;
+    res.end(JSON.stringify({ installed }));
+  }
+
+  private async handleRecordInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readJson<{ allocationId: string; bundleId: string }>(req);
+    this.pool.recordInstalled(body.allocationId, body.bundleId);
+    res.statusCode = 200;
+    res.end(JSON.stringify({ ok: true }));
+  }
+
+  private async handleShutdown(_req: IncomingMessage, res: ServerResponse): Promise<void> {
+    await this.pool.shutdown();
+    res.statusCode = 200;
+    res.end(JSON.stringify({ ok: true }));
   }
 
   private async handleAllocate(req: IncomingMessage, res: ServerResponse): Promise<void> {

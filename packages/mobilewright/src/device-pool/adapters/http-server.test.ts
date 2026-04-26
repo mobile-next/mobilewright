@@ -160,3 +160,69 @@ test('POST /release with unknown allocationId returns 200 (idempotent)', async (
     await server.stop();
   }
 });
+
+function postJson(url: string, path: string, body: unknown): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(`${url}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' } }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => resolve({
+        status: res.statusCode ?? 0,
+        body: Buffer.concat(chunks).toString('utf8'),
+      }));
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
+test('/installed/has and /installed/record round-trip', async () => {
+  const pool = new DevicePool({
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    maxSlots: 1,
+  });
+  const server = await startServer(pool);
+  try {
+    const handleLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    const handle = JSON.parse(handleLine);
+
+    const before = await postJson(server.url, '/installed/has', {
+      allocationId: handle.allocationId,
+      bundleId: 'app.ipa',
+    });
+    expect(JSON.parse(before.body).installed).toBe(false);
+
+    await postJson(server.url, '/installed/record', {
+      allocationId: handle.allocationId,
+      bundleId: 'app.ipa',
+    });
+
+    const after = await postJson(server.url, '/installed/has', {
+      allocationId: handle.allocationId,
+      bundleId: 'app.ipa',
+    });
+    expect(JSON.parse(after.body).installed).toBe(true);
+
+    await postReleaseRequest(server.url, handle.allocationId);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('/shutdown drains the pool and rejects subsequent allocates', async () => {
+  const pool = new DevicePool({
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    maxSlots: 1,
+  });
+  const server = await startServer(pool);
+  try {
+    const status = await postJson(server.url, '/shutdown', {});
+    expect(status.status).toBe(200);
+
+    const after = await postJson(server.url, '/allocate', { criteria: { platform: 'ios' } });
+    expect(after.status).toBe(503);
+  } finally {
+    await server.stop();
+  }
+});
