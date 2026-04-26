@@ -117,3 +117,25 @@ test('FIFO order across multiple waiters', async () => {
   expect(order[0]).toMatch(/^w1:/);
   expect(order[1]).toMatch(/^w2:/);
 });
+
+test('hasInstalled is false until recordInstalled is called', async () => {
+  const allocator = makeAllocator([{ deviceId: 'd1', platform: 'ios' }]);
+  const pool = new DevicePool({ allocator, maxSlots: 1 });
+  const handle = await pool.allocate({ platform: 'ios' });
+
+  expect(pool.hasInstalled(handle.allocationId, 'app.ipa')).toBe(false);
+  pool.recordInstalled(handle.allocationId, 'app.ipa');
+  expect(pool.hasInstalled(handle.allocationId, 'app.ipa')).toBe(true);
+});
+
+test('install tracking persists across releases of the same slot', async () => {
+  const allocator = makeAllocator([{ deviceId: 'd1', platform: 'ios' }]);
+  const pool = new DevicePool({ allocator, maxSlots: 1 });
+  const first = await pool.allocate({ platform: 'ios' });
+  pool.recordInstalled(first.allocationId, 'app.ipa');
+
+  await pool.release(first.allocationId);
+  const second = await pool.allocate({ platform: 'ios' });
+
+  expect(pool.hasInstalled(second.allocationId, 'app.ipa')).toBe(true);
+});

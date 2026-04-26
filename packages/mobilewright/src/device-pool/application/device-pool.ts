@@ -46,6 +46,22 @@ export class DevicePool {
     this.pump();
   }
 
+  recordInstalled(allocationId: string, bundleId: string): void {
+    const allocation = this.allocations.get(allocationId);
+    if (!allocation) {
+      throw new Error(`unknown allocationId: ${allocationId}`);
+    }
+    this.slots[allocation.slotIndex].recordInstalled(bundleId);
+  }
+
+  hasInstalled(allocationId: string, bundleId: string): boolean {
+    const allocation = this.allocations.get(allocationId);
+    if (!allocation) {
+      throw new Error(`unknown allocationId: ${allocationId}`);
+    }
+    return this.slots[allocation.slotIndex].hasInstalled(bundleId);
+  }
+
   private pump(): void {
     while (this.waiters.length > 0) {
       const waiter = this.waiters[0];
