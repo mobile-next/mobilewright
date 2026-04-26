@@ -37,3 +37,63 @@ test('a released slot is reused by a subsequent allocate', async () => {
   expect(second.deviceId).toBe('d1');
   expect(second.allocationId).not.toBe(first.allocationId);
 });
+
+test('a second concurrent allocate when no free slot triggers parallel allocation', async () => {
+  let calls = 0;
+  const allocator: DeviceAllocator = {
+    async allocate(): Promise<AllocateResult> {
+      calls++;
+      return { deviceId: `d${calls}`, platform: 'ios' };
+    },
+    async release() {},
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 2 });
+
+  const [a, b] = await Promise.all([
+    pool.allocate({ platform: 'ios' }),
+    pool.allocate({ platform: 'ios' }),
+  ]);
+
+  const ids = [a.deviceId, b.deviceId].sort();
+  expect(ids).toEqual(['d1', 'd2']);
+  expect(calls).toBe(2);
+});
+
+test('waiter resolves when an existing allocated slot is released', async () => {
+  const allocator = makeAllocator([{ deviceId: 'd1', platform: 'ios' }]);
+  const pool = new DevicePool({ allocator, maxSlots: 1 });
+
+  const first = await pool.allocate({ platform: 'ios' });
+
+  let secondHandle: { deviceId: string } | undefined;
+  const secondPromise = pool.allocate({ platform: 'ios' }).then((h) => { secondHandle = h; });
+
+  await Promise.resolve();
+  expect(secondHandle).toBeUndefined();
+
+  await pool.release(first.allocationId);
+  await secondPromise;
+
+  expect(secondHandle?.deviceId).toBe('d1');
+});
+
+test('FIFO order across multiple waiters', async () => {
+  const allocator = makeAllocator([{ deviceId: 'd1', platform: 'ios' }]);
+  const pool = new DevicePool({ allocator, maxSlots: 1 });
+
+  const first = await pool.allocate({ platform: 'ios' });
+
+  const order: string[] = [];
+  const w1 = pool.allocate({ platform: 'ios' }).then((h) => order.push(`w1:${h.allocationId}`));
+  const w2 = pool.allocate({ platform: 'ios' }).then((h) => order.push(`w2:${h.allocationId}`));
+
+  await pool.release(first.allocationId);
+  await w1;
+  const firstWaiterAllocId = order[0].split(':')[1];
+  await pool.release(firstWaiterAllocId);
+  await w2;
+
+  expect(order.length).toBe(2);
+  expect(order[0]).toMatch(/^w1:/);
+  expect(order[1]).toMatch(/^w2:/);
+});
