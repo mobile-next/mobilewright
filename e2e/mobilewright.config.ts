@@ -29,6 +29,7 @@ const config: MobilewrightConfig = defineConfig({
   testMatch: '**/*.test.ts',
   retries: 0,
   timeout: 60_000,
+  fullyParallel: true,
   driver: resolveDriver(),
 });
 
