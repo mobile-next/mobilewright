@@ -70,6 +70,15 @@ export class DevicePoolHttpServer {
       return;
     }
     this.responsesByAllocationId.set(handle.allocationId, res);
+
+    const onClose = () => {
+      if (this.responsesByAllocationId.get(handle.allocationId) === res) {
+        this.responsesByAllocationId.delete(handle.allocationId);
+        void this.pool.release(handle.allocationId);
+      }
+    };
+    res.on('close', onClose);
+
     res.statusCode = 200;
     res.setHeader('content-type', 'application/x-ndjson');
     res.write(JSON.stringify(handle) + '\n');

@@ -99,6 +99,54 @@ test('POST /release frees the slot for the next allocate', async () => {
   }
 });
 
+function startAllocateRequest(url: string, body: string): Promise<{
+  allocationId: string;
+  deviceId: string;
+  abort: () => void;
+}> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(`${url}/allocate`, { method: 'POST', headers: { 'content-type': 'application/json' } }, (res) => {
+      let buffer = '';
+      res.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString('utf8');
+        const newlineIdx = buffer.indexOf('\n');
+        if (newlineIdx !== -1) {
+          const parsed = JSON.parse(buffer.slice(0, newlineIdx));
+          resolve({
+            allocationId: parsed.allocationId,
+            deviceId: parsed.deviceId,
+            abort: () => req.destroy(),
+          });
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+test('closing the /allocate socket releases the allocation', async () => {
+  const pool = new DevicePool({
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    maxSlots: 1,
+  });
+  const server = await startServer(pool);
+  try {
+    const first = await startAllocateRequest(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    first.abort();
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const secondLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    const second = JSON.parse(secondLine);
+    expect(second.deviceId).toBe('d1');
+    await postReleaseRequest(server.url, second.allocationId);
+  } finally {
+    await server.stop();
+  }
+});
+
 test('POST /release with unknown allocationId returns 200 (idempotent)', async () => {
   const pool = new DevicePool({
     allocator: makeAllocator([]),
