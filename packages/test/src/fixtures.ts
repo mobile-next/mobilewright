@@ -5,6 +5,7 @@ import {
   createDevicePoolClient,
   connectDevice,
   loadConfig,
+  type DevicePoolClient,
 } from 'mobilewright';
 import { expect } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
@@ -17,7 +18,13 @@ type MobilewrightTestFixtures = {
   device: Device;
 };
 
-const client = createDevicePoolClient();
+let cachedClient: DevicePoolClient | undefined;
+function getClient(): DevicePoolClient {
+  if (!cachedClient) {
+    cachedClient = createDevicePoolClient();
+  }
+  return cachedClient;
+}
 
 export const test = base.extend<MobilewrightTestFixtures>({
   bundleId: [async ({}, use) => {
@@ -39,6 +46,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
     }
 
+    const client = getClient();
     const handle = await client.allocate({
       platform: merged.platform,
       deviceNamePattern: merged.deviceName?.source,
