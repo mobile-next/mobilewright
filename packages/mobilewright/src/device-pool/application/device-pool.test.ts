@@ -77,6 +77,26 @@ test('waiter resolves when an existing allocated slot is released', async () => 
   expect(secondHandle?.deviceId).toBe('d1');
 });
 
+test('allocation failure rejects the requesting waiter and drops the slot', async () => {
+  let attempts = 0;
+  const allocator: DeviceAllocator = {
+    async allocate() {
+      attempts++;
+      if (attempts === 1) {
+        throw new Error('boom');
+      }
+      return { deviceId: `d${attempts}`, platform: 'ios' };
+    },
+    async release() {},
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 2 });
+
+  await expect(pool.allocate({ platform: 'ios' })).rejects.toThrow('boom');
+
+  const handle = await pool.allocate({ platform: 'ios' });
+  expect(handle.deviceId).toBe('d2');
+});
+
 test('FIFO order across multiple waiters', async () => {
   const allocator = makeAllocator([{ deviceId: 'd1', platform: 'ios' }]);
   const pool = new DevicePool({ allocator, maxSlots: 1 });
