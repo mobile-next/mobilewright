@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { Socket } from 'node:net';
 import type { DevicePool } from '../application/device-pool.js';
 import type { AllocationCriteria, AllocationHandle } from '../application/ports.js';
 
@@ -10,7 +9,7 @@ export interface DevicePoolHttpServerOptions {
 export class DevicePoolHttpServer {
   private readonly pool: DevicePool;
   private readonly server: Server;
-  private readonly socketsByAllocationId = new Map<string, Socket>();
+  private readonly responsesByAllocationId = new Map<string, ServerResponse>();
 
   constructor(options: DevicePoolHttpServerOptions) {
     this.pool = options.pool;
@@ -33,10 +32,11 @@ export class DevicePoolHttpServer {
 
   async close(): Promise<void> {
     return new Promise<void>((resolve) => {
-      for (const socket of this.socketsByAllocationId.values()) {
-        socket.destroy();
+      for (const res of this.responsesByAllocationId.values()) {
+        res.end();
+        res.socket?.destroy();
       }
-      this.socketsByAllocationId.clear();
+      this.responsesByAllocationId.clear();
       this.server.close(() => resolve());
     });
   }
@@ -49,6 +49,10 @@ export class DevicePoolHttpServer {
     }
     if (req.url === '/allocate') {
       await this.handleAllocate(req, res);
+      return;
+    }
+    if (req.url === '/release') {
+      await this.handleRelease(req, res);
       return;
     }
     res.statusCode = 404;
@@ -65,10 +69,22 @@ export class DevicePoolHttpServer {
       res.end(JSON.stringify({ error: (err as Error).message }));
       return;
     }
-    this.socketsByAllocationId.set(handle.allocationId, req.socket);
+    this.responsesByAllocationId.set(handle.allocationId, res);
     res.statusCode = 200;
     res.setHeader('content-type', 'application/x-ndjson');
     res.write(JSON.stringify(handle) + '\n');
+  }
+
+  private async handleRelease(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readJson<{ allocationId: string }>(req);
+    await this.pool.release(body.allocationId);
+    const heldResponse = this.responsesByAllocationId.get(body.allocationId);
+    if (heldResponse) {
+      this.responsesByAllocationId.delete(body.allocationId);
+      heldResponse.end();
+    }
+    res.statusCode = 200;
+    res.end(JSON.stringify({ ok: true }));
   }
 }
 

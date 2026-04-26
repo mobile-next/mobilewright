@@ -63,3 +63,52 @@ test('POST /allocate returns a JSON line with allocationId, deviceId, platform',
     await server.stop();
   }
 });
+
+function postReleaseRequest(url: string, allocationId: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const req = httpRequest(`${url}/release`, { method: 'POST', headers: { 'content-type': 'application/json' } }, (res) => {
+      res.on('data', () => {});
+      res.on('end', () => resolve(res.statusCode ?? 0));
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify({ allocationId }));
+    req.end();
+  });
+}
+
+test('POST /release frees the slot for the next allocate', async () => {
+  const pool = new DevicePool({
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    maxSlots: 1,
+  });
+  const server = await startServer(pool);
+  try {
+    const firstLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    const first = JSON.parse(firstLine);
+
+    const status = await postReleaseRequest(server.url, first.allocationId);
+    expect(status).toBe(200);
+
+    const secondLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    const second = JSON.parse(secondLine);
+    expect(second.deviceId).toBe('d1');
+
+    await postReleaseRequest(server.url, second.allocationId);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('POST /release with unknown allocationId returns 200 (idempotent)', async () => {
+  const pool = new DevicePool({
+    allocator: makeAllocator([]),
+    maxSlots: 1,
+  });
+  const server = await startServer(pool);
+  try {
+    const status = await postReleaseRequest(server.url, 'alloc-unknown');
+    expect(status).toBe(200);
+  } finally {
+    await server.stop();
+  }
+});
