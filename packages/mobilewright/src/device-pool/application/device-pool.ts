@@ -9,6 +9,8 @@ import type {
 export interface DevicePoolOptions {
   allocator: DeviceAllocator;
   maxSlots: number;
+  /** Per-allocation timeout in ms. Default 600_000 (10 min). */
+  allocationTimeoutMs?: number;
 }
 
 interface Waiter {
@@ -20,6 +22,7 @@ interface Waiter {
 export class DevicePool {
   private readonly allocator: DeviceAllocator;
   private readonly maxSlots: number;
+  private readonly allocationTimeoutMs: number;
   private readonly slots: DeviceSlot[] = [];
   private readonly allocations = new Map<string, Allocation>();
   private readonly waiters: Waiter[] = [];
@@ -27,6 +30,7 @@ export class DevicePool {
   constructor(options: DevicePoolOptions) {
     this.allocator = options.allocator;
     this.maxSlots = options.maxSlots;
+    this.allocationTimeoutMs = options.allocationTimeoutMs ?? 600_000;
   }
 
   allocate(criteria: AllocationCriteria): Promise<AllocationHandle> {
@@ -112,16 +116,29 @@ export class DevicePool {
     const slot = new DeviceSlot();
     this.slots.push(slot);
     const slotIndex = this.slots.length - 1;
-    const allocatePromise = this.allocator.allocate(waiter.criteria, this.takenDeviceIds());
+
+    const abortController = new AbortController();
+    const timer = setTimeout(() => abortController.abort(), this.allocationTimeoutMs);
+
+    const allocatePromise = this.allocator.allocate(
+      waiter.criteria,
+      this.takenDeviceIds(),
+      abortController.signal,
+    );
     allocatePromise.then(
       (result) => {
+        clearTimeout(timer);
         slot.markAvailable(result.deviceId, result.platform);
         this.waiters.unshift(waiter);
         this.pump();
       },
       (err: Error) => {
+        clearTimeout(timer);
         this.slots.splice(slotIndex, 1);
-        waiter.reject(err);
+        const finalErr = abortController.signal.aborted
+          ? new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`)
+          : err;
+        waiter.reject(finalErr);
         this.pump();
       },
     );

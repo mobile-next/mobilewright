@@ -139,3 +139,17 @@ test('install tracking persists across releases of the same slot', async () => {
 
   expect(pool.hasInstalled(second.allocationId, 'app.ipa')).toBe(true);
 });
+
+test('allocation that exceeds allocationTimeoutMs rejects with timeout error', async () => {
+  const allocator: DeviceAllocator = {
+    async allocate(_c, _t, signal) {
+      return new Promise<AllocateResult>((_, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      });
+    },
+    async release() {},
+  };
+  const pool = new DevicePool({ allocator, maxSlots: 1, allocationTimeoutMs: 50 });
+
+  await expect(pool.allocate({ platform: 'ios' })).rejects.toThrow(/timed out/i);
+});
