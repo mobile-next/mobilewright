@@ -6,6 +6,7 @@ import { MobilecliAllocator } from './adapters/mobilecli-allocator.js';
 import { MobileUseAllocator } from './adapters/mobile-use-allocator.js';
 import { COORDINATOR_URL_ENV } from './client-factory.js';
 import { loadConfig } from '../config.js';
+import type { FullConfig } from '@playwright/test';
 import type { DeviceAllocator } from './application/ports.js';
 
 interface ActiveCoordinator {
@@ -16,8 +17,11 @@ interface ActiveCoordinator {
 
 let active: ActiveCoordinator | undefined;
 
-/** Playwright globalSetup entry point. Returns a teardown function. */
-export default async function setup(): Promise<() => Promise<void>> {
+/**
+ * Playwright globalSetup entry point. Receives the resolved FullConfig so
+ * that CLI overrides (e.g. --workers 2) are reflected in maxSlots.
+ */
+export default async function setup(playwrightConfig: FullConfig): Promise<() => Promise<void>> {
   const config = await loadConfig();
   const driverType = config.driver?.type ?? 'mobilecli';
 
@@ -33,7 +37,9 @@ export default async function setup(): Promise<() => Promise<void>> {
     allocator = new MobileUseAllocator();
   }
 
-  const maxSlots = typeof config.workers === 'number' ? config.workers : 1;
+  // Use the resolved worker count from Playwright's FullConfig so CLI flags
+  // like --workers 2 are respected, not just the value in the config file.
+  const maxSlots = playwrightConfig.workers;
   const pool = new DevicePool({ allocator, maxSlots });
   const server = new DevicePoolHttpServer({ pool });
   const port = await server.listen();
