@@ -199,13 +199,11 @@ export class DevicePool {
   }
 
   private takenDeviceIds(): Set<string> {
-    const ids = new Set<string>();
-    for (const slot of this.slots) {
-      if (slot.deviceId !== undefined) {
-        ids.add(slot.deviceId);
-      }
-    }
-    return ids;
+    return new Set(
+      this.slots
+        .map((slot) => slot.deviceId)
+        .filter((id): id is string => id !== undefined),
+    );
   }
 }
 
