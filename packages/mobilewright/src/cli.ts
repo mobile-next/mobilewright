@@ -37,6 +37,7 @@ program
   .option('--retries <retries>', 'maximum retry count for flaky tests')
   .option('--timeout <timeout>', 'test timeout in milliseconds')
   .option('--workers <workers>', 'number of concurrent workers')
+  .option('--shard <shard>', 'shard to run, e.g. 1/3 (run first of three shards)')
   .option('--pass-with-no-tests', 'exit with code 0 when no tests found')
   .option('--list', 'list all tests without running them')
   .action(async (args: string[], opts: Record<string, unknown>) => {
@@ -46,6 +47,14 @@ program
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
     if (opts.retries) overrides.retries = Number(opts.retries);
+    if (opts.shard) {
+      const match = (opts.shard as string).match(/^(\d+)\/(\d+)$/);
+      if (!match) {
+        console.error(`error: --shard must be in the format x/n (e.g. 1/3), got: ${opts.shard}`);
+        process.exit(1);
+      }
+      overrides.shard = { current: Number(match[1]), total: Number(match[2]) };
+    }
     if (opts.workers) {
       const n = Number(opts.workers);
       if (!Number.isInteger(n) || n < 1) {
