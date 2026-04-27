@@ -78,19 +78,16 @@ export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> 
   const driver = createDriver(params.driverConfig, url);
   const devices = await driver.listDevices({ platform: params.platform });
 
-  for (const device of devices) {
-    if (device.state !== 'online') {
-      continue;
-    }
-    if (params.deviceId && device.id !== params.deviceId) {
-      continue;
-    }
-    if (params.deviceName && !params.deviceName.test(device.name)) {
-      continue;
-    }
-    return device;
+  const match = devices
+    .filter((d) => d.state === 'online')
+    .filter((d) => !params.deviceId || d.id === params.deviceId)
+    .filter((d) => !params.deviceName || params.deviceName.test(d.name))
+    .at(0);
+
+  if (!match) {
+    throw new Error(`no online ${params.platform} device found`);
   }
-  throw new Error(`no online ${params.platform} device found`);
+  return match;
 }
 
 function createLauncher(platform: Platform): PlatformLauncher {
