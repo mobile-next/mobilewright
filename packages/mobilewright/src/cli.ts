@@ -125,20 +125,33 @@ program
   });
 
 // ── merge-reports ──────────────────────────────────────────────────────
-// Delegate to Playwright's built-in merge-reports, which merges blob
-// reports produced by sharded runs into a single combined report.
+// Merge blob reports from sharded runs into a single combined report.
+// We call Playwright's internal merge API directly so we can control the
+// HTML reporter output folder (mobilewright-report instead of playwright-report).
 program
   .command('merge-reports [dir]')
   .description('merge blob reports from sharded runs into one report')
   .option('--reporter <reporter>', 'reporter to use for the merged output (e.g. html, json)')
   .option('--config <file>', 'configuration file')
   .action(async (dir: string | undefined, opts: { reporter?: string; config?: string }) => {
-    const { program: pwProgram } = await import('playwright/lib/program');
-    const args = ['node', 'playwright', 'merge-reports'];
-    if (dir) { args.push(dir); }
-    if (opts.reporter) { args.push('--reporter', opts.reporter); }
-    if (opts.config) { args.push('--config', opts.config); }
-    await pwProgram.parseAsync(args);
+    const { createMergedReport } = await import('playwright/lib/reporters/merge');
+    const { loadConfigFromFile, loadEmptyConfigForMergeReports } = await import('playwright/lib/common/configLoader');
+
+    const config = opts.config
+      ? await loadConfigFromFile(opts.config)
+      : await loadEmptyConfigForMergeReports();
+
+
+    const reporterNames = (opts.reporter ?? 'html').split(',').map(r => r.trim());
+    const reporterDescriptions = reporterNames.map((name) => {
+      if (name === 'html') {
+        return [name, { outputFolder: HTML_REPORT_DIR }] as [string, Record<string, unknown>];
+      }
+      return [name] as [string];
+    });
+
+    const resolvedDir = resolve(process.cwd(), dir ?? '');
+    await createMergedReport(config, resolvedDir, reporterDescriptions, undefined);
   });
 
 function printDevicesTable(devices: DeviceInfo[]): void {

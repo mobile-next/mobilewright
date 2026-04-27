@@ -4,6 +4,16 @@ declare module 'playwright/lib/common/configLoader' {
     overrides?: Record<string, unknown>,
     ignoreDeps?: boolean,
   ): Promise<unknown>;
+  export function loadEmptyConfigForMergeReports(): Promise<unknown>;
+}
+
+declare module 'playwright/lib/reporters/merge' {
+  export function createMergedReport(
+    config: unknown,
+    dir: string,
+    reporterDescriptions: ([string] | [string, Record<string, unknown>])[],
+    rootDirOverride: string | undefined,
+  ): Promise<void>;
 }
 
 declare module 'playwright/lib/runner/testRunner' {
