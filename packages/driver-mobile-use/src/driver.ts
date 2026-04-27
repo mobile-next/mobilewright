@@ -175,6 +175,7 @@ const debug = createDebug('mw:driver-mobile-use');
 export class MobileUseDriver implements MobilewrightDriver {
   private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
   private readonly options: MobileUseDriverOptions;
+  private ownsLease = false;
 
   constructor(options: MobileUseDriverOptions = {}) {
     this.options = options;
@@ -195,12 +196,16 @@ export class MobileUseDriver implements MobilewrightDriver {
     const platform = config.platform;
 
     // When deviceId is provided the device is already allocated by the pool
-    // coordinator. Skip fleet.allocate and connect directly.
+    // coordinator. Connect directly without fleet.allocate; this instance
+    // does not own the lease and must not call fleet.release on disconnect.
     if (config.deviceId) {
       debug('reusing pre-allocated device %s', config.deviceId);
+      this.ownsLease = false;
       this.session = { deviceId: config.deviceId, platform, rpc };
       return { deviceId: config.deviceId, platform };
     }
+
+    this.ownsLease = true;
 
     const filters = this.buildFilters(config);
     debug('allocating device with filters %o', filters);
@@ -251,10 +256,13 @@ export class MobileUseDriver implements MobilewrightDriver {
 
   async disconnect(): Promise<void> {
     const session = this.requireSession();
-    debug('releasing device %s', session.deviceId);
-    await session.rpc.call('fleet.release', { deviceId: session.deviceId });
+    if (this.ownsLease) {
+      debug('releasing device %s', session.deviceId);
+      await session.rpc.call('fleet.release', { deviceId: session.deviceId });
+    }
     await session.rpc.disconnect();
     this.session = null;
+    this.ownsLease = false;
     debug('disconnected');
   }
 
