@@ -1,15 +1,35 @@
+import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
+import type { MobileUseDriverOptions } from '@mobilewright/driver-mobile-use';
 import type { AllocationCriteria, AllocateResult, DeviceAllocator } from '../application/ports.js';
 
+export interface MobileUseAllocatorOptions {
+  driverOptions: MobileUseDriverOptions;
+}
+
 export class MobileUseAllocator implements DeviceAllocator {
-  async allocate(_criteria: AllocationCriteria): Promise<AllocateResult> {
-    throw new Error(
-      'mobile-use driver is not yet supported through the test runner. ' +
-      'Use the public ios.launch() / android.launch() API for scripting, ' +
-      'or switch to the mobilecli driver for tests.',
-    );
+  private readonly driverOptions: MobileUseDriverOptions;
+  private readonly activeDrivers = new Map<string, MobileUseDriver>();
+
+  constructor(options: MobileUseAllocatorOptions) {
+    this.driverOptions = options.driverOptions;
   }
 
-  async release(_deviceId: string): Promise<void> {
-    // no-op; allocate never succeeds.
+  async allocate(criteria: AllocationCriteria): Promise<AllocateResult> {
+    const driver = new MobileUseDriver(this.driverOptions);
+    const session = await driver.connect({
+      platform: criteria.platform ?? 'ios',
+      deviceName: criteria.deviceNamePattern ? new RegExp(criteria.deviceNamePattern) : undefined,
+      deviceId: criteria.deviceId,
+    });
+    this.activeDrivers.set(session.deviceId, driver);
+    return { deviceId: session.deviceId, platform: session.platform };
+  }
+
+  async release(deviceId: string): Promise<void> {
+    const driver = this.activeDrivers.get(deviceId);
+    if (driver) {
+      this.activeDrivers.delete(deviceId);
+      await driver.disconnect();
+    }
   }
 }

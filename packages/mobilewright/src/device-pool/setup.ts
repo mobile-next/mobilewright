@@ -6,6 +6,7 @@ import { MobilecliAllocator } from './adapters/mobilecli-allocator.js';
 import { MobileUseAllocator } from './adapters/mobile-use-allocator.js';
 import { COORDINATOR_URL_ENV } from './client-factory.js';
 import { loadConfig } from '../config.js';
+import type { DriverConfigMobileUse } from '../config.js';
 import type { FullConfig } from '@playwright/test';
 import type { DeviceAllocator } from './application/ports.js';
 
@@ -34,7 +35,13 @@ export default async function setup(playwrightConfig: FullConfig): Promise<() =>
     serverProcess = ensured.serverProcess ?? undefined;
     allocator = new MobilecliAllocator({ driver: new MobilecliDriver({ url }) });
   } else {
-    allocator = new MobileUseAllocator();
+    const mobileUseConfig = config.driver as DriverConfigMobileUse;
+    allocator = new MobileUseAllocator({
+      driverOptions: {
+        region: mobileUseConfig.region,
+        apiKey: mobileUseConfig.apiKey,
+      },
+    });
   }
 
   // Use the resolved worker count from Playwright's FullConfig so CLI flags

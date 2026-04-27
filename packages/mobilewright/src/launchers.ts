@@ -50,11 +50,12 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
 }
 
 export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
-  const url = params.url ?? DEFAULT_URL;
-  const driver = createDriver(params.driverConfig, url);
+  // URL is baked into the driver at construction time; don't override it here.
+  // Passing mobilecli's default URL into MobileUseDriver.connect() would send
+  // requests to the wrong server.
+  const driver = createDriver(params.driverConfig, params.url);
   const device = new Device(driver);
   await device.connect({
-    url,
     platform: params.platform,
     deviceId: params.deviceId,
     timeout: params.timeout,

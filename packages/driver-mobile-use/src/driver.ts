@@ -193,6 +193,15 @@ export class MobileUseDriver implements MobilewrightDriver {
     debug('websocket connected');
 
     const platform = config.platform;
+
+    // When deviceId is provided the device is already allocated by the pool
+    // coordinator. Skip fleet.allocate and connect directly.
+    if (config.deviceId) {
+      debug('reusing pre-allocated device %s', config.deviceId);
+      this.session = { deviceId: config.deviceId, platform, rpc };
+      return { deviceId: config.deviceId, platform };
+    }
+
     const filters = this.buildFilters(config);
     debug('allocating device with filters %o', filters);
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
