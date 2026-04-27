@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy } from './query-engine.js';
 import { sleep } from './sleep.js';
+import type { Tracer } from './tracing.js';
 
 export interface LocatorOptions {
   timeout?: number;
@@ -22,15 +23,27 @@ const DEFAULT_STABILITY_DELAY = 50;
 
 export class Locator {
   /** Create a root locator that searches the entire view hierarchy. */
-  static root(driver: MobilewrightDriver, options: LocatorOptions = {}): Locator {
-    return new Locator(driver, { kind: 'root' }, options);
+  static root(driver: MobilewrightDriver, options: LocatorOptions = {}, tracer?: Tracer | null): Locator {
+    return new Locator(driver, { kind: 'root' }, options, tracer ?? null);
   }
+
+  readonly _tracer: Tracer | null;
 
   constructor(
     private readonly driver: MobilewrightDriver,
     private readonly strategy: LocatorStrategy,
     private readonly options: LocatorOptions = {},
-  ) {}
+    tracer: Tracer | null = null,
+  ) {
+    this._tracer = tracer;
+  }
+
+  private async _wrapAction<T>(method: string, params: Record<string, unknown>, fn: () => Promise<T>): Promise<T> {
+    if (!this._tracer) {
+      return fn();
+    }
+    return this._tracer.wrapAction('Locator', method, params, fn);
+  }
 
   // ─── Chaining ────────────────────────────────────────────────
 
@@ -63,6 +76,7 @@ export class Locator {
       this.driver,
       { kind: 'chain', parent: this.strategy, child: childStrategy },
       this.options,
+      this._tracer,
     );
   }
 
@@ -81,6 +95,7 @@ export class Locator {
       this.driver,
       { kind: 'nth', parent: this.strategy, index },
       this.options,
+      this._tracer,
     );
   }
 
@@ -97,6 +112,7 @@ export class Locator {
         this.driver,
         { kind: 'nth', parent: this.strategy, index: i },
         this.options,
+        this._tracer,
       ),
     );
   }
@@ -104,60 +120,72 @@ export class Locator {
   // ─── Actions ─────────────────────────────────────────────────
 
   async tap(opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.tap(x, y);
+    return this._wrapAction('tap', {}, async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.tap(x, y);
+    });
   }
 
   async doubleTap(opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.doubleTap(x, y);
+    return this._wrapAction('doubleTap', {}, async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.doubleTap(x, y);
+    });
   }
 
   async longPress(opts?: { timeout?: number; duration?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.longPress(x, y, opts?.duration);
+    return this._wrapAction('longPress', { duration: opts?.duration }, async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.longPress(x, y, opts?.duration);
+    });
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    // Tap to focus, then type
-    await this.driver.tap(x, y);
-    await this.driver.typeText(text);
+    return this._wrapAction('fill', { text }, async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      // Tap to focus, then type
+      await this.driver.tap(x, y);
+      await this.driver.typeText(text);
+    });
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
-    const node = await this.resolveVisible(opts?.timeout);
-    const fullScreenshot = await this.driver.screenshot();
-    return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+    return this._wrapAction('screenshot', {}, async () => {
+      const node = await this.resolveVisible(opts?.timeout);
+      const fullScreenshot = await this.driver.screenshot();
+      return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+    });
   }
 
   async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
-    const maxSwipes = opts?.maxSwipes ?? 10;
-    const direction: SwipeDirection = opts?.direction ?? 'up';
-    const screenSize = await this.driver.getScreenSize();
-    const POST_SWIPE_SETTLE = 200;
+    return this._wrapAction('scrollIntoViewIfNeeded', { direction: opts?.direction, maxSwipes: opts?.maxSwipes }, async () => {
+      const maxSwipes = opts?.maxSwipes ?? 10;
+      const direction: SwipeDirection = opts?.direction ?? 'up';
+      const screenSize = await this.driver.getScreenSize();
+      const POST_SWIPE_SETTLE = 200;
 
-    for (let i = 0; i < maxSwipes; i++) {
-      const roots = await this.driver.getViewHierarchy();
-      const node = queryAll(roots, this.strategy)[0] ?? null;
+      for (let i = 0; i < maxSwipes; i++) {
+        const roots = await this.driver.getViewHierarchy();
+        const node = queryAll(roots, this.strategy)[0] ?? null;
 
-      if (node && isWithinViewport(node.bounds, screenSize)) {
-        return;
+        if (node && isWithinViewport(node.bounds, screenSize)) {
+          return;
+        }
+
+        const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
+        await this.driver.swipe(swipeDirection);
+        await sleep(POST_SWIPE_SETTLE);
       }
 
-      const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
-      await this.driver.swipe(swipeDirection);
-      await sleep(POST_SWIPE_SETTLE);
-    }
-
-    throw new LocatorError(
-      `Element not scrolled into view after ${maxSwipes} swipes`,
-      this.strategy,
-    );
+      throw new LocatorError(
+        `Element not scrolled into view after ${maxSwipes} swipes`,
+        this.strategy,
+      );
+    });
   }
 
   // ─── Queries (with auto-wait for visibility) ─────────────────

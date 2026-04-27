@@ -4,3 +4,4 @@ export { Device, type DeviceOptions } from './device.js';
 export { expect, ExpectError, type ExpectOptions } from './expect.js';
 export { queryAll, type LocatorStrategy } from './query-engine.js';
 export { sleep } from './sleep.js';
+export { Tracer } from './tracing.js';

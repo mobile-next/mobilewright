@@ -27,6 +27,7 @@ function resolveDriver(): DriverConfig {
 const config: MobilewrightConfig = defineConfig({
   testDir: './src',
   testMatch: '**/*.test.ts',
+  trace: 'on',
   retries: 0,
   timeout: 60_000,
   driver: resolveDriver(),
