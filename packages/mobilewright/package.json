@@ -39,6 +39,7 @@
     "@mobilewright/protocol": "^0.0.1",
     "@mobilewright/test": "^0.0.1",
     "commander": "^14.0.3",
+    "debug": "^4.4.3",
     "playwright": "1.58.2",
     "ws": "^8.18.0"
   },
