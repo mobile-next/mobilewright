@@ -151,10 +151,15 @@ export class RpcClient {
   }
 
   async disconnect(): Promise<void> {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    const ws = this.ws;
+    if (!ws) {
+      return;
     }
+    this.ws = null;
+    return new Promise<void>((resolve) => {
+      ws.once('close', () => resolve());
+      ws.close(1000);
+    });
   }
 
   get isConnected(): boolean {
