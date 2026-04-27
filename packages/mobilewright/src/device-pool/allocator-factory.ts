@@ -20,12 +20,16 @@ export async function createAllocator(config: MobilewrightConfig): Promise<Alloc
     return { allocator, serverProcess: ensured.serverProcess ?? undefined };
   }
 
-  const mobileUseConfig = config.driver as DriverConfigMobileUse;
-  const allocator = new MobileUseAllocator({
-    driverOptions: {
-      region: mobileUseConfig.region,
-      apiKey: mobileUseConfig.apiKey,
-    },
-  });
-  return { allocator };
+  if (driverType === 'mobile-use') {
+    const mobileUseConfig = config.driver as DriverConfigMobileUse;
+    const allocator = new MobileUseAllocator({
+      driverOptions: {
+        region: mobileUseConfig.region,
+        apiKey: mobileUseConfig.apiKey,
+      },
+    });
+    return { allocator };
+  }
+
+  throw new Error(`Unsupported driver type: "${driverType}". Supported types: "mobilecli", "mobile-use".`);
 }
