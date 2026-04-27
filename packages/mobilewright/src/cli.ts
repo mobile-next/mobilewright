@@ -2,9 +2,10 @@
 
 import { Command } from 'commander';
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync, unlinkSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
@@ -126,32 +127,37 @@ program
 
 // ── merge-reports ──────────────────────────────────────────────────────
 // Merge blob reports from sharded runs into a single combined report.
-// We call Playwright's internal merge API directly so we can control the
-// HTML reporter output folder (mobilewright-report instead of playwright-report).
+// When the reporter is html (the default), we inject a temp config that
+// redirects output to mobilewright-report instead of playwright-report.
 program
   .command('merge-reports [dir]')
   .description('merge blob reports from sharded runs into one report')
   .option('--reporter <reporter>', 'reporter to use for the merged output (e.g. html, json)')
   .option('--config <file>', 'configuration file')
   .action(async (dir: string | undefined, opts: { reporter?: string; config?: string }) => {
-    const { createMergedReport } = await import('playwright/lib/reporters/merge');
-    const { loadConfigFromFile, loadEmptyConfigForMergeReports } = await import('playwright/lib/common/configLoader');
+    const { program: pwProgram } = await import('playwright/lib/program');
+    const args = ['node', 'playwright', 'merge-reports'];
+    if (dir) { args.push(dir); }
 
-    const config = opts.config
-      ? await loadConfigFromFile(opts.config)
-      : await loadEmptyConfigForMergeReports();
-
-
-    const reporterNames = (opts.reporter ?? 'html').split(',').map(r => r.trim());
-    const reporterDescriptions = reporterNames.map((name) => {
-      if (name === 'html') {
-        return [name, { outputFolder: HTML_REPORT_DIR }] as [string, Record<string, unknown>];
+    if (opts.config) {
+      // User supplied their own config — pass everything through unchanged.
+      args.push('--config', opts.config);
+      if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    } else {
+      const reporter = opts.reporter ?? 'html';
+      if (reporter === 'html') {
+        // Inject a temp config that redirects the html reporter to mobilewright-report.
+        // process.on('exit') fires even after process.exit(), so cleanup always runs.
+        const tmpConfig = join(tmpdir(), `mw-merge-${Date.now()}.cjs`);
+        writeFileSync(tmpConfig, `module.exports = { reporter: [['html', { outputFolder: '${HTML_REPORT_DIR}' }]] };\n`);
+        process.on('exit', () => { try { unlinkSync(tmpConfig); } catch { /* best-effort */ } });
+        args.push('--config', tmpConfig);
+      } else {
+        args.push('--reporter', reporter);
       }
-      return [name] as [string];
-    });
+    }
 
-    const resolvedDir = resolve(process.cwd(), dir ?? '');
-    await createMergedReport(config, resolvedDir, reporterDescriptions, undefined);
+    await pwProgram.parseAsync(args);
   });
 
 function printDevicesTable(devices: DeviceInfo[]): void {
