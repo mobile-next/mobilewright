@@ -115,6 +115,23 @@ program
     await pwProgram.parseAsync(args);
   });
 
+// ── merge-reports ──────────────────────────────────────────────────────
+// Delegate to Playwright's built-in merge-reports, which merges blob
+// reports produced by sharded runs into a single combined report.
+program
+  .command('merge-reports [dir]')
+  .description('merge blob reports from sharded runs into one report')
+  .option('--reporter <reporter>', 'reporter to use for the merged output (e.g. html, json)')
+  .option('--config <file>', 'configuration file')
+  .action(async (dir: string | undefined, opts: { reporter?: string; config?: string }) => {
+    const { program: pwProgram } = await import('playwright/lib/program');
+    const args = ['node', 'playwright', 'merge-reports'];
+    if (dir) { args.push(dir); }
+    if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    if (opts.config) { args.push('--config', opts.config); }
+    await pwProgram.parseAsync(args);
+  });
+
 function printDevicesTable(devices: DeviceInfo[]): void {
   console.log(
     padRight('ID', 40) +
