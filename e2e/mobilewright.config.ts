@@ -29,9 +29,15 @@ const config: MobilewrightConfig = defineConfig({
   testMatch: '**/*.test.ts',
   retries: 0,
   timeout: 60_000,
+
+  // parallel by test() instead of parallel by file
   fullyParallel: true,
+
+  // supports mobilecli and mobile-use drivers
   driver: resolveDriver(),
-  //deviceName: /Max/,
+
+  // filter used devices with regexp
+  // deviceName: /Max/,
 });
 
 export default config;
