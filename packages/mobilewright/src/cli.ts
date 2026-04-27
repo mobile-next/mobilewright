@@ -2,10 +2,9 @@
 
 import { Command } from 'commander';
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, renameSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { resolve, dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
@@ -126,9 +125,8 @@ program
   });
 
 // ── merge-reports ──────────────────────────────────────────────────────
-// Merge blob reports from sharded runs into a single combined report.
-// When the reporter is html (the default), we inject a temp config that
-// redirects output to mobilewright-report instead of playwright-report.
+// Delegate to Playwright's merge-reports, then rename playwright-report
+// to mobilewright-report when the html reporter is used.
 program
   .command('merge-reports [dir]')
   .description('merge blob reports from sharded runs into one report')
@@ -138,26 +136,18 @@ program
     const { program: pwProgram } = await import('playwright/lib/program');
     const args = ['node', 'playwright', 'merge-reports'];
     if (dir) { args.push(dir); }
+    if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    if (opts.config) { args.push('--config', opts.config); }
+    await pwProgram.parseAsync(args);
 
-    if (opts.config) {
-      // User supplied their own config — pass everything through unchanged.
-      args.push('--config', opts.config);
-      if (opts.reporter) { args.push('--reporter', opts.reporter); }
-    } else {
-      const reporter = opts.reporter ?? 'html';
-      if (reporter === 'html') {
-        // Inject a temp config that redirects the html reporter to mobilewright-report.
-        // process.on('exit') fires even after process.exit(), so cleanup always runs.
-        const tmpConfig = join(tmpdir(), `mw-merge-${Date.now()}.cjs`);
-        writeFileSync(tmpConfig, `module.exports = { reporter: [['html', { outputFolder: '${HTML_REPORT_DIR}' }]] };\n`);
-        process.on('exit', () => { try { unlinkSync(tmpConfig); } catch { /* best-effort */ } });
-        args.push('--config', tmpConfig);
-      } else {
-        args.push('--reporter', reporter);
+    const reporter = opts.reporter ?? 'html';
+    if (reporter === 'html') {
+      const playwrightReport = resolve(process.cwd(), 'playwright-report');
+      const mobilewriteReport = resolve(process.cwd(), HTML_REPORT_DIR);
+      if (existsSync(playwrightReport) && !existsSync(mobilewriteReport)) {
+        renameSync(playwrightReport, mobilewriteReport);
       }
     }
-
-    await pwProgram.parseAsync(args);
   });
 
 function printDevicesTable(devices: DeviceInfo[]): void {
