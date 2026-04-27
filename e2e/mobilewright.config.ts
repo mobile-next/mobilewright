@@ -31,6 +31,7 @@ const config: MobilewrightConfig = defineConfig({
   timeout: 60_000,
   fullyParallel: true,
   driver: resolveDriver(),
+  //deviceName: /Max/,
 });
 
 export default config;

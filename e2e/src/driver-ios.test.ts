@@ -2,7 +2,7 @@ import { unlinkSync, existsSync, statSync } from 'node:fs';
 import { test, expect } from '@mobilewright/test';
 
 test.use({ platform: 'ios' });
-test.describe.configure({ mode: 'serial' });
+//test.describe.configure({ mode: 'serial' });
 
 // ─── Connection ──────────────────────────────────────────────
 
@@ -65,6 +65,7 @@ test('should swipe a list and tap an element', async ({ device, screen }) => {
 });
 
 test('should press HOME button', async ({ device, screen }) => {
+  await device.terminateApp('com.apple.Preferences').catch(() => {});
   await device.launchApp('com.apple.Preferences');
 
   const foreground1 = await device.getForegroundApp();
@@ -95,7 +96,7 @@ test('should get foreground app', async ({ device }) => {
 });
 
 test('should launch and terminate Settings app', async ({ device }) => {
-  await device.terminateApp('com.apple.Preferences');
+  await device.terminateApp('com.apple.Preferences').catch(() => {});
   await device.launchApp('com.apple.Preferences');
 
   const foreground = await device.getForegroundApp();
@@ -111,6 +112,7 @@ test('should launch and terminate Settings app', async ({ device }) => {
 // ─── Navigation ─────────────────────────────────────────────
 
 test('should tap into Settings > General and verify navigation', async ({ device, screen }) => {
+  await device.terminateApp('com.apple.Preferences').catch(() => {});
   await device.launchApp('com.apple.Preferences');
   await wait(3000);
 
