@@ -5,6 +5,7 @@ import {
   createDevicePoolClient,
   connectDevice,
   loadConfig,
+  toArray,
   type DevicePoolClient,
 } from 'mobilewright';
 import { expect } from '@mobilewright/core';
@@ -62,14 +63,11 @@ export const test = base.extend<MobilewrightTestFixtures>({
     });
 
     try {
-      const appsToInstall = merged.installApps
-        ? (Array.isArray(merged.installApps) ? merged.installApps : [merged.installApps])
-        : [];
-      for (const appPath of appsToInstall) {
-        const installed = await client.hasInstalled(handle.allocationId, appPath);
+      for (const appPath of toArray(merged.installApps)) {
+        const installed = await client.isAppInstalled(handle.allocationId, appPath);
         if (!installed) {
           await device.installApp(appPath);
-          await client.recordInstalled(handle.allocationId, appPath);
+          await client.recordAppInstalled(handle.allocationId, appPath);
         }
       }
 

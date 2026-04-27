@@ -63,11 +63,11 @@ export class DeviceSlot {
     this._allocationId = undefined;
   }
 
-  recordInstalled(bundleId: string): void {
+  recordAppInstalled(bundleId: string): void {
     this._installedApps.add(bundleId);
   }
 
-  hasInstalled(bundleId: string): boolean {
+  isAppInstalled(bundleId: string): boolean {
     return this._installedApps.has(bundleId);
   }
 }

@@ -144,8 +144,10 @@ program
     if (reporter === 'html') {
       const playwrightReport = resolve(process.cwd(), 'playwright-report');
       const mobilewriteReport = resolve(process.cwd(), HTML_REPORT_DIR);
-      if (existsSync(playwrightReport) && !existsSync(mobilewriteReport)) {
+      try {
         renameSync(playwrightReport, mobilewriteReport);
+      } catch {
+        // Already renamed, or html reporter not used — nothing to do.
       }
     }
   });

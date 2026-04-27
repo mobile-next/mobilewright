@@ -54,11 +54,10 @@ export class DevicePool {
       waiter.reject(new Error('device pool shutdown'));
     }
 
-    const inFlight = Array.from(this.inFlightWaiters);
-    this.inFlightWaiters.clear();
-    for (const waiter of inFlight) {
+    for (const waiter of this.inFlightWaiters) {
       waiter.reject(new Error('device pool shutdown'));
     }
+    this.inFlightWaiters.clear();
 
     const releases: Promise<void>[] = [];
     for (const slot of this.slots) {
@@ -81,20 +80,20 @@ export class DevicePool {
     this.pump();
   }
 
-  recordInstalled(allocationId: string, bundleId: string): void {
+  recordAppInstalled(allocationId: string, bundleId: string): void {
     const allocation = this.allocations.get(allocationId);
     if (!allocation) {
       throw new Error(`unknown allocationId: ${allocationId}`);
     }
-    this.slots[allocation.slotIndex].recordInstalled(bundleId);
+    this.slots[allocation.slotIndex].recordAppInstalled(bundleId);
   }
 
-  hasInstalled(allocationId: string, bundleId: string): boolean {
+  isAppInstalled(allocationId: string, bundleId: string): boolean {
     const allocation = this.allocations.get(allocationId);
     if (!allocation) {
       throw new Error(`unknown allocationId: ${allocationId}`);
     }
-    return this.slots[allocation.slotIndex].hasInstalled(bundleId);
+    return this.slots[allocation.slotIndex].isAppInstalled(bundleId);
   }
 
   private pump(): void {
@@ -175,10 +174,7 @@ export class DevicePool {
           // Shutdown already rejected this waiter.
           return;
         }
-        const slotPos = this.slots.indexOf(slot);
-        if (slotPos !== -1) {
-          this.slots.splice(slotPos, 1);
-        }
+        this.slots.splice(slotIndex, 1);
         if (abortController.signal.aborted) {
           waiter.reject(new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`));
           this.pump();

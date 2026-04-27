@@ -51,10 +51,10 @@ test('release on an available slot throws', () => {
   expect(() => slot.release()).toThrow(DeviceSlotStateError);
 });
 
-test('recordInstalled tracks installed bundleIds', () => {
+test('recordAppInstalled tracks installed bundleIds', () => {
   const slot = new DeviceSlot();
   slot.markAvailable('device-1', 'ios');
-  expect(slot.hasInstalled('com.example')).toBe(false);
-  slot.recordInstalled('com.example');
-  expect(slot.hasInstalled('com.example')).toBe(true);
+  expect(slot.isAppInstalled('com.example')).toBe(false);
+  slot.recordAppInstalled('com.example');
+  expect(slot.isAppInstalled('com.example')).toBe(true);
 });

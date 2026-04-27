@@ -52,6 +52,6 @@ export interface AllocationHandle {
 export interface DevicePoolClient {
   allocate(criteria: AllocationCriteria): Promise<AllocationHandle>;
   release(allocationId: string): Promise<void>;
-  hasInstalled(allocationId: string, bundleId: string): Promise<boolean>;
-  recordInstalled(allocationId: string, bundleId: string): Promise<void>;
+  isAppInstalled(allocationId: string, bundleId: string): Promise<boolean>;
+  recordAppInstalled(allocationId: string, bundleId: string): Promise<void>;
 }

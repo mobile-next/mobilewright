@@ -108,7 +108,7 @@ export interface MobilewrightConfig {
   projects?: MobilewrightProjectConfig[];
 }
 
-function toArray<T>(value: T | T[] | undefined): T[] {
+export function toArray<T>(value: T | T[] | undefined): T[] {
   if (value === undefined) {
     return [];
   }

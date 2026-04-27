@@ -33,28 +33,19 @@ export class MobilecliAllocator implements DeviceAllocator {
       ? new RegExp(criteria.deviceNamePattern)
       : undefined;
 
-    for (const device of devices) {
-      if (device.state !== 'online') {
-        continue;
-      }
-      if (takenDeviceIds.has(device.id)) {
-        continue;
-      }
-      if (criteria.platform && device.platform !== criteria.platform) {
-        continue;
-      }
-      if (criteria.deviceId && device.id !== criteria.deviceId) {
-        continue;
-      }
-      if (namePattern && !namePattern.test(device.name)) {
-        continue;
-      }
-      return { deviceId: device.id, platform: device.platform };
-    }
+    const match = devices
+      .filter((d) => d.state === 'online')
+      .filter((d) => !takenDeviceIds.has(d.id))
+      .filter((d) => !criteria.deviceId || d.id === criteria.deviceId)
+      .filter((d) => !namePattern || namePattern.test(d.name))
+      .at(0);
 
-    throw new NoDeviceAvailableError(
-      `no online device available matching criteria ${JSON.stringify(criteria)}`,
-    );
+    if (!match) {
+      throw new NoDeviceAvailableError(
+        `no online device available matching criteria ${JSON.stringify(criteria)}`,
+      );
+    }
+    return { deviceId: match.id, platform: match.platform };
   }
 
   async release(_deviceId: string): Promise<void> {

@@ -71,9 +71,9 @@ test('install-tracking round-trip via client', async () => {
   const { client, stop } = await startServerAndClient(pool);
   try {
     const handle = await client.allocate({ platform: 'ios' });
-    expect(await client.hasInstalled(handle.allocationId, 'a.ipa')).toBe(false);
-    await client.recordInstalled(handle.allocationId, 'a.ipa');
-    expect(await client.hasInstalled(handle.allocationId, 'a.ipa')).toBe(true);
+    expect(await client.isAppInstalled(handle.allocationId, 'a.ipa')).toBe(false);
+    await client.recordAppInstalled(handle.allocationId, 'a.ipa');
+    expect(await client.isAppInstalled(handle.allocationId, 'a.ipa')).toBe(true);
     await client.release(handle.allocationId);
   } finally {
     await stop();

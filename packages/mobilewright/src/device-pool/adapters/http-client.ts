@@ -46,6 +46,8 @@ export class HttpDevicePoolClient implements DevicePoolClient {
           const handle = JSON.parse(buffer.slice(0, newlineIdx)) as AllocationHandle;
           res.off('data', onData);
           this.openAllocateRequests.set(handle.allocationId, req);
+          // If the server closes the stream (e.g. on shutdown), release the map entry.
+          res.on('close', () => this.openAllocateRequests.delete(handle.allocationId));
           resolve(handle);
         };
         res.on('data', onData);
@@ -66,12 +68,12 @@ export class HttpDevicePoolClient implements DevicePoolClient {
     await this.postJson('/release', { allocationId });
   }
 
-  async hasInstalled(allocationId: string, bundleId: string): Promise<boolean> {
-    const body = await this.postJson<{ installed: boolean }>('/installed/has', { allocationId, bundleId });
+  async isAppInstalled(allocationId: string, bundleId: string): Promise<boolean> {
+    const body = await this.postJson<{ installed: boolean }>('/installed/is-installed', { allocationId, bundleId });
     return body.installed;
   }
 
-  async recordInstalled(allocationId: string, bundleId: string): Promise<void> {
+  async recordAppInstalled(allocationId: string, bundleId: string): Promise<void> {
     await this.postJson('/installed/record', { allocationId, bundleId });
   }
 

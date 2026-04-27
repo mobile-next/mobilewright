@@ -3,6 +3,7 @@ import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
 import { ensureMobilecliReachable } from './server.js';
+import { toArray } from './config.js';
 import type { DriverConfig } from './config.js';
 
 export interface LaunchOptions {
@@ -38,7 +39,6 @@ export interface FindDeviceParams {
   url?: string;
 }
 
-/** Resolve the driver instance given a config (mobilecli is the default). */
 export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
   if (driverConfig?.type === 'mobile-use') {
     return new MobileUseDriver({
@@ -49,7 +49,6 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
   return new MobilecliDriver({ url });
 }
 
-/** Connect a fresh Device to a known deviceId. Used by both the test fixture and ios.launch(). */
 export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
   const url = params.url ?? DEFAULT_URL;
   const driver = createDriver(params.driverConfig, url);
@@ -63,11 +62,8 @@ export async function connectDevice(params: ConnectDeviceParams): Promise<Device
   return device;
 }
 
-/** Install (if needed) any apps in `installApps`, then optionally launch the bundleId app. */
 export async function installAndLaunchApps(device: Device, opts: LaunchOptions): Promise<void> {
-  const appsToInstall = opts.installApps
-    ? (Array.isArray(opts.installApps) ? opts.installApps : [opts.installApps])
-    : [];
+  const appsToInstall = toArray(opts.installApps);
   for (const appPath of appsToInstall) {
     await device.installApp(appPath);
   }
@@ -76,7 +72,6 @@ export async function installAndLaunchApps(device: Device, opts: LaunchOptions):
   }
 }
 
-/** Find a device matching criteria. Used by both the public launch() and the MobilecliAllocator. */
 export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> {
   const url = params.url ?? DEFAULT_URL;
   const driver = createDriver(params.driverConfig, url);

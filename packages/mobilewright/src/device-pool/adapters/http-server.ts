@@ -2,6 +2,19 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { DevicePool } from '../application/device-pool.js';
 import type { AllocationCriteria, AllocationHandle } from '../application/ports.js';
 
+interface AllocateRequest {
+  criteria: AllocationCriteria;
+}
+
+interface ReleaseRequest {
+  allocationId: string;
+}
+
+interface InstallRequest {
+  allocationId: string;
+  bundleId: string;
+}
+
 export interface DevicePoolHttpServerOptions {
   pool: DevicePool;
 }
@@ -50,8 +63,8 @@ export class DevicePoolHttpServer {
     switch (req.url) {
       case '/allocate': await this.handleAllocate(req, res); return;
       case '/release': await this.handleRelease(req, res); return;
-      case '/installed/has': await this.handleHasInstalled(req, res); return;
-      case '/installed/record': await this.handleRecordInstalled(req, res); return;
+      case '/installed/is-installed': await this.handleIsAppInstalled(req, res); return;
+      case '/installed/record': await this.handleRecordAppInstalled(req, res); return;
       case '/shutdown': await this.handleShutdown(req, res); return;
       default:
         res.statusCode = 404;
@@ -59,16 +72,16 @@ export class DevicePoolHttpServer {
     }
   }
 
-  private async handleHasInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readJson<{ allocationId: string; bundleId: string }>(req);
-    const installed = this.pool.hasInstalled(body.allocationId, body.bundleId);
+  private async handleIsAppInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readJson<InstallRequest>(req);
+    const installed = this.pool.isAppInstalled(body.allocationId, body.bundleId);
     res.statusCode = 200;
     res.end(JSON.stringify({ installed }));
   }
 
-  private async handleRecordInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readJson<{ allocationId: string; bundleId: string }>(req);
-    this.pool.recordInstalled(body.allocationId, body.bundleId);
+  private async handleRecordAppInstalled(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readJson<InstallRequest>(req);
+    this.pool.recordAppInstalled(body.allocationId, body.bundleId);
     res.statusCode = 200;
     res.end(JSON.stringify({ ok: true }));
   }
@@ -80,7 +93,7 @@ export class DevicePoolHttpServer {
   }
 
   private async handleAllocate(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readJson<{ criteria: AllocationCriteria }>(req);
+    const body = await readJson<AllocateRequest>(req);
     let handle: AllocationHandle;
     try {
       handle = await this.pool.allocate(body.criteria ?? {});
@@ -105,7 +118,7 @@ export class DevicePoolHttpServer {
   }
 
   private async handleRelease(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readJson<{ allocationId: string }>(req);
+    const body = await readJson<ReleaseRequest>(req);
     await this.pool.release(body.allocationId);
     const heldResponse = this.responsesByAllocationId.get(body.allocationId);
     if (heldResponse) {

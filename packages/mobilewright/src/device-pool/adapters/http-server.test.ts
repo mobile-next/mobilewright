@@ -177,7 +177,7 @@ function postJson(url: string, path: string, body: unknown): Promise<{ status: n
   });
 }
 
-test('/installed/has and /installed/record round-trip', async () => {
+test('/installed/is-installed and /installed/record round-trip', async () => {
   const pool = new DevicePool({
     allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
@@ -187,7 +187,7 @@ test('/installed/has and /installed/record round-trip', async () => {
     const handleLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
     const handle = JSON.parse(handleLine);
 
-    const before = await postJson(server.url, '/installed/has', {
+    const before = await postJson(server.url, '/installed/is-installed', {
       allocationId: handle.allocationId,
       bundleId: 'app.ipa',
     });
@@ -198,7 +198,7 @@ test('/installed/has and /installed/record round-trip', async () => {
       bundleId: 'app.ipa',
     });
 
-    const after = await postJson(server.url, '/installed/has', {
+    const after = await postJson(server.url, '/installed/is-installed', {
       allocationId: handle.allocationId,
       bundleId: 'app.ipa',
     });
