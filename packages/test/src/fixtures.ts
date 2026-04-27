@@ -2,8 +2,10 @@ import { test as base } from '@playwright/test';
 import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ios, android, loadConfig } from 'mobilewright';
-import { expect } from '@mobilewright/core';
+import { expect, Tracer } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
+
+type TraceMode = 'on' | 'off' | 'retain-on-failure' | 'on-first-retry';
 
 type MobilewrightTestFixtures = {
   screen: Screen;
@@ -35,7 +37,7 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
     if (merged.platform && merged.platform !== 'ios' && merged.platform !== 'android') {
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
     }
-    
+
     const launcher = merged.platform === 'android' ? android : ios;
     const device = await launcher.launch(merged);
     await use(device);
@@ -43,6 +45,7 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
   }, { scope: 'worker' }],
 
   screen: async ({ device, video }, use, testInfo) => {
+    // ── Video recording ──────────────────────────────────────
     const videoMode = typeof video === 'object' ? video.mode : video;
     const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
     const videoPath = shouldRecord
@@ -58,8 +61,41 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
       }
     }
 
+    // ── Tracing ──────────────────────────────────────────────
+    const config = await loadConfig();
+    const traceMode: TraceMode = config.trace ?? 'off';
+    const shouldTrace = traceMode === 'on'
+      || traceMode === 'retain-on-failure'
+      || (traceMode === 'on-first-retry' && testInfo.retry === 1);
+
+    let tracer: Tracer | null = null;
+    if (shouldTrace) {
+      tracer = new Tracer();
+      device.setTracer(tracer);
+    }
+
     await use(device.screen);
 
+    // ── Teardown: tracing ────────────────────────────────────
+    if (tracer) {
+      const failed = testInfo.status !== testInfo.expectedStatus;
+      const shouldSaveTrace = traceMode === 'on'
+        || (traceMode === 'retain-on-failure' && failed)
+        || (traceMode === 'on-first-retry' && testInfo.retry === 1);
+
+      if (shouldSaveTrace) {
+        try {
+          await mkdir(testInfo.outputDir, { recursive: true });
+          const tracePath = join(testInfo.outputDir, 'trace.zip');
+          await tracer.save(tracePath);
+          await testInfo.attach('trace', { path: tracePath, contentType: 'application/zip' });
+        } catch {
+          // Best effort
+        }
+      }
+    }
+
+    // ── Teardown: video ──────────────────────────────────────
     if (shouldRecord) {
       try {
         await device.stopRecording();

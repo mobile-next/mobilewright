@@ -10,6 +10,7 @@ import type {
 } from '@mobilewright/protocol';
 import { Screen } from './screen.js';
 import type { LocatorOptions } from './locator.js';
+import type { Tracer } from './tracing.js';
 
 export interface DeviceOptions {
   locatorDefaults?: LocatorOptions;
@@ -20,10 +21,17 @@ export class Device {
   private cleanupCallbacks: Array<() => Promise<void>> = [];
   private _screen: Screen | null = null;
   private readonly opts: DeviceOptions;
+  private _tracer: Tracer | null = null;
 
   constructor(driver: MobilewrightDriver, opts: DeviceOptions = {}) {
     this.driver = driver;
     this.opts = opts;
+  }
+
+  setTracer(tracer: Tracer): void {
+    this._tracer = tracer;
+    tracer.setDriver(this.driver);
+    this._screen = null; // reset so next access picks up tracer
   }
 
   /** Register a callback to run on close(). Used by launchers for cleanup. */
@@ -51,7 +59,7 @@ export class Device {
   }
 
   get screen(): Screen {
-    this._screen ??= new Screen(this.driver, this.opts.locatorDefaults);
+    this._screen ??= new Screen(this.driver, this.opts.locatorDefaults, this._tracer);
     return this._screen;
   }
 

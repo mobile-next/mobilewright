@@ -103,6 +103,8 @@ export interface MobilewrightConfig {
   globalTeardown?: string;
   /** Multi-device / multi-platform project matrix. */
   projects?: MobilewrightProjectConfig[];
+  /** Trace recording mode. Default: 'off'. */
+  trace?: 'on' | 'off' | 'retain-on-failure' | 'on-first-retry';
 }
 
 /** Type-safe config helper for mobilewright.config.ts files. */
