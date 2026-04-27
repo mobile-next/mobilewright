@@ -3,6 +3,8 @@ import WebSocket from 'ws';
 
 const debug = createDebug('mw:driver-mobile-use');
 
+const WS_CLOSE_NORMAL = 1000;
+
 export class RpcError extends Error {
   constructor(
     message: string,
@@ -158,7 +160,7 @@ export class RpcClient {
     this.ws = null;
     return new Promise<void>((resolve) => {
       ws.once('close', () => resolve());
-      ws.close(1000);
+      ws.close(WS_CLOSE_NORMAL);
     });
   }
 
