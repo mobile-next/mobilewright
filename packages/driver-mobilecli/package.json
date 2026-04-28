@@ -31,8 +31,7 @@
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
     "debug": "^4.4.3",
-    "fast-xml-parser": "^5.7.0",
-    "mobilecli": "0.3.66",
+    "mobilecli": "0.3.67",
     "ws": "^8.18.0"
   },
   "devDependencies": {
