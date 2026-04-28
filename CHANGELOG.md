@@ -1,3 +1,16 @@
+## [0.0.27] (2026-04-28)
+* General: New worker/device-pool architecture: workers acquire devices from a shared pool instead of each worker owning a dedicated device
+* General: Track installed apps per slot to skip re-install when the same worker reuses a device
+* General: Per-allocation timeouts via `AbortSignal`; pool shutdown drains waiters and releases all slots
+* General: Stack traces from `expect()` failures now omit mobilewright frames — set `MWDEBUGIMPL=1` to see them
+* General: Upgrade mobilecli to `0.3.67`
+* CLI: Add `--shard` option to the `test` command for multi-host sharding of tests
+* CLI: Add `mobilewright merge-reports` command, needed for sharding
+* Fix(allocator-factory): Throw on unknown driver type instead of silently falling back to mobile-use
+* Fix(driver-mobile-use): Only call `fleet.release` on disconnect when this instance owns the lease
+* Fix(device-pool): Re-queue waiters on `NoDeviceAvailableError`; treat `NaN` `--workers` as 1
+* Fix(rpc-client): Close WebSocket nicely with code 1000 and await the close handshake on `disconnect()`
+
 ## [0.0.26] (2026-04-22)
 * Fix(driver-mobile-use): Device allocation now correctly waits for provisioning to complete 
 * Fix(driver-mobile-use): `devices.list` response properly unwrapped from `{ devices: [...] }` envelope
