@@ -84,4 +84,4 @@ export default defineConfig({
 });
 ```
 
-For larger test suites, combine parallelism with [sharding](/mobilewright/test/sharding) to split the suite across multiple CI machines.
+For larger test suites, combine parallelism with [sharding](/test/sharding) to split the suite across multiple CI machines.
