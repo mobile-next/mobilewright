@@ -6,6 +6,7 @@
 * General: Upgrade mobilecli to `0.3.67`
 * CLI: Add `--shard` option to the `test` command for multi-host sharding of tests
 * CLI: Add `mobilewright merge-reports` command, needed for sharding
+* Fix: Fix 'text' field from viewTree to fetch from dump's 'text' instead of 'label', thanks to [emor](https://github.com/emor)
 * Fix(allocator-factory): Throw on unknown driver type instead of silently falling back to mobile-use
 * Fix(driver-mobile-use): Only call `fleet.release` on disconnect when this instance owns the lease
 * Fix(device-pool): Re-queue waiters on `NoDeviceAvailableError`; treat `NaN` `--workers` as 1
