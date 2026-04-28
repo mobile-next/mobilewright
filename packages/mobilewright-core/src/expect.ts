@@ -1,5 +1,6 @@
 import type { Locator } from './locator.js';
 import { sleep } from './sleep.js';
+import { filterStack } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 const POLL_INTERVAL = 100;
@@ -316,5 +317,6 @@ export class ExpectError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ExpectError';
+    this.stack = filterStack(this.stack);
   }
 }

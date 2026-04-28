@@ -1,5 +1,8 @@
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const _require = createRequire(import.meta.url);
 
 // ─── Project ──────────────────────────────────────────────────────
 
@@ -98,18 +101,33 @@ export interface MobilewrightConfig {
   /** Reporter to use. */
   reporter?: 'list' | 'html' | 'json' | 'junit' | Array<[string] | [string, unknown]>;
   /** Global setup file — runs once before all tests. */
-  globalSetup?: string;
+  globalSetup?: string | string[];
   /** Global teardown file — runs once after all tests. */
-  globalTeardown?: string;
+  globalTeardown?: string | string[];
   /** Multi-device / multi-platform project matrix. */
   projects?: MobilewrightProjectConfig[];
 }
 
+export function toArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) {
+    return [];
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
-  // Default to 1 worker — Playwright defaults to half the CPU cores, but mobile
-  // tests typically target a single device so parallel workers cause conflicts.
-  return { workers: 1, ...config };
+  const ourSetup = _require.resolve('./device-pool/setup.js');
+  const ourTeardown = _require.resolve('./device-pool/teardown.js');
+  const userSetups = toArray(config.globalSetup);
+  const userTeardowns = toArray(config.globalTeardown);
+
+  return {
+    workers: 1,
+    ...config,
+    globalSetup: userSetups.length > 0 ? [ourSetup, ...userSetups] : ourSetup,
+    globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
+  };
 }
 
 const CONFIG_FILES = [

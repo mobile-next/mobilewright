@@ -3,6 +3,8 @@ import WebSocket from 'ws';
 
 const debug = createDebug('mw:driver-mobile-use');
 
+const WS_CLOSE_NORMAL = 1000;
+
 export class RpcError extends Error {
   constructor(
     message: string,
@@ -151,10 +153,15 @@ export class RpcClient {
   }
 
   async disconnect(): Promise<void> {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    const ws = this.ws;
+    if (!ws) {
+      return;
     }
+    this.ws = null;
+    return new Promise<void>((resolve) => {
+      ws.once('close', () => resolve());
+      ws.close(WS_CLOSE_NORMAL);
+    });
   }
 
   get isConnected(): boolean {

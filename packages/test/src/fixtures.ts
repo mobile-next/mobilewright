@@ -1,46 +1,91 @@
 import { test as base } from '@playwright/test';
 import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ios, android, loadConfig } from 'mobilewright';
+import {
+  createDevicePoolClient,
+  connectDevice,
+  loadConfig,
+  toArray,
+  type DevicePoolClient,
+} from 'mobilewright';
 import { expect } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
 
 type MobilewrightTestFixtures = {
   screen: Screen;
   bundleId: string | undefined;
-};
-
-type MobilewrightWorkerFixtures = {
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
   device: Device;
 };
 
-export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixtures>({
+let cachedClient: DevicePoolClient | undefined;
+function getClient(): DevicePoolClient {
+  if (!cachedClient) {
+    cachedClient = createDevicePoolClient();
+  }
+  return cachedClient;
+}
+
+export const test = base.extend<MobilewrightTestFixtures>({
   bundleId: [async ({}, use) => {
     const config = await loadConfig();
     await use(config.bundleId);
   }, { option: true }],
-  platform: [undefined, { option: true, scope: 'worker' }],
-  deviceName: [undefined, { option: true, scope: 'worker' }],
 
-  device: [async ({ platform, deviceName }, use) => {
+  platform: [undefined, { option: true }],
+  deviceName: [undefined, { option: true }],
+
+  device: async ({ platform, deviceName, bundleId }, use) => {
     const config = await loadConfig();
     const merged = {
       ...config,
       ...(platform && { platform }),
       ...(deviceName && { deviceName }),
     };
-
-    if (merged.platform && merged.platform !== 'ios' && merged.platform !== 'android') {
+    if (merged.platform !== 'ios' && merged.platform !== 'android') {
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
     }
-    
-    const launcher = merged.platform === 'android' ? android : ios;
-    const device = await launcher.launch(merged);
-    await use(device);
-    await device.close();
-  }, { scope: 'worker' }],
+
+    const client = getClient();
+    const handle = await client.allocate({
+      platform: merged.platform,
+      deviceNamePattern: merged.deviceName?.source,
+      deviceId: merged.deviceId,
+    });
+
+    const device = await connectDevice({
+      platform: handle.platform,
+      deviceId: handle.deviceId,
+      driverConfig: merged.driver,
+      url: merged.url,
+      timeout: merged.timeout,
+    });
+
+    try {
+      for (const appPath of toArray(merged.installApps)) {
+        const installed = await client.isAppInstalled(handle.allocationId, appPath);
+        if (!installed) {
+          await device.installApp(appPath);
+          await client.recordAppInstalled(handle.allocationId, appPath);
+        }
+      }
+
+      if (bundleId) {
+        try {
+          await device.terminateApp(bundleId);
+        } catch {
+          // app may not be running
+        }
+        await device.launchApp(bundleId);
+      }
+
+      await use(device);
+    } finally {
+      await device.disconnect();
+      await client.release(handle.allocationId);
+    }
+  },
 
   screen: async ({ device, video }, use, testInfo) => {
     const videoMode = typeof video === 'object' ? video.mode : video;
@@ -54,7 +99,7 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
         await mkdir(testInfo.outputDir, { recursive: true });
         await device.startRecording({ output: videoPath });
       } catch {
-        // Recording may not be supported — continue without it
+        // recording may not be supported — continue without it
       }
     }
 
@@ -73,7 +118,7 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
 
         await unlink(videoPath).catch(() => {});
       } catch {
-        // Best effort — recording may have failed to start
+        // best effort — recording may have failed to start
       }
     }
 
@@ -82,7 +127,7 @@ export const test = base.extend<MobilewrightTestFixtures, MobilewrightWorkerFixt
         const screenshot = await device.screen.screenshot();
         await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
       } catch {
-        // Device may be disconnected
+        // device may be disconnected
       }
     }
   },

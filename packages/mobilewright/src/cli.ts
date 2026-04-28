@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, renameSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,6 +37,7 @@ program
   .option('--retries <retries>', 'maximum retry count for flaky tests')
   .option('--timeout <timeout>', 'test timeout in milliseconds')
   .option('--workers <workers>', 'number of concurrent workers')
+  .option('--shard <shard>', 'shard to run, e.g. 1/3 (run first of three shards)')
   .option('--pass-with-no-tests', 'exit with code 0 when no tests found')
   .option('--list', 'list all tests without running them')
   .action(async (args: string[], opts: Record<string, unknown>) => {
@@ -46,7 +47,22 @@ program
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
     if (opts.retries) overrides.retries = Number(opts.retries);
-    if (opts.workers) overrides.workers = Number(opts.workers);
+    if (opts.shard) {
+      const match = (opts.shard as string).match(/^(\d+)\/(\d+)$/);
+      if (!match) {
+        console.error(`error: --shard must be in the format x/n (e.g. 1/3), got: ${opts.shard}`);
+        process.exit(1);
+      }
+      overrides.shard = { current: Number(match[1]), total: Number(match[2]) };
+    }
+    if (opts.workers) {
+      const n = Number(opts.workers);
+      if (!Number.isInteger(n) || n < 1) {
+        console.error(`error: --workers must be a positive integer, got: ${opts.workers}`);
+        process.exit(1);
+      }
+      overrides.workers = n;
+    }
     if (opts.reporter) {
       const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {
@@ -106,6 +122,34 @@ program
     args.push(report || HTML_REPORT_DIR);
     args.push('--host', opts.host, '--port', opts.port);
     await pwProgram.parseAsync(args);
+  });
+
+// ── merge-reports ──────────────────────────────────────────────────────
+// Delegate to Playwright's merge-reports, then rename playwright-report
+// to mobilewright-report when the html reporter is used.
+program
+  .command('merge-reports [dir]')
+  .description('merge blob reports from sharded runs into one report')
+  .option('--reporter <reporter>', 'reporter to use for the merged output (e.g. html, json)')
+  .option('--config <file>', 'configuration file')
+  .action(async (dir: string | undefined, opts: { reporter?: string; config?: string }) => {
+    const { program: pwProgram } = await import('playwright/lib/program');
+    const args = ['node', 'playwright', 'merge-reports'];
+    if (dir) { args.push(dir); }
+    if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    if (opts.config) { args.push('--config', opts.config); }
+    await pwProgram.parseAsync(args);
+
+    const reporter = opts.reporter ?? 'html';
+    if (reporter === 'html') {
+      const playwrightReport = resolve(process.cwd(), 'playwright-report');
+      const mobilewriteReport = resolve(process.cwd(), HTML_REPORT_DIR);
+      try {
+        renameSync(playwrightReport, mobilewriteReport);
+      } catch {
+        // Already renamed, or html reporter not used — nothing to do.
+      }
+    }
   });
 
 function printDevicesTable(devices: DeviceInfo[]): void {

@@ -3,6 +3,7 @@ import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
 import { ensureMobilecliReachable } from './server.js';
+import { toArray } from './config.js';
 import type { DriverConfig } from './config.js';
 
 export interface LaunchOptions {
@@ -22,7 +23,23 @@ interface PlatformLauncher {
   devices(): Promise<DeviceInfo[]>;
 }
 
-function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
+export interface ConnectDeviceParams {
+  platform: Platform;
+  deviceId: string;
+  driverConfig?: DriverConfig;
+  url?: string;
+  timeout?: number;
+}
+
+export interface FindDeviceParams {
+  platform: Platform;
+  deviceId?: string;
+  deviceName?: RegExp;
+  driverConfig?: DriverConfig;
+  url?: string;
+}
+
+export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
   if (driverConfig?.type === 'mobile-use') {
     return new MobileUseDriver({
       region: driverConfig.region,
@@ -32,7 +49,22 @@ function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDr
   return new MobilecliDriver({ url });
 }
 
-async function installAndLaunchApps(device: Device, appsToInstall: string[], opts: LaunchOptions): Promise<void> {
+export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
+  // URL is baked into the driver at construction time; don't override it here.
+  // Passing mobilecli's default URL into MobileUseDriver.connect() would send
+  // requests to the wrong server.
+  const driver = createDriver(params.driverConfig, params.url);
+  const device = new Device(driver);
+  await device.connect({
+    platform: params.platform,
+    deviceId: params.deviceId,
+    timeout: params.timeout,
+  });
+  return device;
+}
+
+export async function installAndLaunchApps(device: Device, opts: LaunchOptions): Promise<void> {
+  const appsToInstall = toArray(opts.installApps);
   for (const appPath of appsToInstall) {
     await device.installApp(appPath);
   }
@@ -41,40 +73,57 @@ async function installAndLaunchApps(device: Device, appsToInstall: string[], opt
   }
 }
 
+export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> {
+  const url = params.url ?? DEFAULT_URL;
+  const driver = createDriver(params.driverConfig, url);
+  const devices = await driver.listDevices({ platform: params.platform });
+
+  const match = devices
+    .filter((d) => d.state === 'online')
+    .filter((d) => !params.deviceId || d.id === params.deviceId)
+    .filter((d) => !params.deviceName || params.deviceName.test(d.name))
+    .at(0);
+
+  if (!match) {
+    throw new Error(`no online ${params.platform} device found`);
+  }
+  return match;
+}
+
 function createLauncher(platform: Platform): PlatformLauncher {
   return {
     async launch(opts: LaunchOptions = {}): Promise<Device> {
       const driverConfig = opts.driver;
       const url = opts.url ?? DEFAULT_URL;
 
-      const appsToInstall = opts.installApps
-        ? (Array.isArray(opts.installApps) ? opts.installApps : [opts.installApps])
-        : [];
-
+      let serverProcess: { kill: () => void } | undefined;
       if (!driverConfig || driverConfig.type === 'mobilecli') {
-        const { serverProcess } = await ensureMobilecliReachable(url, {
-          autoStart: opts.autoStart ?? true,
-        });
-
-        const driver = createDriver(driverConfig, url);
-        const device = new Device(driver);
-        await device.connect({ url, platform, deviceId: opts.deviceId, deviceName: opts.deviceName, timeout: opts.timeout });
-
-        if (serverProcess) {
-          device.onClose(() => serverProcess.kill());
-        }
-
-        await installAndLaunchApps(device, appsToInstall, opts);
-        return device;
+        const ensured = await ensureMobilecliReachable(url, { autoStart: opts.autoStart ?? true });
+        serverProcess = ensured.serverProcess ?? undefined;
       }
 
-      // mobile-use driver path — don't pass mobilecli's default URL;
-      // the driver has its own default (wss://api.mobilenexthq.com/ws).
-      const driver = createDriver(driverConfig);
-      const device = new Device(driver);
-      await device.connect({ ...(opts.url && { url: opts.url }), platform, deviceName: opts.deviceName, timeout: opts.timeout });
+      const found = await findDevice({
+        platform,
+        deviceId: opts.deviceId,
+        deviceName: opts.deviceName,
+        driverConfig,
+        url,
+      });
 
-      await installAndLaunchApps(device, appsToInstall, opts);
+      const device = await connectDevice({
+        platform,
+        deviceId: found.id,
+        driverConfig,
+        url,
+        timeout: opts.timeout,
+      });
+
+      if (serverProcess) {
+        const proc = serverProcess;
+        device.onClose(() => Promise.resolve(proc.kill()).then(() => undefined));
+      }
+
+      await installAndLaunchApps(device, opts);
       return device;
     },
 
