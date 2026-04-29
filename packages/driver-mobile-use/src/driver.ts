@@ -390,10 +390,9 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async stopRecording(): Promise<RecordingResult> {
-    const result = await this.call<RecordingResult & { url?: string }>('device.screenrecord.stop');
+    const result = await this.call<RecordingResult>('device.screenrecord.stop');
     if (result.url) {
-      const cleanUrl = result.url.split('?')[0];
-      debug('download screen recording from %s', cleanUrl);
+      debug('download screen recording from %s', result.url.split('?')[0]);
     }
     return result;
   }

@@ -1,6 +1,10 @@
-import { test as base } from '@playwright/test';
-import { mkdir, readFile, unlink } from 'node:fs/promises';
+import { test as base, type TestInfo } from '@playwright/test';
+import { createWriteStream } from 'node:fs';
+import { mkdir, unlink } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
 import { join } from 'node:path';
+import createDebug from 'debug';
 import {
   createDevicePoolClient,
   connectDevice,
@@ -10,6 +14,19 @@ import {
 } from 'mobilewright';
 import { expect } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
+
+const debug = createDebug('mw:test:fixtures');
+
+async function attachVideo(testInfo: TestInfo, url: string | undefined, localPath: string): Promise<void> {
+  if (url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download recording: ${response.status} ${response.statusText}`);
+    }
+    await pipeline(Readable.fromWeb(response.body!), createWriteStream(localPath));
+  }
+  await testInfo.attach('video', { path: localPath, contentType: 'video/mp4' });
+}
 
 type MobilewrightTestFixtures = {
   screen: Screen;
@@ -107,18 +124,17 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
     if (shouldRecord) {
       try {
-        await device.stopRecording();
+        const result = await device.stopRecording();
         const failed = testInfo.status !== testInfo.expectedStatus;
         const shouldAttach = videoMode === 'on' || (videoMode === 'retain-on-failure' && failed);
 
         if (shouldAttach) {
-          const videoBuffer = await readFile(videoPath);
-          await testInfo.attach('video', { body: videoBuffer, contentType: 'video/mp4' });
+          await attachVideo(testInfo, result.url, result.output ?? videoPath);
         }
 
         await unlink(videoPath).catch(() => {});
-      } catch {
-        // best effort — recording may have failed to start
+      } catch (err) {
+        debug('video attach failed: %o', err);
       }
     }
 

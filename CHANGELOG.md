@@ -1,3 +1,8 @@
+## [0.0.28] (2026-04-29)
+* Fix(test): Stream cloud recordings to disk instead of loading into memory — safe for large video files
+* Fix(test): Video attachments now work with the cloud drivers
+* Fix(cli): Fixed HTML report branding so it now applies when the `html` reporter is configured
+
 ## [0.0.27] (2026-04-28)
 * General: New worker/device-pool architecture: workers acquire devices from a shared pool instead of each worker owning a dedicated device
 * General: Track installed apps per slot to skip re-install when the same worker reuses a device
