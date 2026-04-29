@@ -83,7 +83,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     listDevices: async () => [] as DeviceInfo[],
     openUrl: async (...args: any[]) => { tracker.openUrlCalls.push(args); },
     startRecording: async () => {},
-    stopRecording: async () => ({ output: '' }),
+    stopRecording: async () => ({}),
   };
 }
 

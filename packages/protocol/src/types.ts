@@ -156,8 +156,12 @@ export interface RecordingOptions {
 }
 
 export interface RecordingResult {
-  /** Path to the output video file */
-  output: string;
-  /** Human-readable duration string */
-  duration?: string;
+  /** Operation status */
+  status?: string;
+  /** Recording duration in seconds */
+  duration?: number;
+  /** Presigned URL to download the recording (cloud drivers) */
+  url?: string;
+  /** Local path to the recording file (local drivers) */
+  output?: string;
 }
