@@ -8,7 +8,7 @@ Framework for mobile device automation, inspired by Playwright's architecture an
 
 **Mobilewright** targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
 
-[Get Started](#quick-start) · [API Docs](#api-reference) · [Cloud (mobile-use.com)](https://mobile-use.com)
+[Get Started](#quick-start) · [API Docs](#api-reference) · [Roadmap](ROADMAP.md) · [Cloud (mobile-use.com)](https://mobile-use.com)
 
 ## Why Mobilewright?
 
