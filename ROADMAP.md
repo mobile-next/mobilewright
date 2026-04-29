@@ -17,3 +17,4 @@ This is a living document of planned and in-progress features. Items are roughly
 | **Camera & Photo Injection** | Mock the photo or video returned by the system camera API during a test. | Planned |
 | **WebView Support** | Inspect and interact with WebView content inside an app or a full mobile browser session using the standard Mobilewright locator API. | Planned |
 | **Kotlin Multiplatform** | Full iOS support for Kotlin Multiplatform apps using Compose Multiplatform. Android native already works; iOS requires mapping Compose Multiplatform to native accessibility nodes. | Planned |
+| **Additional Cloud Providers** | Support for running Mobilewright tests on additional device cloud providers. | Planned |
