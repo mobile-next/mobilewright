@@ -95,8 +95,10 @@ program
 
     const status = await runAllTestsWithConfig(config);
 
-    // Post-process HTML report with Mobilewright branding
-    if (opts.reporter && (opts.reporter as string).split(',').some(r => r.trim() === 'html')) {
+    // Post-process HTML report with Mobilewright branding.
+    // Apply whenever the report dir exists — covers both --reporter html
+    // and reporter configured in the config file.
+    if (existsSync(resolve(process.cwd(), HTML_REPORT_DIR))) {
       try {
         brandReport(resolve(process.cwd(), HTML_REPORT_DIR));
       } catch {
