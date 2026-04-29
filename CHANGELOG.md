@@ -1,3 +1,10 @@
+## [0.0.28] (2026-04-29)
+* Fix(test): Stream cloud recordings to disk instead of loading into memory — safe for large video files
+* Fix(test): Attach video by file path rather than buffer so Playwright copies it into the report correctly
+* Fix(test): Video attachments now work with the mobile-use cloud driver; presigned S3 URL is downloaded and attached automatically
+* Fix(cli): HTML report branding now applies when the `html` reporter is configured in `mobilewright.config.ts`, not only when `--reporter html` is passed on the command line
+* Protocol: `RecordingResult` fields aligned with the mobilefleet OpenRPC spec — `url` (presigned download URL for cloud drivers), `output` (local path for mobilecli), `duration` (integer seconds), `status`; all fields optional
+
 ## [0.0.27] (2026-04-28)
 * General: New worker/device-pool architecture: workers acquire devices from a shared pool instead of each worker owning a dedicated device
 * General: Track installed apps per slot to skip re-install when the same worker reuses a device
