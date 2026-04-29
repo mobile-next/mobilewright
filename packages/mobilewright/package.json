@@ -30,7 +30,8 @@
   },
   "files": [
     "dist",
-    "assets"
+    "assets",
+    "templates"
   ],
   "dependencies": {
     "@mobilewright/core": "^0.0.1",
