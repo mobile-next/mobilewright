@@ -20,6 +20,9 @@ export function resolveMobilecliBinary(): string {
     case 'linux-x64':
       binary = 'mobilecli-linux-amd64';
       break;
+    case 'win32-x64':
+      binary = 'mobilecli-windows-amd64.exe';
+      break;
     default:
       throw new Error(`Unsupported platform: ${process.platform}-${process.arch}`);
   }
