@@ -2,6 +2,27 @@
 
 This is a living document of planned and in-progress features. Items are roughly prioritized top-to-bottom. Have a feature request? [Open an issue](https://github.com/mobile-next/mobilewright/issues/new/choose).
 
+## What's included today
+
+| Feature | Example |
+|---|---|
+| ✅ Android & iOS support | `platform: 'ios'` or `'android'` in config |
+| ✅ Test framework | `test.skip()`, `test.step()`, `test.beforeEach()`, `test.describe.serial()` |
+| ✅ Parallel workers & sharding | `--workers 4`, `--shard 1/3`, `fullyParallel: true` |
+| ✅ Reporters | `list`, `html`, `json`, `blob` — via config or `--reporter` |
+| ✅ Locator API | `getByText()`, `getByRole()`, `getByTestId()`, `getByLabel()`, `first()`, `nth()`, `count()` |
+| ✅ Touch interactions | `tap()`, `doubleTap()`, `longPress()`, `fill()`, `scrollIntoViewIfNeeded()` |
+| ✅ Screen actions | `swipe()`, `pressButton()`, `goBack()`, `screenshot()` |
+| ✅ Locator assertions | `toBeVisible()`, `toBeEnabled()`, `toBeChecked()`, `toBeHidden()`, `toHaveText()`, `toHaveValue()` |
+| ✅ Value assertions | `toBe()`, `toEqual()`, `toContain()`, `toBeGreaterThan()`, `toMatch()` |
+| ✅ App lifecycle | `launchApp()`, `terminateApp()`, `installApp()`, `uninstallApp()` |
+| ✅ Device control | `setOrientation()`, `openUrl()`, `listApps()`, `getForegroundApp()` |
+| ✅ Video recording | Attached to the HTML report (`on`, `on failure`, `off`) |
+| ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
+| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot` |
+
+## What's coming
+
 | Feature | Description | Status |
 |---|---|---|
 | **Mobilewright CLI** | Command-line tool for managing fleets of real devices — provisioning, grouping, and running tests across many devices in parallel. | Planned |
