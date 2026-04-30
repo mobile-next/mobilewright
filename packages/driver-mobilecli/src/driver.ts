@@ -89,6 +89,14 @@ interface MobilecliDevicesResponse {
   data: { devices: MobilecliDeviceEntry[]; };
 }
 
+interface MobilecliAgentStatusResponse {
+  status: string;
+  data: {
+    message?: string;
+    agent?: { version: string; bundleId: string };
+  };
+}
+
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
 const VALID_DEVICE_TYPES = new Set<string>(['real', 'simulator', 'emulator']);
 const VALID_DEVICE_STATES = new Set<string>(['online', 'offline']);
@@ -141,17 +149,33 @@ export class MobilecliDriver implements MobilewrightDriver {
     debug('websocket connected');
 
     const platform = config.platform;
-    const deviceId = config.deviceId ?? await this.resolveDeviceId(platform, config.deviceName);
-    debug('resolved device %s (platform=%s)', deviceId, platform);
+    let device: DeviceInfo;
+    if (config.deviceId) {
+      device = await this.findDeviceById(config.deviceId);
+    } else {
+      device = await this.resolveDevice(platform, config.deviceName);
+    }
+    debug('resolved device %s (platform=%s, type=%s)', device.id, platform, device.type);
 
-    this.session = { deviceId, platform, rpc };
-    return { deviceId, platform };
+    this.ensureAgentInstalled(device);
+
+    this.session = { deviceId: device.id, platform, rpc };
+    return { deviceId: device.id, platform };
   }
 
-  private async resolveDeviceId(
+  private async findDeviceById(deviceId: string): Promise<DeviceInfo> {
+    const allDevices = await this.listDevices();
+    const device = allDevices.find((d) => d.id === deviceId);
+    if (!device) {
+      throw new Error(`Device ${deviceId} not found`);
+    }
+    return device;
+  }
+
+  private async resolveDevice(
     platform: Platform,
     deviceName?: RegExp | string,
-  ): Promise<string> {
+  ): Promise<DeviceInfo> {
     const allDevices = await this.listDevices();
     debug('found %d devices, resolving for platform=%s deviceName=%s', allDevices.length, platform, deviceName);
 
@@ -187,7 +211,31 @@ export class MobilecliDriver implements MobilewrightDriver {
       );
     }
 
-    return candidates[0].id;
+    return candidates[0];
+  }
+
+  private ensureAgentInstalled(device: DeviceInfo): void {
+    const binary = resolveMobilecliBinary();
+    debug('running: %s agent status --device %s', binary, device.id);
+    const statusOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
+    debug('agent status output: %s', statusOutput.trim());
+    const statusResponse = JSON.parse(statusOutput) as MobilecliAgentStatusResponse;
+    if (statusResponse.status === 'ok') {
+      return;
+    }
+    if (device.type === 'simulator' || device.type === 'emulator') {
+      debug('agent not installed on %s %s, installing automatically', device.type, device.id);
+      debug('running: %s agent install --device %s --verbose', binary, device.id);
+      const installOutput = execFileSync(binary, ['agent', 'install', '--device', device.id, '--verbose'], { encoding: 'utf8' });
+      debug('agent install output: %s', installOutput.trim());
+      const verifyOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
+      const verifyResponse = JSON.parse(verifyOutput) as MobilecliAgentStatusResponse;
+      if (verifyResponse.status !== 'ok') {
+        throw new Error(`agent install failed on ${device.type} ${device.id}: ${verifyResponse.data?.message ?? 'unknown error'}`);
+      }
+      return;
+    }
+    throw new Error(`agent not installed, run \`npx mobilewright install --device ${device.id}\` to get started`);
   }
 
   async disconnect(): Promise<void> {
