@@ -1,3 +1,8 @@
+## [0.0.29] (2026-04-30)
+* General: mobilecli agent is automatically installed on simulators and emulators at connect time — no manual `mobilewright install` step needed
+* Fix(cli): `npx mobilewright init` now works correctly — templates were missing from the published dist
+* Fix(driver-mobilecli): Windows 11 is now supported — `win32-x64` resolves to `mobilecli-windows-amd64.exe`
+
 ## [0.0.28] (2026-04-29)
 * Fix(test): Stream cloud recordings to disk instead of loading into memory — safe for large video files
 * Fix(test): Video attachments now work with the cloud drivers
