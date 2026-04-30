@@ -228,6 +228,11 @@ export class MobilecliDriver implements MobilewrightDriver {
       debug('running: %s agent install --device %s --verbose', binary, device.id);
       const installOutput = execFileSync(binary, ['agent', 'install', '--device', device.id, '--verbose'], { encoding: 'utf8' });
       debug('agent install output: %s', installOutput.trim());
+      const verifyOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
+      const verifyResponse = JSON.parse(verifyOutput) as MobilecliAgentStatusResponse;
+      if (verifyResponse.status !== 'ok') {
+        throw new Error(`agent install failed on ${device.type} ${device.id}: ${verifyResponse.data?.message ?? 'unknown error'}`);
+      }
       return;
     }
     throw new Error(`agent not installed, run \`npx mobilewright install --device ${device.id}\` to get started`);
