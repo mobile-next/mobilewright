@@ -1,5 +1,6 @@
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const _require = createRequire(import.meta.url);
@@ -147,7 +148,7 @@ export async function loadConfig(
     const fullPath = join(cwd, name);
     try {
       await access(fullPath);
-      const mod = await import(fullPath);
+      const mod = await import(pathToFileURL(fullPath).href);
       let config = mod.default ?? mod;
       // Some loaders (e.g. Playwright's TS transpiler) double-wrap the default export
       if (config && typeof config === 'object' && 'default' in config) {
