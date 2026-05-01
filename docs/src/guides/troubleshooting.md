@@ -75,6 +75,20 @@ DEBUG=mw:* npx mobilewright test
 DEBUG=mw:driver-mobilecli npx mobilewright test
 ```
 
+On Windows, set the variable before running the command:
+
+```powershell
+# PowerShell
+$env:DEBUG = "mw:*"
+npx mobilewright test
+```
+
+```cmd
+:: Command Prompt
+set DEBUG=mw:*
+npx mobilewright test
+```
+
 Example output with `DEBUG=mw:driver-mobile-use`:
 
 ```
