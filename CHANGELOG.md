@@ -1,3 +1,9 @@
+## [0.0.30] (2026-05-01)
+* Fix(config): `loadConfig()` now uses `pathToFileURL` for dynamic import — fixes config not loading on Windows
+* Fix(doctor): Suggest `Microsoft.OpenJDK.17` instead of Azul Zulu for Windows JDK installs
+* Feat(test): `swipe` on a locator — e.g. swipe left on a list item
+* Docs: Added Windows instructions for enabling debug logs (`$env:DEBUG` / `set DEBUG`)
+
 ## [0.0.29] (2026-04-30)
 * General: mobilecli agent is automatically installed on simulators and emulators at connect time — no manual `mobilewright install` step needed
 * Fix(cli): `npx mobilewright init` now works correctly — templates were missing from the published dist
