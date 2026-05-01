@@ -469,11 +469,11 @@ function checkJava(): CheckResult {
           'export JAVA_HOME=$(/usr/libexec/java_home -v 17)',
         ]
         : [
-          '# Install Azul Zulu JDK 17 (recommended for Android):',
-          'winget install Azul.Zulu.17.JDK',
-          '# Or: choco install zulu17',
+          '# Find and install Microsoft OpenJDK 17:',
+          'winget search Microsoft.OpenJDK',
+          'winget install Microsoft.OpenJDK.17',
           '# Then set JAVA_HOME in System Environment Variables to:',
-          '# C:\\Program Files\\Zulu\\zulu-17',
+          '# C:\\Program Files\\Microsoft\\jdk-17',
         ],
     });
   }
@@ -492,7 +492,7 @@ function checkJava(): CheckResult {
     fix:     !ok
       ? isMac()
         ? ['brew install --cask zulu@17']
-        : ['winget install Azul.Zulu.17.JDK']
+        : ['winget search Microsoft.OpenJDK', 'winget install Microsoft.OpenJDK.17']
       : null,
   });
 }
@@ -511,7 +511,7 @@ function checkJavaHome(): CheckResult {
         ]
         : [
           '# Set JAVA_HOME in System Environment Variables (run in admin PowerShell):',
-          '[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\\Program Files\\Zulu\\zulu-17", "Machine")',
+          '[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\\Program Files\\Microsoft\\jdk-17", "Machine")',
         ],
     });
   }
