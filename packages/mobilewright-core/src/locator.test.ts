@@ -138,6 +138,24 @@ test.describe('Locator', () => {
     });
   });
 
+  test.describe('swipe', () => {
+    test('swipes from element center in the given direction', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.swipe({ direction: 'left' });
+
+      expect(driver._tracker.swipeCalls).toEqual([['left', { startX: 120, startY: 125 }]]);
+    });
+
+    test('throws LocatorError when element not found', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Nonexistent' }, { timeout: 200 });
+
+      await expect(locator.swipe({ direction: 'left' })).rejects.toThrow(LocatorError);
+    });
+  });
+
   test.describe('fill', () => {
     test('taps to focus then types text', async () => {
       const driver = createMockDriver(hierarchy);

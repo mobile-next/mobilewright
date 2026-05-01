@@ -135,6 +135,12 @@ export class Locator {
     return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
   }
 
+  async swipe(opts: { direction: SwipeDirection; timeout?: number }): Promise<void> {
+    const node = await this.resolveActionable(opts.timeout);
+    const { x, y } = centerOf(node.bounds);
+    await this.driver.swipe(opts.direction, { startX: x, startY: y });
+  }
+
   async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
     const maxSwipes = opts?.maxSwipes ?? 10;
     const direction: SwipeDirection = opts?.direction ?? 'up';
