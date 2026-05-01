@@ -24,7 +24,7 @@ npm install mobilewright @mobilewright/test
 Initialize a new project:
 
 ```bash
-npm init mobilewright
+npm init mobilewright@latest
 ```
 
 This creates the configuration file and an example test. If either file already exists, it will be skipped.
