@@ -384,6 +384,25 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async installApp(path: string): Promise<void> {
+    if (/\.ipa$/i.test(path)) {
+      const session = this.requireSession();
+      if (session.platform === 'ios') {
+        const devices = await this.listDevices();
+        const device = devices.find((d) => d.id === session.deviceId);
+        if (device?.type === 'simulator') {
+          throw new Error(
+            `Cannot install a .ipa file on iOS simulator "${device.name}".\n\n` +
+            `iOS simulators require a .zip of the .app bundle. Build and package it with:\n\n` +
+            `  xcodebuild -scheme <Scheme> -configuration Debug \\\n` +
+            `    -destination "platform=iOS Simulator,name=${device.name}" \\\n` +
+            `    -derivedDataPath build build\n` +
+            `  cd build/Build/Products/Debug-iphonesimulator\n` +
+            `  zip -r MyApp.zip MyApp.app\n\n` +
+            `Then update your installApps config to point to MyApp.zip.`,
+          );
+        }
+      }
+    }
     await this.call('device.apps.install', { path });
   }
 
