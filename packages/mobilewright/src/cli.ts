@@ -14,6 +14,7 @@ import { ensureMobilecliReachable } from './server.js';
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
+import { telemetry } from './telemetry.js';
 
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
@@ -93,7 +94,10 @@ program
     if (opts.list) c.cliListOnly = true;
     if (opts.passWithNoTests) c.cliPassWithNoTests = true;
 
+    telemetry('mw_test');
     const status = await runAllTestsWithConfig(config);
+
+    telemetry('mw_test-ended', { Status: status });
 
     // Post-process HTML report with Mobilewright branding.
     // Apply whenever the report dir exists — covers both --reporter html
@@ -286,6 +290,7 @@ program
       process.exit(1);
     }
 
+    telemetry('mw_doctor');
     const checks = gatherChecks(opts.category as Category | undefined);
 
     if (opts.json) {
@@ -302,6 +307,7 @@ program
   .command('init')
   .description('scaffold a mobilewright.config.ts and example test in the current directory')
   .action(async () => {
+    telemetry('mw_init');
     const files = [
       { src: 'mobilewright.config.ts', dest: resolve(process.cwd(), 'mobilewright.config.ts') },
       { src: 'example.test.ts', dest: resolve(process.cwd(), 'example.test.ts') },
