@@ -57,6 +57,8 @@ export interface AppInfo {
 export interface LaunchOptions {
   /** BCP 47 locale tags (e.g. ['fr-FR', 'en-GB']) */
   locales?: string[];
+  /** Skip waiting for the launched app to appear in foreground (default: false) */
+  noWaitAfter?: boolean;
 }
 
 // ─── Connection ──────────────────────────────────────────────────

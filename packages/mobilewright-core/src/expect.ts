@@ -1,9 +1,8 @@
 import type { Locator } from './locator.js';
-import { sleep } from './sleep.js';
+import { retryUntil } from './poll.js';
 import { filterStack } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
-const POLL_INTERVAL = 100;
 
 export interface ExpectOptions {
   timeout?: number;
@@ -87,7 +86,7 @@ class LocatorAssertions {
 
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
     let lastValue = '';
-    await this.retryUntil(
+    await this.retryAssertion(
       async () => {
         try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
         return lastValue;
@@ -108,7 +107,7 @@ class LocatorAssertions {
     poll: () => Promise<boolean>,
     opts?: ExpectOptions,
   ): Promise<void> {
-    await this.retryUntil(
+    await this.retryAssertion(
       poll,
       (result) => (this.negated ? !result : result),
       opts?.timeout ?? DEFAULT_TIMEOUT,
@@ -124,7 +123,7 @@ class LocatorAssertions {
     opts?: ExpectOptions,
   ): Promise<void> {
     let lastText = '';
-    await this.retryUntil(
+    await this.retryAssertion(
       async () => {
         try { lastText = await this.locator.getText({ timeout: 0 }); } catch { lastText = ''; }
         return lastText;
@@ -140,25 +139,16 @@ class LocatorAssertions {
     );
   }
 
-  private async retryUntil<T>(
+  private async retryAssertion<T>(
     poll: () => Promise<T>,
     predicate: (value: T) => boolean,
     timeout: number,
     failMessage: string | (() => string),
   ): Promise<void> {
-    const deadline = Date.now() + timeout;
-
-    while (true) {
-      const value = await poll();
-      if (predicate(value)) {
-        return;
-      }
-
-      if (Date.now() >= deadline) {
-        throw new ExpectError(typeof failMessage === 'function' ? failMessage() : failMessage);
-      }
-
-      await sleep(POLL_INTERVAL);
+    try {
+      await retryUntil(poll, predicate, timeout, failMessage);
+    } catch (e) {
+      throw new ExpectError(e instanceof Error ? e.message : String(e));
     }
   }
 }

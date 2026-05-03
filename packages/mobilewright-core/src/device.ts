@@ -10,6 +10,9 @@ import type {
 } from '@mobilewright/protocol';
 import { Screen } from './screen.js';
 import type { LocatorOptions } from './locator.js';
+import { retryUntil } from './poll.js';
+
+const LAUNCH_APP_TIMEOUT = 20_000;
 
 export interface DeviceOptions {
   locatorDefaults?: LocatorOptions;
@@ -77,7 +80,16 @@ export class Device {
   // ─── App control ─────────────────────────────────────────────
 
   async launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
-    return this.driver.launchApp(bundleId, opts);
+    await this.driver.launchApp(bundleId, opts);
+    if (opts?.noWaitAfter) {
+      return;
+    }
+    await retryUntil(
+      () => this.getForegroundApp(),
+      (app) => app.bundleId === bundleId,
+      LAUNCH_APP_TIMEOUT,
+      `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
+    );
   }
 
   async terminateApp(bundleId: string): Promise<void> {
