@@ -390,6 +390,16 @@ Need real phones in the cloud? [mobile-use.com](https://mobile-use.com) gives yo
 
 mobile-use.com is the only device cloud with native Mobilewright support.
 
+## Telemetry
+
+Mobilewright collects anonymous usage telemetry via PostHog. To disable it, set the `MOBILEWRIGHT_DISABLE_TELEMETRY` environment variable:
+
+```bash
+MOBILEWRIGHT_DISABLE_TELEMETRY=1 npx mobilewright test
+```
+
+When telemetry is enabled, a random identifier is generated and stored in `~/.config/mobilenext/mobilewright/config.json`. No personal information or test data is ever collected.
+
 ## Contributing
 
 ```bash
