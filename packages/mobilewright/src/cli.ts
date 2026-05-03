@@ -23,7 +23,7 @@ const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'te
 
 const program = new Command();
 program.name('mobilewright');
-program.version('0.0.1');
+program.version(_pkg.version);
 
 // ── test ───────────────────────────────────────────────────────────────
 program
