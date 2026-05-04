@@ -85,7 +85,31 @@ program
       }
     }
 
-    const config = await loadConfigFromFile(configFile, overrides);
+    let config: Awaited<ReturnType<typeof loadConfigFromFile>>;
+    try {
+      config = await loadConfigFromFile(configFile, overrides);
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ERR_REQUIRE_ESM') {
+        console.error(
+          [
+            '',
+            'Error: Could not load your mobilewright config.',
+            '',
+            'Your config file imports an ES Module (e.g. mobilewright), but your package.json',
+            'is missing "type": "module". Node\'s CommonJS loader cannot require() ES Modules.',
+            '',
+            'Fix: add the following to your package.json:',
+            '',
+            '  "type": "module"',
+            '',
+            'Then re-run: npx mobilewright test',
+            '',
+          ].join('\n'),
+        );
+        process.exit(1);
+      }
+      throw err;
+    }
     const c = config as Record<string, unknown>;
     c.cliArgs = args;
     if (opts.grep) c.cliGrep = opts.grep;
