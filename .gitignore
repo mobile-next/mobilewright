@@ -20,23 +20,30 @@ test-results/
 .env.*
 *.log
 
+# Hand-written declaration files — keep these
+!packages/*/src/playwright.d.ts
+
 # TypeScript build artifacts emitted outside dist/
 packages/*/src/**/*.js
 packages/*/src/**/*.js.map
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.d.ts.map
+packages/*/templates/**/*.js
+packages/*/templates/**/*.js.map
+packages/*/templates/**/*.d.ts
+packages/*/templates/**/*.d.ts.map
 e2e/**/*.js
 e2e/**/*.js.map
 e2e/**/*.d.ts
 e2e/**/*.d.ts.map
-
-# Hand-written declaration files — keep these
-!packages/*/src/playwright.d.ts
-
 scripts/**/*.js
 scripts/**/*.js.map
 scripts/**/*.d.ts
 scripts/**/*.d.ts.map
+tests/**/*.js
+tests/**/*.js.map
+tests/**/*.d.ts
+tests/**/*.d.ts.map
 examples/**/*.js
 examples/**/*.js.map
 examples/**/*.d.ts
