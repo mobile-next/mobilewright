@@ -37,6 +37,7 @@ interface MobileUseElement {
   name?: string;
   value?: string;
   identifier?: string;
+  placeholder?: string;
   rect?: { x: number; y: number; width: number; height: number };
   children?: MobileUseElement[];
   visible?: boolean;
@@ -117,6 +118,7 @@ function elementToViewNode(el: MobileUseElement): ViewNode {
     identifier: el.identifier || el.name || undefined,
     value: el.value || undefined,
     text: el.text || undefined,
+    placeholder: el.placeholder || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
     bounds,

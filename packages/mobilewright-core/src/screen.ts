@@ -42,6 +42,10 @@ export class Screen {
     return this.root.getByRole(role, opts);
   }
 
+  getByPlaceholder(placeholder: string, opts?: { exact?: boolean }): Locator {
+    return this.root.getByPlaceholder(placeholder, opts);
+  }
+
   // ─── Direct screen actions ──────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
