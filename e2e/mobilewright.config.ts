@@ -29,6 +29,7 @@ const config: MobilewrightConfig = defineConfig({
   testMatch: '**/*.test.ts',
   retries: 0,
   timeout: 60_000,
+  platform: 'ios',
 
   // parallel by test() instead of parallel by file
   fullyParallel: true,
