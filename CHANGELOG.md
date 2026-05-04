@@ -1,3 +1,10 @@
+## [0.0.31] (2026-05-04)
+* Feat: `screen.getByPlaceholder()` is now available ([#84](https://github.com/mobile-next/mobilewright/pull/84))
+* Feat: `launchApp()` now waits for the app to reach the foreground before continuing; pass `noWaitAfter: true` to skip ([#80](https://github.com/mobile-next/mobilewright/pull/80))
+* Feat: Add anonymous telemetry for `test`, `doctor`, and `init` commands - see README for opt-out ([#79](https://github.com/mobile-next/mobilewright/pull/79))
+* Feat: `init` example test template now includes a `device` param and doc comments ([#86](https://github.com/mobile-next/mobilewright/pull/86))
+* Fix: mobilewright --version now reads from `package.json` instead of the hardcoded `'0.0.1'` ([#78](https://github.com/mobile-next/mobilewright/pull/78))
+
 ## [0.0.30] (2026-05-01)
 * Fix(config): `loadConfig()` now uses `pathToFileURL` for dynamic import — fixes config not loading on Windows
 * Fix(doctor): Suggest `Microsoft.OpenJDK.17` instead of Azul Zulu for Windows JDK installs
