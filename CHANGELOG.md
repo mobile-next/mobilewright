@@ -1,3 +1,6 @@
+## [0.0.32] (2026-05-05)
+* Fix: updated mobilecli to fix 'SYS_KEYS has no physical keys but with factor 2.0%' error on certain Android devices
+
 ## [0.0.31] (2026-05-04)
 * Feat: `screen.getByPlaceholder()` is now available ([#84](https://github.com/mobile-next/mobilewright/pull/84))
 * Feat: `launchApp()` now waits for the app to reach the foreground before continuing; pass `noWaitAfter: true` to skip ([#80](https://github.com/mobile-next/mobilewright/pull/80))
