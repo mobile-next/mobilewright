@@ -144,6 +144,7 @@ screen.getByText(/welcome/i)                        // RegExp match
 screen.getByText('welcome', { exact: false })       // substring match
 screen.getByType('TextField')                       // element type
 screen.getByRole('button', { name: 'Sign In' })     // semantic role + name filter
+screen.getByPlaceholder('Search...')                // placeholder text
 ```
 
 **Direct actions:**
@@ -168,6 +169,8 @@ await locator.tap()
 await locator.doubleTap()
 await locator.longPress({ duration: 1000 })
 await locator.fill('hello@example.com')              // tap to focus + type text
+await locator.swipe({ direction: 'left' })           // swipe on a specific element
+await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
 ```
 
 **Queries:**
@@ -218,7 +221,8 @@ await device.goto('myapp://settings');
 await device.openUrl('https://example.com');
 
 // App lifecycle
-await device.launchApp('com.example.app', { locale: 'fr_FR' });
+await device.launchApp('com.example.app', { locale: 'fr_FR' }); // waits until app is in foreground
+await device.launchApp('com.example.app', { noWaitAfter: true }); // skip foreground wait
 await device.terminateApp('com.example.app');
 const apps = await device.listApps();
 const foreground = await device.getForegroundApp();
