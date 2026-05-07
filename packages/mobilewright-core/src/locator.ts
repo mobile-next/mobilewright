@@ -109,6 +109,11 @@ export class Locator {
     await this.driver.tap(x, y);
   }
 
+  async click(
+    opts?: { timeout?: number }): Promise<void> {
+    return this.tap(opts);
+  }
+
   async doubleTap(opts?: { timeout?: number }): Promise<void> {
     const node = await this.resolveActionable(opts?.timeout);
     const { x, y } = centerOf(node.bounds);
@@ -168,6 +173,11 @@ export class Locator {
 
   // ─── Queries (with auto-wait for visibility) ─────────────────
 
+  async exists(): Promise<boolean> {
+    const node = await this.resolve(0);
+    return node !== null;
+  }
+  
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
