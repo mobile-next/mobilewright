@@ -84,12 +84,23 @@ export class Device {
     if (opts?.noWaitAfter) {
       return;
     }
-    await retryUntil(
-      () => this.getForegroundApp(),
-      (app) => app.bundleId === bundleId,
-      LAUNCH_APP_TIMEOUT,
-      `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
-    );
+    try {
+      await retryUntil(
+        () => this.getForegroundApp(),
+        (app) => app.bundleId === bundleId,
+        LAUNCH_APP_TIMEOUT,
+        `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
+      );
+    } catch (err) {
+      if (String(err).includes('could not determine foreground app')) {
+        // mobilecli's WebSocket RPC path for device.apps.foreground fails on
+        // some Android devices even though the app launched successfully.
+        // Warn and continue rather than failing the launch entirely.
+        console.warn(`[mobilewright] warning: could not verify "${bundleId}" reached foreground — proceeding anyway. This is a known mobilecli issue on some Android devices.`);
+        return;
+      }
+      throw err;
+    }
   }
 
   async terminateApp(bundleId: string): Promise<void> {
