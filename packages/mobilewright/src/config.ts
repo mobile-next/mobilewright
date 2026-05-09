@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -137,24 +137,37 @@ const CONFIG_FILES = [
   'mobilewright.config.mjs',
 ];
 
+async function importConfig(fullPath: string): Promise<MobilewrightConfig> {
+  const mod = await import(pathToFileURL(fullPath).href);
+  let config = mod.default ?? mod;
+  // Some loaders (e.g. Playwright's TS transpiler) double-wrap the default export
+  if (config && typeof config === 'object' && 'default' in config) {
+    config = config.default;
+  }
+  return config as MobilewrightConfig;
+}
+
 /**
- * Load mobilewright config from the project root.
- * Returns empty config if no config file found.
+ * Load mobilewright config.
+ *
+ * If `configFile` is provided, that file is loaded directly. Otherwise scans
+ * `cwd` for mobilewright.config.{ts,js,mjs}. Returns empty config when nothing
+ * is found.
  */
 export async function loadConfig(
   cwd: string = process.cwd(),
+  configFile?: string,
 ): Promise<MobilewrightConfig> {
+  if (configFile) {
+    const fullPath = isAbsolute(configFile) ? configFile : resolve(cwd, configFile);
+    return importConfig(fullPath);
+  }
+
   for (const name of CONFIG_FILES) {
     const fullPath = join(cwd, name);
     try {
       await access(fullPath);
-      const mod = await import(pathToFileURL(fullPath).href);
-      let config = mod.default ?? mod;
-      // Some loaders (e.g. Playwright's TS transpiler) double-wrap the default export
-      if (config && typeof config === 'object' && 'default' in config) {
-        config = config.default;
-      }
-      return config as MobilewrightConfig;
+      return importConfig(fullPath);
     } catch {
       continue;
     }

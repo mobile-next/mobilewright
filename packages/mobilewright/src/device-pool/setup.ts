@@ -18,7 +18,7 @@ let active: ActiveCoordinator | undefined;
  * that CLI overrides (e.g. --workers 2) are reflected in maxSlots.
  */
 export default async function setup(playwrightConfig: FullConfig): Promise<() => Promise<void>> {
-  const config = await loadConfig();
+  const config = await loadConfig(process.cwd(), playwrightConfig.configFile);
   const { allocator, serverProcess } = await createAllocator(config);
 
   // Use the resolved worker count from Playwright's FullConfig so CLI flags

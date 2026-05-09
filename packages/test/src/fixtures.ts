@@ -45,16 +45,16 @@ function getClient(): DevicePoolClient {
 }
 
 export const test = base.extend<MobilewrightTestFixtures>({
-  bundleId: [async ({}, use) => {
-    const config = await loadConfig();
+  bundleId: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     await use(config.bundleId);
   }, { option: true }],
 
   platform: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
 
-  device: async ({ platform, deviceName, bundleId }, use) => {
-    const config = await loadConfig();
+  device: async ({ platform, deviceName, bundleId }, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const merged = {
       ...config,
       ...(platform && { platform }),
