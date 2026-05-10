@@ -148,6 +148,15 @@ export interface ListDevicesOptions {
   state?: DeviceState;
 }
 
+// ─── WebView ─────────────────────────────────────────────────────
+
+export interface WebViewInfo {
+  id: string;
+  url: string;
+  title: string;
+  nativeBounds?: Bounds;
+}
+
 // ─── Recording ──────────────────────────────────────────────────
 
 export interface RecordingOptions {

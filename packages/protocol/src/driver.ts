@@ -15,7 +15,28 @@ import type {
   SwipeDirection,
   SwipeOptions,
   ViewNode,
+  WebViewInfo,
 } from './types.js';
+
+export interface WebViewSession {
+  evaluate<T = unknown>(expr: string): Promise<T>;
+  querySelectorAll(selector: string): Promise<string[]>;
+  click(nodeId: string): Promise<void>;
+  type(nodeId: string, text: string): Promise<void>;
+  getAttribute(nodeId: string, name: string): Promise<string | null>;
+  getText(nodeId: string): Promise<string>;
+  goto(url: string): Promise<void>;
+  url(): Promise<string>;
+  title(): Promise<string>;
+  reload(): Promise<void>;
+  waitForLoadState(state?: 'load' | 'domcontentloaded'): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface WebViewBridge {
+  listWebViews(): Promise<WebViewInfo[]>;
+  attachWebView(id: string): Promise<WebViewSession>;
+}
 
 export interface MobilewrightDriver {
   // Connection
@@ -55,4 +76,7 @@ export interface MobilewrightDriver {
   // Recording
   startRecording(opts: RecordingOptions): Promise<void>;
   stopRecording(): Promise<RecordingResult>;
+
+  // WebView (optional — drivers that don't support it omit this)
+  webViewBridge?: WebViewBridge;
 }
