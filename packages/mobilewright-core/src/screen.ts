@@ -9,13 +9,14 @@ import type {
   ViewNode,
 } from '@mobilewright/protocol';
 import { Locator, type LocatorOptions } from './locator.js';
+import { WebViewLocator } from './webview-locator.js';
 
 export class Screen {
   private readonly root: Locator;
 
   constructor(
     private readonly driver: MobilewrightDriver,
-    locatorDefaults: LocatorOptions = {},
+    private readonly locatorDefaults: LocatorOptions = {},
   ) {
     this.root = Locator.root(driver, locatorDefaults);
   }
@@ -44,6 +45,14 @@ export class Screen {
 
   getByPlaceholder(placeholder: string, opts?: { exact?: boolean }): Locator {
     return this.root.getByPlaceholder(placeholder, opts);
+  }
+
+  getByWebView(): WebViewLocator {
+    return new WebViewLocator(
+      this.driver,
+      { kind: 'chain', parent: { kind: 'root' }, child: { kind: 'webview' } },
+      this.locatorDefaults,
+    );
   }
 
   // ─── Direct screen actions ──────────────────────────────────

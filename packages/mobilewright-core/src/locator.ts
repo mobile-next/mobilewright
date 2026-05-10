@@ -27,9 +27,9 @@ export class Locator {
   }
 
   constructor(
-    private readonly driver: MobilewrightDriver,
-    private readonly strategy: LocatorStrategy,
-    private readonly options: LocatorOptions = {},
+    protected readonly driver: MobilewrightDriver,
+    protected readonly strategy: LocatorStrategy,
+    protected readonly options: LocatorOptions = {},
   ) {}
 
   // ─── Chaining ────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export class Locator {
     return this.child({ kind: 'placeholder', value: placeholder, exact: opts?.exact });
   }
 
-  private child(childStrategy: LocatorStrategy): Locator {
+  protected child(childStrategy: LocatorStrategy): Locator {
     return new Locator(
       this.driver,
       { kind: 'chain', parent: this.strategy, child: childStrategy },
