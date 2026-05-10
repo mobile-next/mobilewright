@@ -50,8 +50,8 @@ class LocatorAssertions {
     protected readonly negated: boolean,
   ) {}
 
-  get not(): LocatorAssertions {
-    return new LocatorAssertions(this.locator, !this.negated);
+  get not(): this {
+    return new (this.constructor as any)(this.locator, !this.negated) as this;
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
@@ -124,7 +124,7 @@ class LocatorAssertions {
     let last = 0;
     await this.retryAssertion(
       async () => { try { last = await this.locator.count(); } catch { last = 0; } return last; },
-      (n) => n === expected,
+      (n) => this.negated ? n !== expected : n === expected,
       opts?.timeout ?? DEFAULT_TIMEOUT,
       () => `Expected ${expected} element(s), but found ${last}`,
     );
@@ -382,10 +382,6 @@ class WebLocatorAssertions extends LocatorAssertions {
     super(webLocator, negated);
   }
 
-  override get not(): WebLocatorAssertions {
-    return new WebLocatorAssertions(this.webLocator, !this.negated);
-  }
-
   async toHaveAttribute(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
     let last: string | null = null;
     await this.retryAssertion(
@@ -394,7 +390,7 @@ class WebLocatorAssertions extends LocatorAssertions {
         return last;
       },
       (value) => {
-        if (value === null) return false;
+        if (value === null) { return false; }
         return expected instanceof RegExp ? expected.test(value) : value === expected;
       },
       opts?.timeout ?? DEFAULT_TIMEOUT,
