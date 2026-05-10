@@ -59,7 +59,10 @@ class LocatorAssertions {
   }
 
   async toBeHidden(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('hidden', async () => !(await this.locator.isVisible({ timeout: 0 })), opts);
+    await this.assertBoolean('hidden', async () => {
+      const visible = await this.locator.isVisible({ timeout: 0 });
+      return !visible;
+    }, opts);
   }
 
   async toBeEnabled(opts?: ExpectOptions): Promise<void> {
@@ -67,7 +70,10 @@ class LocatorAssertions {
   }
 
   async toBeDisabled(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('disabled', async () => !(await this.locator.isEnabled({ timeout: 0 })), opts);
+    await this.assertBoolean('disabled', async () => {
+      const enabled = await this.locator.isEnabled({ timeout: 0 });
+      return !enabled;
+    }, opts);
   }
 
   async toBeSelected(opts?: ExpectOptions): Promise<void> {
@@ -90,7 +96,10 @@ class LocatorAssertions {
   }
 
   async toContainText(expected: string, opts?: ExpectOptions): Promise<void> {
-    await this.assertText((text) => text.includes(expected), expected, opts);
+    await this.assertText(
+      (text) => text.includes(expected),
+      expected, opts,
+    );
   }
 
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
