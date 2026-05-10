@@ -62,7 +62,7 @@ export class WebViewLocator extends Locator {
     }
 
     const session = await bridge.attachWebView(target.id);
-    this._page = new Page(session);
+    this._page = await Page.attach(session);
     return this._page;
   }
 }

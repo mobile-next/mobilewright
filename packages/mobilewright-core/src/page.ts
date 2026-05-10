@@ -1,10 +1,16 @@
 import type { WebViewSession } from '@mobilewright/protocol';
 import { retryUntil } from './poll.js';
 import { WebLocator } from './web-locator.js';
+import { DOM_SELECTOR_ENGINE } from './dom-selector-engine.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
 export class Page {
+  static async attach(session: WebViewSession): Promise<Page> {
+    await session.evaluate(DOM_SELECTOR_ENGINE);
+    return new Page(session);
+  }
+
   constructor(readonly session: WebViewSession) {}
 
   // ─── Locator factories ───────────────────────────────────────
