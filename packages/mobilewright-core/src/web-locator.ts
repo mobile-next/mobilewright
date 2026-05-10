@@ -117,6 +117,15 @@ export class WebLocator {
     return this.session.evaluate<number>(`(${buildFindAll(this.strategy)}).length`);
   }
 
+  // Aliases matching native Locator's API so LocatorAssertions works with WebLocator
+  async getText(opts?: { timeout?: number }): Promise<string> {
+    return this.textContent(opts);
+  }
+
+  async getValue(opts?: { timeout?: number }): Promise<string> {
+    return this.inputValue(opts);
+  }
+
   async all(): Promise<WebLocator[]> {
     const n = await this.count();
     return Array.from({ length: n }, (_, i) => this.nth(i));
