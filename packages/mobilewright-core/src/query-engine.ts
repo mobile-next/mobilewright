@@ -8,6 +8,7 @@ export type LocatorStrategy =
   | { kind: 'type'; value: string }
   | { kind: 'role'; value: string; name?: string | RegExp }
   | { kind: 'placeholder'; value: string; exact?: boolean }
+  | { kind: 'webview' }
   | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
   | { kind: 'nth'; parent: LocatorStrategy; index: number };
 
@@ -119,6 +120,9 @@ function matchesStrategy(
         ? node.placeholder.toLowerCase().includes(strategy.value.toLowerCase())
         : node.placeholder === strategy.value;
 
+    case 'webview':
+      return WEBVIEW_TYPES.has(node.type);
+
     case 'chain':
       // Handled above in queryAll
       return false;
@@ -127,6 +131,14 @@ function matchesStrategy(
       throw new Error(`Unknown strategy kind: ${(strategy as any).kind}`);
   }
 }
+
+const WEBVIEW_TYPES = new Set([
+  'WKWebView',
+  'XCUIElementTypeWebView',
+  'android.webkit.WebView',
+  'RCTWebView',
+  'RNCWebView',
+]);
 
 const ROLE_TYPE_MAP: Record<string, string[]> = {
   button: ['button', 'imagebutton'],

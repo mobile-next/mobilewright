@@ -351,6 +351,83 @@ test.describe('placeholder strategy', () => {
   });
 });
 
+test.describe('webview strategy', () => {
+  function webviewNode(type: string, identifier: string): ViewNode {
+    return node({ type, identifier, bounds: { x: 0, y: 100, width: 390, height: 600 } });
+  }
+
+  const treeWithWebViews: ViewNode[] = [
+    node({ type: 'Application', children: [
+      node({ type: 'Window', children: [
+        node({ type: 'Button', label: 'Open', identifier: 'openBtn' }),
+        webviewNode('WKWebView', 'webview1'),
+        webviewNode('WKWebView', 'webview2'),
+      ]}),
+    ]}),
+  ];
+
+  test('finds WKWebView by webview strategy', () => {
+    const results = queryAll(treeWithWebViews, { kind: 'webview' });
+    expect(results).toHaveLength(2);
+    expect(results[0].identifier).toBe('webview1');
+    expect(results[1].identifier).toBe('webview2');
+  });
+
+  test('finds XCUIElementTypeWebView', () => {
+    const results = queryAll([webviewNode('XCUIElementTypeWebView', 'wv')], { kind: 'webview' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('finds android.webkit.WebView', () => {
+    const results = queryAll([webviewNode('android.webkit.WebView', 'wv')], { kind: 'webview' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('finds RCTWebView', () => {
+    const results = queryAll([webviewNode('RCTWebView', 'wv')], { kind: 'webview' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('finds RNCWebView', () => {
+    const results = queryAll([webviewNode('RNCWebView', 'wv')], { kind: 'webview' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('does not match non-webview types', () => {
+    const results = queryAll(treeWithWebViews, { kind: 'webview' });
+    const types = results.map((n) => n.type);
+    expect(types.every((t) => WEBVIEW_TYPES_FOR_TEST.has(t))).toBe(true);
+  });
+
+  test('chained parent getByWebView finds webview inside a container', () => {
+    const tree: ViewNode[] = [
+      node({ type: 'View', identifier: 'tab1', bounds: { x: 0, y: 0, width: 390, height: 800 }, children: [
+        webviewNode('WKWebView', 'wv-in-tab1'),
+      ]}),
+      node({ type: 'View', identifier: 'tab2', bounds: { x: 390, y: 0, width: 390, height: 800 }, children: [
+        webviewNode('WKWebView', 'wv-in-tab2'),
+      ]}),
+    ];
+    const strategy: LocatorStrategy = {
+      kind: 'chain',
+      parent: { kind: 'testId', value: 'tab2' },
+      child: { kind: 'webview' },
+    };
+    const results = queryAll(tree, strategy);
+    expect(results).toHaveLength(1);
+    expect(results[0].identifier).toBe('wv-in-tab2');
+  });
+
+  test('returns empty when no webviews in tree', () => {
+    const results = queryAll(sampleTree, { kind: 'webview' });
+    expect(results).toHaveLength(0);
+  });
+});
+
+const WEBVIEW_TYPES_FOR_TEST = new Set([
+  'WKWebView', 'XCUIElementTypeWebView', 'android.webkit.WebView', 'RCTWebView', 'RNCWebView',
+]);
+
 test.describe('testId with resourceId', () => {
   const tree: ViewNode[] = [
     node({
