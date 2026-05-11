@@ -109,11 +109,6 @@ export class Locator {
     await this.driver.tap(x, y);
   }
 
-  async click(
-    opts?: { timeout?: number }): Promise<void> {
-    return this.tap(opts);
-  }
-
   async doubleTap(opts?: { timeout?: number }): Promise<void> {
     const node = await this.resolveActionable(opts?.timeout);
     const { x, y } = centerOf(node.bounds);
