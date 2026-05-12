@@ -33,6 +33,7 @@ type MobilewrightTestFixtures = {
   bundleId: string | undefined;
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
+  saveTreeOnFailure: boolean;
   device: Device;
 };
 
@@ -52,6 +53,11 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
   platform: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
+
+  saveTreeOnFailure: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    await use(config.saveTreeOnFailure ?? false);
+  }, { option: true }],
 
   device: async ({ platform, deviceName, bundleId }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
@@ -104,7 +110,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
   },
 
-  screen: async ({ device, video }, use, testInfo) => {
+  screen: async ({ device, video, saveTreeOnFailure }, use, testInfo) => {
     const videoMode = typeof video === 'object' ? video.mode : video;
     const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
     const videoPath = shouldRecord
@@ -144,6 +150,17 @@ export const test = base.extend<MobilewrightTestFixtures>({
         await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
       } catch {
         // device may be disconnected
+      }
+      if (saveTreeOnFailure) {
+        try {
+          const tree = await device.screen.viewTree();
+          await testInfo.attach('view-tree-on-failure', {
+            body: Buffer.from(JSON.stringify(tree, null, 2)),
+            contentType: 'application/json',
+          });
+        } catch {
+          // device may be disconnected
+        }
       }
     }
   },
