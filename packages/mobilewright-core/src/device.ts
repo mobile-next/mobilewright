@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import type {
   AppInfo,
   ConnectionConfig,
@@ -131,5 +132,29 @@ export class Device {
 
   async stopRecording(): Promise<RecordingResult> {
     return this.driver.stopRecording();
+  }
+
+  // ─── Android animations ─────────────────────────────────────────
+  // uiautomator dump fails on continuously animated screens (e.g. a
+  // ride-searching page with a SurfaceView/TextureView animation that
+  // never settles). Disabling the three system animation scales via ADB
+  // before calling getViewHierarchy() lets the dump succeed.
+
+  disableAnimations(): void {
+    const deviceId = (this.driver as { session?: { deviceId?: string } }).session?.deviceId;
+    this._setAnimationScales(deviceId, 0);
+  }
+
+  enableAnimations(): void {
+    const deviceId = (this.driver as { session?: { deviceId?: string } }).session?.deviceId;
+    this._setAnimationScales(deviceId, 1);
+  }
+
+  private _setAnimationScales(deviceId: string | undefined, value: 0 | 1): void {
+    const prefix = deviceId ? ['-s', deviceId] : [];
+    const scales = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'];
+    for (const scale of scales) {
+      execSync(['adb', ...prefix, 'shell', 'settings', 'put', 'global', scale, String(value)].join(' '));
+    }
   }
 }

@@ -9,7 +9,7 @@
  * Usage: npx mobilewright inspect --ui
  */
 import { createServer } from 'node:http';
-import { exec } from 'node:child_process';
+import { exec, execSync } from 'node:child_process';
 import { platform as osPlatform } from 'node:os';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import type { MobilewrightConfig } from '../config.js';
@@ -18,9 +18,20 @@ import { loadConfig } from '../config.js';
 
 const PORT = 9325;
 
+// ─── Animation helpers ────────────────────────────────────────────────────────
+
+const ANIMATION_SCALES = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'] as const;
+
+function setAnimations(deviceId: string, value: 0 | 1): void {
+  for (const scale of ANIMATION_SCALES) {
+    execSync(`adb -s ${deviceId} shell settings put global ${scale} ${value}`);
+  }
+}
+
 export interface InspectUIOptions {
   device?: string;
   url?: string;
+  disableAnimations?: boolean;
 }
 
 // ─── Device resolution ────────────────────────────────────────────────────────
@@ -404,6 +415,12 @@ export async function runInspectUI(opts: InspectUIOptions): Promise<void> {
 
   const driver = new MobilecliDriver({ url });
   const deviceId = await resolveDeviceId(opts.device, driver, config);
+
+  if (opts.disableAnimations) {
+    setAnimations(deviceId, 0);
+    console.log('Android animations disabled.');
+  }
+
   const conn = makeConnection(url, platform, deviceId);
 
   const httpServer = createServer(async (req, res) => {
@@ -432,6 +449,10 @@ export async function runInspectUI(opts: InspectUIOptions): Promise<void> {
   process.on('SIGINT', async () => {
     httpServer.close();
     await conn.disconnect();
+    if (opts.disableAnimations) {
+      setAnimations(deviceId, 1);
+      console.log('\nAndroid animations restored.');
+    }
     if (serverProcess) await serverProcess.kill();
     process.exit(0);
   });

@@ -8,10 +8,21 @@
  * Pass --json to get raw ViewNode[] JSON suitable for piping to jq or saving
  * to a file for diffing between two app states.
  */
+import { execSync } from 'node:child_process';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import type { ViewNode } from '@mobilewright/protocol';
 import { ensureMobilecliReachable } from '../server.js';
 import { loadConfig } from '../config.js';
+
+// ─── Animation helpers ────────────────────────────────────────────────────────
+
+const ANIMATION_SCALES = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'] as const;
+
+function setAnimations(deviceId: string, value: 0 | 1): void {
+  for (const scale of ANIMATION_SCALES) {
+    execSync(`adb -s ${deviceId} shell settings put global ${scale} ${value}`);
+  }
+}
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
 
@@ -100,6 +111,7 @@ export interface InspectOptions {
   device?: string;
   url?: string;
   json?: boolean;
+  disableAnimations?: boolean;
 }
 
 export async function runInspect(opts: InspectOptions): Promise<void> {
@@ -112,9 +124,20 @@ export async function runInspect(opts: InspectOptions): Promise<void> {
     const driver = new MobilecliDriver({ url });
     const deviceId = await resolveDeviceId(opts.device, driver);
 
+    if (opts.disableAnimations) {
+      setAnimations(deviceId, 0);
+    }
+
     await driver.connect({ platform, deviceId, url });
-    const tree = await driver.getViewHierarchy();
-    await driver.disconnect();
+    let tree: Awaited<ReturnType<typeof driver.getViewHierarchy>>;
+    try {
+      tree = await driver.getViewHierarchy();
+    } finally {
+      await driver.disconnect();
+      if (opts.disableAnimations) {
+        setAnimations(deviceId, 1);
+      }
+    }
 
     if (opts.json) {
       console.log(JSON.stringify(tree, null, 2));

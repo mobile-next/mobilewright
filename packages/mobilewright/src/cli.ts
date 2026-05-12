@@ -258,6 +258,7 @@ program
   .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
   .option('--json', 'output raw ViewNode[] JSON instead of the terminal tree')
   .option('--ui', 'open an interactive browser UI with auto-refresh and locator copy')
+  .option('--disable-animations', 'disable Android system animations before dumping (fixes uiautomator failures on animated screens)')
   .action(async (opts: InspectOptions & { ui?: boolean }) => {
     if (opts.ui) {
       await runInspectUI(opts);
