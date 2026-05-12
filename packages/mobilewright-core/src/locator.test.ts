@@ -83,6 +83,8 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     openUrl: async (...args: any[]) => { tracker.openUrlCalls.push(args); },
     startRecording: async () => {},
     stopRecording: async () => ({}),
+    getAnimationScales: async () => ({ window: 1, transition: 1, animator: 1 }),
+    setAnimationScales: async () => {},
   };
 }
 

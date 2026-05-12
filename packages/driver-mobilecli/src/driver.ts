@@ -1,6 +1,7 @@
 import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
 import type {
+  AnimationScales,
   AppInfo,
   ConnectionConfig,
   DeviceInfo,
@@ -335,6 +336,18 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async setOrientation(orientation: Orientation): Promise<void> {
     await this.call('device.io.orientation.set', { orientation });
+  }
+
+  async getAnimationScales(): Promise<AnimationScales> {
+    return this.call<AnimationScales>('device.io.animation-scales.get');
+  }
+
+  async setAnimationScales(scales: AnimationScales): Promise<void> {
+    await this.call('device.io.animation-scales.set', {
+      window: scales.window,
+      transition: scales.transition,
+      animator: scales.animator,
+    });
   }
 
   // ─── Recording Operations ─────────────────────────────────────

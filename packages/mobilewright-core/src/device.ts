@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process';
 import type {
+  AnimationScales,
   AppInfo,
   ConnectionConfig,
   LaunchOptions,
@@ -137,24 +137,19 @@ export class Device {
   // ─── Android animations ─────────────────────────────────────────
   // uiautomator dump fails on continuously animated screens (e.g. a
   // ride-searching page with a SurfaceView/TextureView animation that
-  // never settles). Disabling the three system animation scales via ADB
-  // before calling getViewHierarchy() lets the dump succeed.
+  // never settles). Disabling the three system animation scales before
+  // calling getViewHierarchy() lets the dump succeed.
+  //
+  // disableAnimations() saves and returns the current scales so the
+  // caller can restore the exact originals via enableAnimations(saved).
 
-  disableAnimations(): void {
-    const deviceId = (this.driver as { session?: { deviceId?: string } }).session?.deviceId;
-    this._setAnimationScales(deviceId, 0);
+  async disableAnimations(): Promise<AnimationScales> {
+    const saved = await this.driver.getAnimationScales();
+    await this.driver.setAnimationScales({ window: 0, transition: 0, animator: 0 });
+    return saved;
   }
 
-  enableAnimations(): void {
-    const deviceId = (this.driver as { session?: { deviceId?: string } }).session?.deviceId;
-    this._setAnimationScales(deviceId, 1);
-  }
-
-  private _setAnimationScales(deviceId: string | undefined, value: 0 | 1): void {
-    const prefix = deviceId ? ['-s', deviceId] : [];
-    const scales = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'];
-    for (const scale of scales) {
-      execSync(['adb', ...prefix, 'shell', 'settings', 'put', 'global', scale, String(value)].join(' '));
-    }
+  async enableAnimations(scales: AnimationScales = { window: 1, transition: 1, animator: 1 }): Promise<void> {
+    await this.driver.setAnimationScales(scales);
   }
 }

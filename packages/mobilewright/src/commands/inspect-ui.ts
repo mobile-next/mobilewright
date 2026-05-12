@@ -9,24 +9,15 @@
  * Usage: npx mobilewright inspect --ui
  */
 import { createServer } from 'node:http';
-import { exec, execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { platform as osPlatform } from 'node:os';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
+import type { AnimationScales } from '@mobilewright/protocol';
 import type { MobilewrightConfig } from '../config.js';
 import { ensureMobilecliReachable } from '../server.js';
 import { loadConfig } from '../config.js';
 
 const PORT = 9325;
-
-// ─── Animation helpers ────────────────────────────────────────────────────────
-
-const ANIMATION_SCALES = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'] as const;
-
-function setAnimations(deviceId: string, value: 0 | 1): void {
-  for (const scale of ANIMATION_SCALES) {
-    execSync(`adb -s ${deviceId} shell settings put global ${scale} ${value}`);
-  }
-}
 
 export interface InspectUIOptions {
   device?: string;
@@ -416,8 +407,13 @@ export async function runInspectUI(opts: InspectUIOptions): Promise<void> {
   const driver = new MobilecliDriver({ url });
   const deviceId = await resolveDeviceId(opts.device, driver, config);
 
+  let savedScales: AnimationScales | undefined;
   if (opts.disableAnimations) {
-    setAnimations(deviceId, 0);
+    const tmpDriver = new MobilecliDriver({ url });
+    await tmpDriver.connect({ platform, deviceId, url });
+    savedScales = await tmpDriver.getAnimationScales();
+    await tmpDriver.setAnimationScales({ window: 0, transition: 0, animator: 0 });
+    await tmpDriver.disconnect();
     console.log('Android animations disabled.');
   }
 
@@ -449,9 +445,16 @@ export async function runInspectUI(opts: InspectUIOptions): Promise<void> {
   process.on('SIGINT', async () => {
     httpServer.close();
     await conn.disconnect();
-    if (opts.disableAnimations) {
-      setAnimations(deviceId, 1);
-      console.log('\nAndroid animations restored.');
+    if (savedScales) {
+      try {
+        const tmpDriver = new MobilecliDriver({ url });
+        await tmpDriver.connect({ platform, deviceId, url });
+        await tmpDriver.setAnimationScales(savedScales);
+        await tmpDriver.disconnect();
+        console.log('\nAndroid animations restored.');
+      } catch {
+        // best-effort restore
+      }
     }
     if (serverProcess) await serverProcess.kill();
     process.exit(0);

@@ -1,4 +1,5 @@
 import type {
+  AnimationScales,
   AppInfo,
   ConnectionConfig,
   DeviceInfo,
@@ -39,6 +40,8 @@ export interface MobilewrightDriver {
   getScreenSize(): Promise<ScreenSize>;
   getOrientation(): Promise<Orientation>;
   setOrientation(orientation: Orientation): Promise<void>;
+  getAnimationScales(): Promise<AnimationScales>;
+  setAnimationScales(scales: AnimationScales): Promise<void>;
 
   // Apps
   launchApp(bundleId: string, opts?: LaunchOptions): Promise<void>;

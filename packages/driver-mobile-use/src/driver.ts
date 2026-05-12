@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import createDebug from 'debug';
 import type {
+  AnimationScales,
   AppInfo,
   ConnectionConfig,
   DeviceInfo,
@@ -397,6 +398,18 @@ export class MobileUseDriver implements MobilewrightDriver {
       debug('download screen recording from %s', result.url.split('?')[0]);
     }
     return result;
+  }
+
+  async getAnimationScales(): Promise<AnimationScales> {
+    return this.call<AnimationScales>('device.io.animation-scales.get');
+  }
+
+  async setAnimationScales(scales: AnimationScales): Promise<void> {
+    await this.call('device.io.animation-scales.set', {
+      window: scales.window,
+      transition: scales.transition,
+      animator: scales.animator,
+    });
   }
 
   // ─── Apps ───────────────────────────────────────────────────

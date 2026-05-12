@@ -157,6 +157,16 @@ export interface RecordingOptions {
   timeLimit?: number;
 }
 
+// ─── Animation Scales ───────────────────────────────────────────
+// Android only. Controls the three global animation scale settings that
+// uiautomator uses to determine when a screen is stable enough to dump.
+
+export interface AnimationScales {
+  window: number;
+  transition: number;
+  animator: number;
+}
+
 export interface RecordingResult {
   /** Operation status */
   status?: string;
