@@ -1,3 +1,11 @@
+## [0.0.34] (2026-05-12)
+* Feat(locator): `locator.exists()` is now available — returns `true` if the element is present in the view tree
+* Fix: `--config` flag is now correctly honored in fixtures and device-pool setup ([#109](https://github.com/mobile-next/mobilewright/pull/109))
+* Fix(android): moved away from monkey to run apps, fixes apks compiled with 'test' flag
+
+## [0.0.33] (2026-05-07)
+* Fix(android): warn and continue when foreground app check fails on launch instead of throwing error, thanks [@farhanlabib](https://github.com/farhanlabib) ([#102](https://github.com/mobile-next/mobilewright/pull/102))
+
 ## [0.0.32] (2026-05-05)
 * Fix: updated mobilecli to fix 'SYS_KEYS has no physical keys but with factor 2.0%' error on certain Android devices
 
