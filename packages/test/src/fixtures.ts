@@ -31,6 +31,7 @@ async function attachVideo(testInfo: TestInfo, url: string | undefined, localPat
 type MobilewrightTestFixtures = {
   screen: Screen;
   bundleId: string | undefined;
+  autoAppLaunch: boolean | undefined;
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
   device: Device;
@@ -50,10 +51,15 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(config.bundleId);
   }, { option: true }],
 
+  autoAppLaunch: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    await use(config.autoAppLaunch);
+  }, { option: true }],
+
   platform: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
 
-  device: async ({ platform, deviceName, bundleId }, use, testInfo) => {
+  device: async ({ platform, deviceName, bundleId, autoAppLaunch }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const merged = {
       ...config,
@@ -88,7 +94,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
         }
       }
 
-      if (bundleId) {
+      if (bundleId && autoAppLaunch !== false) {
         try {
           await device.terminateApp(bundleId);
         } catch {
