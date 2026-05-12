@@ -1,3 +1,6 @@
+## [0.0.35] (2026-05-12)
+* Fix(android): updated mobilecli to 0.3.73 to fix missing elements that had non-null resource-id ([#120](https://github.com/mobile-next/mobilewright/pull/120))
+
 ## [0.0.34] (2026-05-12)
 * Feat(locator): `locator.exists()` is now available — returns `true` if the element is present in the view tree
 * Fix: `--config` flag is now correctly honored in fixtures and device-pool setup ([#109](https://github.com/mobile-next/mobilewright/pull/109))
