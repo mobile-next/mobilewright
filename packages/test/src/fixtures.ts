@@ -33,7 +33,7 @@ type MobilewrightTestFixtures = {
   bundleId: string | undefined;
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
-  saveTreeOnFailure: boolean;
+  viewTree: 'on-failure' | 'off';
   device: Device;
 };
 
@@ -54,9 +54,13 @@ export const test = base.extend<MobilewrightTestFixtures>({
   platform: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
 
-  saveTreeOnFailure: [async ({}, use, testInfo) => {
+  viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
-    await use(config.saveTreeOnFailure ?? false);
+    const value = config.viewTree ?? 'off';
+    if (value !== 'on-failure' && value !== 'off') {
+      throw new Error(`Invalid viewTree value: "${value}". Must be "on-failure" or "off".`);
+    }
+    await use(value);
   }, { option: true }],
 
   device: async ({ platform, deviceName, bundleId }, use, testInfo) => {
@@ -110,7 +114,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
   },
 
-  screen: async ({ device, video, saveTreeOnFailure }, use, testInfo) => {
+  screen: async ({ device, video, viewTree }, use, testInfo) => {
     const videoMode = typeof video === 'object' ? video.mode : video;
     const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
     const videoPath = shouldRecord
@@ -151,7 +155,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       } catch {
         // device may be disconnected
       }
-      if (saveTreeOnFailure) {
+      if (viewTree === 'on-failure') {
         try {
           const tree = await device.screen.viewTree();
           await testInfo.attach('view-tree-on-failure', {
