@@ -13,6 +13,8 @@ import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary } from '@mobilewri
 import { ensureMobilecliReachable } from './server.js';
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
+import { runInspect, type InspectOptions } from './commands/inspect.js';
+import { runInspectUI } from './commands/inspect-ui.js';
 import { brandReport } from './reporter.js';
 import { telemetry } from './telemetry.js';
 
@@ -245,6 +247,22 @@ program
       console.log(`Screenshot saved to ${outputPath}`);
     } finally {
       if (serverProcess) await serverProcess.kill();
+    }
+  });
+
+// ── inspect ───────────────────────────────────────────────────────
+program
+  .command('inspect')
+  .description('dump the live accessibility tree of a connected device')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
+  .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
+  .option('--json', 'output raw ViewNode[] JSON instead of the terminal tree')
+  .option('--ui', 'open an interactive browser UI with auto-refresh and locator copy')
+  .action(async (opts: InspectOptions & { ui?: boolean }) => {
+    if (opts.ui) {
+      await runInspectUI(opts);
+    } else {
+      await runInspect(opts);
     }
   });
 
