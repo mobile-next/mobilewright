@@ -27,7 +27,8 @@ export class MobileUseAllocator implements DeviceAllocator {
     });
     this.activeDrivers.set(session.deviceId, driver);
     debug('allocated device %s (platform=%s)', session.deviceId, session.platform);
-    return { deviceId: session.deviceId, platform: session.platform };
+    const info = driver.deviceInfo;
+    return { deviceId: session.deviceId, platform: session.platform, driver: 'mobile-use', model: info?.model, osVersion: info?.osVersion, type: info?.type };
   }
 
   async release(deviceId: string): Promise<void> {

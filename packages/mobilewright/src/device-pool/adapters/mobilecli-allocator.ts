@@ -45,7 +45,7 @@ export class MobilecliAllocator implements DeviceAllocator {
         `no online device available matching criteria ${JSON.stringify(criteria)}`,
       );
     }
-    return { deviceId: match.id, platform: match.platform };
+    return { deviceId: match.id, platform: match.platform, driver: 'mobilecli', model: match.model, osVersion: match.osVersion, type: match.type };
   }
 
   async release(_deviceId: string): Promise<void> {
