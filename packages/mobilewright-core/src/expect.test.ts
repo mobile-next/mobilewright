@@ -375,6 +375,105 @@ test.describe('expect', () => {
     });
   });
 
+  test.describe('toHaveCount', () => {
+    const listTree: ViewNode[] = [
+      node({
+        type: 'Window',
+        children: [
+          node({ type: 'Cell', label: 'A', bounds: { x: 0, y: 0, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'B', bounds: { x: 0, y: 44, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'C', bounds: { x: 0, y: 88, width: 390, height: 44 } }),
+        ],
+      }),
+    ];
+
+    test('passes with correct count', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+      await mwExpect(locator).toHaveCount(3);
+    });
+
+    test('fails with wrong count', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+      await expect(mwExpect(locator).toHaveCount(5, { timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('not.toHaveCount passes when count differs', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
+      await mwExpect(locator).not.toHaveCount(5);
+    });
+
+    test('passes with zero count', async () => {
+      const driver = createMockDriver(listTree);
+      const locator = new Locator(driver, { kind: 'type', value: 'Button' });
+      await mwExpect(locator).toHaveCount(0);
+    });
+  });
+
+  test.describe('toBeEmpty', () => {
+    test('passes when value is empty', async () => {
+      const emptyValueTree: ViewNode[] = [
+        node({
+          type: 'Window',
+          children: [
+            node({
+              type: 'TextField',
+              label: 'Search',
+              identifier: 'searchField',
+              value: '',
+              bounds: { x: 0, y: 0, width: 300, height: 44 },
+            }),
+          ],
+        }),
+      ];
+      const driver = createMockDriver(emptyValueTree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'searchField' });
+      await mwExpect(locator).toBeEmpty();
+    });
+
+    test('fails when value is not empty', async () => {
+      const filledTree: ViewNode[] = [
+        node({
+          type: 'Window',
+          children: [
+            node({
+              type: 'TextField',
+              label: 'Search',
+              identifier: 'searchField',
+              value: 'hello',
+              bounds: { x: 0, y: 0, width: 300, height: 44 },
+            }),
+          ],
+        }),
+      ];
+      const driver = createMockDriver(filledTree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'searchField' });
+      await expect(mwExpect(locator).toBeEmpty({ timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('not.toBeEmpty passes when value is not empty', async () => {
+      const filledTree: ViewNode[] = [
+        node({
+          type: 'Window',
+          children: [
+            node({
+              type: 'TextField',
+              label: 'Name',
+              identifier: 'nameField',
+              value: 'Alice',
+              bounds: { x: 0, y: 0, width: 300, height: 44 },
+            }),
+          ],
+        }),
+      ];
+      const driver = createMockDriver(filledTree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'nameField' });
+      await mwExpect(locator).not.toBeEmpty();
+    });
+  });
+
   test.describe('toHaveValue', () => {
     test('passes with exact value match', async () => {
       const valueTree: ViewNode[] = [

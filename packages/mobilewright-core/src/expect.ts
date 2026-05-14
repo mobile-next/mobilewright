@@ -84,6 +84,39 @@ class LocatorAssertions {
     );
   }
 
+  async toHaveCount(expected: number, opts?: ExpectOptions): Promise<void> {
+    let lastCount = 0;
+    await this.retryAssertion(
+      async () => { lastCount = await this.locator.count(); return lastCount; },
+      (count) => {
+        const matches = count === expected;
+        return this.negated ? !matches : matches;
+      },
+      opts?.timeout ?? DEFAULT_TIMEOUT,
+      () => this.negated
+        ? `Expected element count NOT to be ${expected}, but got ${lastCount}`
+        : `Expected element count to be ${expected}, but got ${lastCount}`,
+    );
+  }
+
+  async toBeEmpty(opts?: ExpectOptions): Promise<void> {
+    let lastValue = '';
+    await this.retryAssertion(
+      async () => {
+        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
+        return lastValue;
+      },
+      (value) => {
+        const isEmpty = value === '';
+        return this.negated ? !isEmpty : isEmpty;
+      },
+      opts?.timeout ?? DEFAULT_TIMEOUT,
+      () => this.negated
+        ? `Expected element NOT to be empty, but it was`
+        : `Expected element to be empty, but got "${lastValue}"`,
+    );
+  }
+
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
     let lastValue = '';
     await this.retryAssertion(
