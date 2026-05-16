@@ -98,7 +98,7 @@ test('NoDeviceAvailableError re-queues the waiter to be served on next release',
   const pool = new DevicePool({ allocator, maxSlots: 3 });
 
   const w0 = await pool.allocate({ platform: 'ios' });
-  const w1 = await pool.allocate({ platform: 'ios' });
+  await pool.allocate({ platform: 'ios' });
 
   // w2 should block because both devices are taken.
   let w2Handle: { deviceId: string } | undefined;

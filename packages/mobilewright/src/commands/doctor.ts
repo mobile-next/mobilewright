@@ -19,7 +19,7 @@
 
 import { spawnSync, SpawnSyncOptions } from 'node:child_process';
 import { accessSync, constants, readdirSync } from 'node:fs';
-import { arch, homedir, release } from 'node:os';
+import { arch, release } from 'node:os';
 import { join } from 'node:path';
 import { resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 
@@ -528,13 +528,6 @@ function checkJavaHome(): CheckResult {
 
 function checkAndroidHome(): CheckResult {
   const androidHome = process.env['ANDROID_HOME'] ?? process.env['ANDROID_SDK_ROOT'];
-
-  // Default SDK locations per platform
-  const defaultPath = isMac()
-    ? join(homedir(), 'Library', 'Android', 'sdk')
-    : isWin()
-      ? join(process.env['LOCALAPPDATA'] ?? join(homedir(), 'AppData', 'Local'), 'Android', 'Sdk')
-      : join(homedir(), 'Android', 'Sdk');
 
   if (!androidHome) {
     return check('android_home', 'ANDROID_HOME', 'android', 'error', {

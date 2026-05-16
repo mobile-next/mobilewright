@@ -29,7 +29,7 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }],
       '@typescript-eslint/no-floating-promises': 'error',
       'no-var': 'error',
-      'eqeqeq': ['error', 'always'],
+      'eqeqeq': ['error', 'always', { null: 'ignore' }],
 
       // style
       '@stylistic/quotes': ['error', 'single'],
