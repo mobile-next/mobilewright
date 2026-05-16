@@ -386,25 +386,36 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   async installApp(path: string): Promise<void> {
-    if (/\.ipa$/i.test(path)) {
-      const session = this.requireSession();
-      if (session.platform === 'ios') {
-        const devices = await this.listDevices();
-        const device = devices.find((d) => d.id === session.deviceId);
-        if (device?.type === 'simulator') {
+    const session = this.requireSession();
+    const devices = await this.listDevices();
+    const device = devices.find((d) => d.id === session.deviceId);
+    const isSimulator = device?.type === 'simulator' || device?.type === 'emulator';
+
+    if (session.platform === 'ios') {
+      if (isSimulator) {
+        if (!/\.zip$/i.test(path)) {
           throw new Error(
-            `Cannot install a .ipa file on iOS simulator "${device.name}".\n\n` +
-            `iOS simulators require a .zip of the .app bundle. Build and package it with:\n\n` +
-            `  xcodebuild -scheme <Scheme> -configuration Debug \\\n` +
-            `    -destination "platform=iOS Simulator,name=${device.name}" \\\n` +
-            `    -derivedDataPath build build\n` +
-            `  cd build/Build/Products/Debug-iphonesimulator\n` +
-            `  zip -r MyApp.zip MyApp.app\n\n` +
-            `Then update your installApps config to point to MyApp.zip.`,
+            `iOS simulator "${device!.name}" requires a .zip of the .app bundle, got: "${path}".\n\n` +
+            'Build and package it with:\n\n' +
+            '  xcodebuild -scheme <Scheme> -configuration Debug \\\n' +
+            `    -destination "platform=iOS Simulator,name=${device!.name}" \\\n` +
+            '    -derivedDataPath build build\n' +
+            '  cd build/Build/Products/Debug-iphonesimulator\n' +
+            '  zip -r MyApp.zip MyApp.app\n\n' +
+            'Then update your installApps config to point to MyApp.zip.',
           );
         }
+      } else {
+        if (!/\.ipa$/i.test(path)) {
+          throw new Error(`iOS real device requires a .ipa file, got: "${path}".`);
+        }
+      }
+    } else if (session.platform === 'android') {
+      if (!/\.apk$/i.test(path)) {
+        throw new Error(`Android requires a .apk file, got: "${path}".`);
       }
     }
+
     await this.call('device.apps.install', { path });
   }
 

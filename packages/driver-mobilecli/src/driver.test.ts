@@ -9,9 +9,9 @@ const SIMULATOR_DEVICE_NAME = 'iPhone 15';
  * its `listDevices` call returns a controlled list — no real mobilecli binary
  * or WebSocket server needed.
  */
-function createDriverWithSimulatorSession(opts?: {
+function createDriverWithSession(opts?: {
   platform?: 'ios' | 'android';
-  deviceType?: 'simulator' | 'real';
+  deviceType?: 'simulator' | 'real' | 'emulator';
 }): MobilecliDriver {
   const platform = opts?.platform ?? 'ios';
   const deviceType = opts?.deviceType ?? 'simulator';
@@ -26,7 +26,7 @@ function createDriverWithSimulatorSession(opts?: {
       call: async () => {
         throw new Error('RPC call should not have been made');
       },
-      disconnect: async () => {},
+      disconnect: async () => { },
     },
   };
 
@@ -44,86 +44,113 @@ function createDriverWithSimulatorSession(opts?: {
   return driver;
 }
 
+function allowRpc(driver: MobilecliDriver): void {
+  (driver as any).session.rpc.call = async () => ({});
+}
+
 test.describe('MobilecliDriver.installApp()', () => {
-  test('throws a clear error when installing a .ipa on an iOS simulator', async () => {
-    const driver = createDriverWithSimulatorSession();
-
-    await expect(
-      driver.installApp('/path/to/MyApp.ipa'),
-    ).rejects.toThrow(
-      `Cannot install a .ipa file on iOS simulator "${SIMULATOR_DEVICE_NAME}".`,
-    );
-  });
-
-  test('error message contains instructions for building a .zip', async () => {
-    const driver = createDriverWithSimulatorSession();
-
-    let caughtError: Error | undefined;
-    try {
-      await driver.installApp('/path/to/MyApp.ipa');
-    } catch (err) {
-      caughtError = err as Error;
-    }
-
-    expect(caughtError).toBeDefined();
-    expect(caughtError!.message).toContain('xcodebuild');
-    expect(caughtError!.message).toContain('zip -r MyApp.zip MyApp.app');
-    expect(caughtError!.message).toContain('installApps config');
-  });
-
-  test('does not throw for a .ipa path when the device is a real iOS device (no RPC guard needed)', async () => {
-    const driver = createDriverWithSimulatorSession({ deviceType: 'real' });
-
-    // The RPC stub throws if called — but we expect it to be called here
-    // (real device allows .ipa). So swap the stub out to a no-op.
-    (driver as any).session.rpc.call = async () => ({});
-
-    await expect(driver.installApp('/path/to/MyApp.ipa')).resolves.toBeUndefined();
-  });
-
-  test('does not throw for a .zip path on an iOS simulator', async () => {
-    const driver = createDriverWithSimulatorSession();
-
-    // .zip path — guard must not fire; RPC will be called.
-    (driver as any).session.rpc.call = async () => ({});
-
-    await expect(driver.installApp('/path/to/MyApp.zip')).resolves.toBeUndefined();
-  });
-
-  test('does not throw for a .apk path (Android) even on a simulator-type device', async () => {
-    const driver = createDriverWithSimulatorSession({
-      platform: 'android',
-      deviceType: 'simulator',
+  test.describe('iOS simulator', () => {
+    test('accepts a .zip file', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      allowRpc(driver);
+      await expect(driver.installApp('/path/to/MyApp.zip')).resolves.toBeUndefined();
     });
 
-    (driver as any).session.rpc.call = async () => ({});
+    test('rejects a .ipa file with instructions for building a .zip', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      let error: Error | undefined;
+      try {
+        await driver.installApp('/path/to/MyApp.ipa');
+      } catch (e) {
+        error = e as Error;
+      }
+      expect(error).toBeDefined();
+      expect(error!.message).toContain(`iOS simulator "${SIMULATOR_DEVICE_NAME}" requires a .zip`);
+      expect(error!.message).toContain('xcodebuild');
+      expect(error!.message).toContain('zip -r MyApp.zip MyApp.app');
+      expect(error!.message).toContain('installApps config');
+    });
 
-    await expect(driver.installApp('/path/to/app.apk')).resolves.toBeUndefined();
+    test('rejects a .apk file', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      await expect(driver.installApp('/path/to/app.apk')).rejects.toThrow(
+        `iOS simulator "${SIMULATOR_DEVICE_NAME}" requires a .zip`,
+      );
+    });
+
+    test('is case-insensitive for extension check', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      await expect(driver.installApp('/path/to/MyApp.IPA')).rejects.toThrow(
+        `iOS simulator "${SIMULATOR_DEVICE_NAME}" requires a .zip`,
+      );
+    });
+
+    test('does not make an RPC call when rejected', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      let error: Error | undefined;
+      try {
+        await driver.installApp('/path/to/app.ipa');
+      } catch (e) {
+        error = e as Error;
+      }
+      expect(error).toBeDefined();
+      expect(error!.message).not.toContain('RPC call should not have been made');
+    });
   });
 
-  test('is case-insensitive for the .IPA extension', async () => {
-    const driver = createDriverWithSimulatorSession();
+  test.describe('iOS real device', () => {
+    test('accepts a .ipa file', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
+      allowRpc(driver);
+      await expect(driver.installApp('/path/to/MyApp.ipa')).resolves.toBeUndefined();
+    });
 
-    await expect(
-      driver.installApp('/path/to/MyApp.IPA'),
-    ).rejects.toThrow(
-      `Cannot install a .ipa file on iOS simulator "${SIMULATOR_DEVICE_NAME}".`,
-    );
+    test('rejects a .zip file', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
+      await expect(driver.installApp('/path/to/MyApp.zip')).rejects.toThrow(
+        'iOS real device requires a .ipa file',
+      );
+    });
+
+    test('rejects a .apk file', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
+      await expect(driver.installApp('/path/to/app.apk')).rejects.toThrow(
+        'iOS real device requires a .ipa file',
+      );
+    });
+
+    test('is case-insensitive for extension check', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
+      allowRpc(driver);
+      await expect(driver.installApp('/path/to/MyApp.IPA')).resolves.toBeUndefined();
+    });
   });
 
-  test('does not make an RPC call when the guard fires', async () => {
-    const driver = createDriverWithSimulatorSession();
+  test.describe('Android', () => {
+    test('accepts a .apk file', async () => {
+      const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+      allowRpc(driver);
+      await expect(driver.installApp('/path/to/app.apk')).resolves.toBeUndefined();
+    });
 
-    // The injected RPC stub already throws — confirm installApp rejects with
-    // OUR error message, not the stub's "should not have been made" message.
-    let errorMessage = '';
-    try {
-      await driver.installApp('/path/to/app.ipa');
-    } catch (err) {
-      errorMessage = (err as Error).message;
-    }
+    test('rejects a .ipa file', async () => {
+      const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+      await expect(driver.installApp('/path/to/MyApp.ipa')).rejects.toThrow(
+        'Android requires a .apk file',
+      );
+    });
 
-    expect(errorMessage).toContain('Cannot install a .ipa file on iOS simulator');
-    expect(errorMessage).not.toContain('RPC call should not have been made');
+    test('rejects a .zip file', async () => {
+      const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+      await expect(driver.installApp('/path/to/app.zip')).rejects.toThrow(
+        'Android requires a .apk file',
+      );
+    });
+
+    test('is case-insensitive for extension check', async () => {
+      const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+      allowRpc(driver);
+      await expect(driver.installApp('/path/to/app.APK')).resolves.toBeUndefined();
+    });
   });
 });
