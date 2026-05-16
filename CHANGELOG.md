@@ -1,3 +1,8 @@
+## [0.0.37] (2026-05-16)
+* Feat: add installApps to per-project overrides ([#133](https://github.com/mobile-next/mobilewright/pull/133))
+* Feat: export HardwareButton from @mobilewright/core and add LOCK button ([#132](https://github.com/mobile-next/mobilewright/pull/132))
+* Fix: use Number.NaN and String.raw in tests ([#93](https://github.com/mobile-next/mobilewright/pull/93)), thanks to [@khanhdodang](https://github.com/khanhdodang)
+
 ## [0.0.36] (2026-05-16)
 * Feat: add toHaveCount and toBeEmpty assertions ([#122](https://github.com/mobile-next/mobilewright/pull/122)), thanks to [@alexC2K](https://github.com/alexC2K)
 * Feat: add device info annotations to test report ([#125](https://github.com/mobile-next/mobilewright/pull/125))
