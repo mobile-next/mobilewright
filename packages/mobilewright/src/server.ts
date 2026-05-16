@@ -75,7 +75,7 @@ export async function ensureMobilecliReachable(
   if (!isLocalUrl(url)) {
     throw new MobilewrightError(
       `Cannot reach mobilecli server at ${url}.\n\n` +
-        `Ensure the remote server is running and accessible.`,
+        'Ensure the remote server is running and accessible.',
     );
   }
 
@@ -90,9 +90,9 @@ export async function ensureMobilecliReachable(
   }
 
   const hint = binaryPath
-    ? `Start it with:\n  mobilecli server start`
-    : `Install mobilecli from:\n  https://github.com/mobile-next/mobilecli\n\n` +
-      `Then start the server with:\n  mobilecli server start`;
+    ? 'Start it with:\n  mobilecli server start'
+    : 'Install mobilecli from:\n  https://github.com/mobile-next/mobilecli\n\n' +
+      'Then start the server with:\n  mobilecli server start';
 
   throw new MobilewrightError(
     `mobilecli server is not running at ${url}.\n\n${hint}`,

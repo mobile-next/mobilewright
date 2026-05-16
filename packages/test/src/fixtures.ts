@@ -34,6 +34,7 @@ type MobilewrightTestFixtures = {
   autoAppLaunch: boolean | undefined;
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
+  viewTree: 'on-failure' | 'off';
   device: Device;
 };
 
@@ -59,6 +60,16 @@ export const test = base.extend<MobilewrightTestFixtures>({
   platform: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
 
+  viewTree: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    const value = config.viewTree ?? 'off';
+    if (value !== 'on-failure' && value !== 'off') {
+      throw new Error(`Invalid viewTree value: "${value}". Must be "on-failure" or "off".`);
+    }
+    
+    await use(value);
+  }, { option: true }],
+
   device: async ({ platform, deviceName, bundleId, autoAppLaunch }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const merged = {
@@ -66,6 +77,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       ...(platform && { platform }),
       ...(deviceName && { deviceName }),
     };
+    
     if (merged.platform !== 'ios' && merged.platform !== 'android') {
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
     }
@@ -76,6 +88,26 @@ export const test = base.extend<MobilewrightTestFixtures>({
       deviceNamePattern: merged.deviceName?.source,
       deviceId: merged.deviceId,
     });
+
+    if (handle.type) {
+      testInfo.annotations.push({ type: 'device.type', description: handle.type });
+    }
+
+    testInfo.annotations.push({ type: 'device.platform', description: handle.platform });
+
+    if (handle.osVersion) {
+      testInfo.annotations.push({ type: 'device.osVersion', description: handle.osVersion });
+    }
+
+    if (handle.model) {
+      testInfo.annotations.push({ type: 'device.model', description: handle.model });
+    }
+
+    if (handle.driver) {
+      testInfo.annotations.push({ type: 'device.driver', description: handle.driver });
+    }
+
+    testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
 
     const device = await connectDevice({
       platform: handle.platform,
@@ -110,7 +142,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
   },
 
-  screen: async ({ device, video }, use, testInfo) => {
+  screen: async ({ device, video, viewTree }, use, testInfo) => {
     const videoMode = typeof video === 'object' ? video.mode : video;
     const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
     const videoPath = shouldRecord
@@ -150,6 +182,17 @@ export const test = base.extend<MobilewrightTestFixtures>({
         await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
       } catch {
         // device may be disconnected
+      }
+      if (viewTree === 'on-failure') {
+        try {
+          const tree = await device.screen.viewTree();
+          await testInfo.attach('view-tree-on-failure', {
+            body: Buffer.from(JSON.stringify(tree, null, 2)),
+            contentType: 'application/json',
+          });
+        } catch {
+          // device may be disconnected
+        }
       }
     }
   },

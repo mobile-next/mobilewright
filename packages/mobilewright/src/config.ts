@@ -69,6 +69,8 @@ export interface MobilewrightConfig {
   installApps?: string | string[];
   /** Automatically launch the app after connecting. Default: true. */
   autoAppLaunch?: boolean;
+  /** Attach the accessibility tree as JSON to the test report. 'on-failure' attaches on test failure, 'off' disables. Default: 'off'. */
+  viewTree?: 'on-failure' | 'off';
   /** mobilecli server URL (use for remote servers). */
   url?: string;
   /** Path to mobilecli binary (if not on PATH). */

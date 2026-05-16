@@ -208,8 +208,8 @@ export class MobilecliDriver implements MobilewrightDriver {
       throw new Error(
         `No online ${platform} devices found.\n\n` +
           (platform === 'ios'
-            ? `Start a simulator in Xcode, or boot one with:\n  xcrun simctl boot "<simulator name>"`
-            : `Start an emulator in Android Studio, or boot one with:\n  emulator -avd <avd_name>`),
+            ? 'Start a simulator in Xcode, or boot one with:\n  xcrun simctl boot "<simulator name>"'
+            : 'Start an emulator in Android Studio, or boot one with:\n  emulator -avd <avd_name>'),
       );
     }
 

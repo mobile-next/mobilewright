@@ -146,6 +146,8 @@ interface FleetAllocateResponse {
     platform: string;
     state: string;
     model: string;
+    type: string;
+    version: string;
   };
 }
 
@@ -155,6 +157,8 @@ interface DevicesListDevice {
   platform: string;
   state: string;
   model: string;
+  type: string;
+  version: string;
   provider?: { type: string; sessionId?: string };
 }
 
@@ -167,6 +171,21 @@ interface UploadCreateResponse {
   uploadUrl: string;
 }
 
+interface ActiveSession {
+  deviceId: string;
+  platform: Platform;
+  rpc: RpcClient;
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
+}
+
+export interface MobileUseDeviceInfo {
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
+}
+
 type DeviceFilter =
   | { attribute: 'platform'; operator: 'EQUALS'; value: 'ios' | 'android' }
   | { attribute: 'type'; operator: 'EQUALS'; value: 'real' }
@@ -176,9 +195,16 @@ type DeviceFilter =
 const debug = createDebug('mw:driver-mobile-use');
 
 export class MobileUseDriver implements MobilewrightDriver {
-  private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
+  private session: ActiveSession | null = null;
   private readonly options: MobileUseDriverOptions;
   private ownsLease = false;
+
+  get deviceInfo(): MobileUseDeviceInfo | null {
+    if (!this.session) {
+      return null;
+    }
+    return { model: this.session.model, osVersion: this.session.osVersion, type: this.session.type };
+  }
 
   constructor(options: MobileUseDriverOptions = {}) {
     this.options = options;
@@ -215,19 +241,28 @@ export class MobileUseDriver implements MobilewrightDriver {
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
 
     let deviceId: string;
+    let model: string | undefined;
+    let osVersion: string | undefined;
+    let type: DeviceType | undefined;
     if (result?.state === 'allocating' && result.sessionId) {
       debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
       const device = await this.waitForAllocation(rpc, result.sessionId, config.timeout);
       debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
       deviceId = device.id;
+      model = device.model;
+      osVersion = device.version;
+      type = toDeviceType(device.type);
     } else if (result?.device?.id) {
       debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
       deviceId = result.device.id;
+      model = result.device.model;
+      osVersion = result.device.version;
+      type = toDeviceType(result.device.type);
     } else {
       throw new Error(`Device allocation failed: ${JSON.stringify(result)}`);
     }
 
-    this.session = { deviceId, platform, rpc };
+    this.session = { deviceId, platform, rpc, model, osVersion, type };
     return { deviceId, platform };
   }
 

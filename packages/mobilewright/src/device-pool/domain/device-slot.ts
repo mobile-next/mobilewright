@@ -1,4 +1,4 @@
-import type { Platform } from '@mobilewright/protocol';
+import type { DeviceType, Platform } from '@mobilewright/protocol';
 
 export type DeviceSlotState = 'allocating' | 'available' | 'allocated';
 
@@ -14,6 +14,10 @@ export class DeviceSlot {
   private _deviceId?: string;
   private _platform?: Platform;
   private _allocationId?: string;
+  private _driver?: string;
+  private _model?: string;
+  private _osVersion?: string;
+  private _type?: DeviceType;
   private readonly _installedApps = new Set<string>();
 
   get state(): DeviceSlotState {
@@ -32,7 +36,23 @@ export class DeviceSlot {
     return this._allocationId;
   }
 
-  markAvailable(deviceId: string, platform: Platform): void {
+  get driver(): string | undefined {
+    return this._driver;
+  }
+
+  get model(): string | undefined {
+    return this._model;
+  }
+
+  get osVersion(): string | undefined {
+    return this._osVersion;
+  }
+
+  get type(): DeviceType | undefined {
+    return this._type;
+  }
+
+  markAvailable(deviceId: string, platform: Platform, driver?: string, model?: string, osVersion?: string, type?: DeviceType): void {
     if (this._state !== 'allocating') {
       throw new DeviceSlotStateError(
         `markAvailable requires state 'allocating', got '${this._state}'`,
@@ -41,6 +61,10 @@ export class DeviceSlot {
     this._state = 'available';
     this._deviceId = deviceId;
     this._platform = platform;
+    this._driver = driver;
+    this._model = model;
+    this._osVersion = osVersion;
+    this._type = type;
   }
 
   claim(allocationId: string): void {

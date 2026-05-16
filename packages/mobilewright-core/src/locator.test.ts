@@ -2,9 +2,7 @@ import { test, expect } from '@playwright/test';
 import type {
   MobilewrightDriver,
   ViewNode,
-  Session,
   Orientation,
-  ScreenSize,
   AppInfo,
   DeviceInfo,
 } from '@mobilewright/protocol';
