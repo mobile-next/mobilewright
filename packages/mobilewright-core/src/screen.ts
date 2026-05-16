@@ -1,5 +1,5 @@
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   HardwareButton,
   MobilewrightDriver,
@@ -7,8 +7,8 @@ import type {
   SwipeDirection,
   SwipeOptions,
   ViewNode,
-} from '@mobilewright/protocol';
-import { Locator, type LocatorOptions } from './locator.js';
+} from "@mobilewright/protocol";
+import { Locator, type LocatorOptions } from "./locator.js";
 
 export class Screen {
   private readonly root: Locator;
@@ -73,7 +73,7 @@ export class Screen {
   }
 
   async goBack(): Promise<void> {
-    return this.driver.pressButton('BACK');
+    return this.driver.pressButton("BACK");
   }
   
   // ─── View tree ──────────────────────────────────────────────────

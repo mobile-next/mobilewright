@@ -1,21 +1,21 @@
-import { test as base, type TestInfo } from '@playwright/test';
-import { createWriteStream } from 'node:fs';
-import { mkdir, unlink } from 'node:fs/promises';
-import { pipeline } from 'node:stream/promises';
-import { Readable } from 'node:stream';
-import { join } from 'node:path';
-import createDebug from 'debug';
+import { test as base, type TestInfo } from "@playwright/test";
+import { createWriteStream } from "node:fs";
+import { mkdir, unlink } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
+import { join } from "node:path";
+import createDebug from "debug";
 import {
   createDevicePoolClient,
   connectDevice,
   loadConfig,
   toArray,
   type DevicePoolClient,
-} from 'mobilewright';
-import { expect } from '@mobilewright/core';
-import type { Device, Screen } from '@mobilewright/core';
+} from "mobilewright";
+import { expect } from "@mobilewright/core";
+import type { Device, Screen } from "@mobilewright/core";
 
-const debug = createDebug('mw:test:fixtures');
+const debug = createDebug("mw:test:fixtures");
 
 async function attachVideo(testInfo: TestInfo, url: string | undefined, localPath: string): Promise<void> {
   if (url) {
@@ -25,13 +25,13 @@ async function attachVideo(testInfo: TestInfo, url: string | undefined, localPat
     }
     await pipeline(Readable.fromWeb(response.body!), createWriteStream(localPath));
   }
-  await testInfo.attach('video', { path: localPath, contentType: 'video/mp4' });
+  await testInfo.attach("video", { path: localPath, contentType: "video/mp4" });
 }
 
 type MobilewrightTestFixtures = {
   screen: Screen;
   bundleId: string | undefined;
-  platform: 'ios' | 'android' | undefined;
+  platform: "ios" | "android" | undefined;
   deviceName: RegExp | undefined;
   device: Device;
 };
@@ -60,7 +60,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       ...(platform && { platform }),
       ...(deviceName && { deviceName }),
     };
-    if (merged.platform !== 'ios' && merged.platform !== 'android') {
+    if (merged.platform !== "ios" && merged.platform !== "android") {
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
     }
 
@@ -72,24 +72,24 @@ export const test = base.extend<MobilewrightTestFixtures>({
     });
 
     if (handle.type) {
-      testInfo.annotations.push({ type: 'device.type', description: handle.type });
+      testInfo.annotations.push({ type: "device.type", description: handle.type });
     }
 
-    testInfo.annotations.push({ type: 'device.platform', description: handle.platform });
+    testInfo.annotations.push({ type: "device.platform", description: handle.platform });
 
     if (handle.osVersion) {
-      testInfo.annotations.push({ type: 'device.osVersion', description: handle.osVersion });
+      testInfo.annotations.push({ type: "device.osVersion", description: handle.osVersion });
     }
 
     if (handle.model) {
-      testInfo.annotations.push({ type: 'device.model', description: handle.model });
+      testInfo.annotations.push({ type: "device.model", description: handle.model });
     }
 
     if (handle.driver) {
-      testInfo.annotations.push({ type: 'device.driver', description: handle.driver });
+      testInfo.annotations.push({ type: "device.driver", description: handle.driver });
     }
 
-    testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
+    testInfo.annotations.push({ type: "device.id", description: handle.deviceId });
 
     const device = await connectDevice({
       platform: handle.platform,
@@ -125,11 +125,11 @@ export const test = base.extend<MobilewrightTestFixtures>({
   },
 
   screen: async ({ device, video }, use, testInfo) => {
-    const videoMode = typeof video === 'object' ? video.mode : video;
-    const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
+    const videoMode = typeof video === "object" ? video.mode : video;
+    const shouldRecord = videoMode === "on" || videoMode === "retain-on-failure";
     const videoPath = shouldRecord
       ? join(testInfo.outputDir, `video-${testInfo.testId}.mp4`)
-      : '';
+      : "";
 
     if (shouldRecord) {
       try {
@@ -146,7 +146,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       try {
         const result = await device.stopRecording();
         const failed = testInfo.status !== testInfo.expectedStatus;
-        const shouldAttach = videoMode === 'on' || (videoMode === 'retain-on-failure' && failed);
+        const shouldAttach = videoMode === "on" || (videoMode === "retain-on-failure" && failed);
 
         if (shouldAttach) {
           await attachVideo(testInfo, result.url, result.output ?? videoPath);
@@ -154,14 +154,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
         await unlink(videoPath).catch(() => {});
       } catch (err) {
-        debug('video attach failed: %o', err);
+        debug("video attach failed: %o", err);
       }
     }
 
     if (testInfo.status !== testInfo.expectedStatus) {
       try {
         const screenshot = await device.screen.screenshot();
-        await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
+        await testInfo.attach("screenshot-on-failure", { body: screenshot, contentType: "image/png" });
       } catch {
         // device may be disconnected
       }

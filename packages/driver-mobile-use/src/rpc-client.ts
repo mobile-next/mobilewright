@@ -1,7 +1,7 @@
-import createDebug from 'debug';
-import WebSocket from 'ws';
+import createDebug from "debug";
+import WebSocket from "ws";
 
-const debug = createDebug('mw:driver-mobile-use');
+const debug = createDebug("mw:driver-mobile-use");
 
 const WS_CLOSE_NORMAL = 1000;
 
@@ -12,19 +12,19 @@ export class RpcError extends Error {
     readonly data?: unknown,
   ) {
     super(message);
-    this.name = 'RpcError';
+    this.name = "RpcError";
   }
 }
 
 export interface JsonRpcRequest {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: number;
   method: string;
   params?: Record<string, unknown>;
 }
 
 export interface JsonRpcResponse {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: number;
   result?: unknown;
   error?: { code: number; message: string; data?: unknown };
@@ -66,7 +66,7 @@ export class RpcClient {
         }
       }, this.requestTimeout);
 
-      ws.on('open', () => {
+      ws.on("open", () => {
         clearTimeout(timeout);
         this.ws = ws;
         this.connectionPromise = null;
@@ -74,7 +74,7 @@ export class RpcClient {
         resolve();
       });
 
-      ws.on('error', (err) => {
+      ws.on("error", (err) => {
         clearTimeout(timeout);
         this.connectionPromise = null;
         if (!settled) {
@@ -82,20 +82,20 @@ export class RpcClient {
           // Node may wrap connection failures in AggregateError (e.g. IPv4+IPv6).
           // Unwrap to surface the actual error message.
           if (err instanceof AggregateError && err.errors.length > 0) {
-            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
+            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join("; ")}`));
           } else {
             reject(new Error(`Failed to connect to ${this.url}: ${err.message}`));
           }
         }
       });
 
-      ws.on('message', (data: WebSocket.Data) => {
+      ws.on("message", (data: WebSocket.Data) => {
         this.handleMessage(data);
       });
 
-      ws.on('close', (code: number, reason: Buffer) => {
+      ws.on("close", (code: number, reason: Buffer) => {
         this.ws = null;
-        const reasonStr = reason.toString() || 'no reason';
+        const reasonStr = reason.toString() || "no reason";
         const msg = `WebSocket connection closed (code=${code}, reason=${reasonStr})`;
         if (!settled) {
           clearTimeout(timeout);
@@ -121,12 +121,12 @@ export class RpcClient {
     await this.connect();
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not connected');
+      throw new Error("WebSocket is not connected");
     }
 
     const id = this.nextId++;
     const request: JsonRpcRequest = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id,
       method,
       ...(params !== undefined && { params }),
@@ -147,7 +147,7 @@ export class RpcClient {
       });
 
       const payload = JSON.stringify(request);
-      debug('rpc send %s %o', method, request.params);
+      debug("rpc send %s %o", method, request.params);
       ws.send(payload);
     });
   }
@@ -159,7 +159,7 @@ export class RpcClient {
     }
     this.ws = null;
     return new Promise<void>((resolve) => {
-      ws.once('close', () => resolve());
+      ws.once("close", () => resolve());
       ws.close(WS_CLOSE_NORMAL);
     });
   }
@@ -185,14 +185,14 @@ export class RpcClient {
     clearTimeout(pending.timer);
 
     if (response.error) {
-      debug('rpc recv error id=%d code=%d %s', response.id, response.error.code, response.error.message);
+      debug("rpc recv error id=%d code=%d %s", response.id, response.error.code, response.error.message);
       const detail =
-        typeof response.error.data === 'string'
+        typeof response.error.data === "string"
           ? response.error.data
           : response.error.message;
       pending.reject(new RpcError(detail, response.error.code, response.error.data));
     } else {
-      debug('rpc recv result id=%d %o', response.id, response.result);
+      debug("rpc recv result id=%d %o", response.id, response.result);
       pending.resolve(response.result);
     }
   }

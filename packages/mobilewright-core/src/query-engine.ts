@@ -1,15 +1,15 @@
-import type { Bounds, ViewNode } from '@mobilewright/protocol';
+import type { Bounds, ViewNode } from "@mobilewright/protocol";
 
 export type LocatorStrategy =
-  | { kind: 'root' }
-  | { kind: 'label'; value: string; exact?: boolean }
-  | { kind: 'testId'; value: string }
-  | { kind: 'text'; value: string | RegExp; exact?: boolean }
-  | { kind: 'type'; value: string }
-  | { kind: 'role'; value: string; name?: string | RegExp }
-  | { kind: 'placeholder'; value: string; exact?: boolean }
-  | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
-  | { kind: 'nth'; parent: LocatorStrategy; index: number };
+  | { kind: "root" }
+  | { kind: "label"; value: string; exact?: boolean }
+  | { kind: "testId"; value: string }
+  | { kind: "text"; value: string | RegExp; exact?: boolean }
+  | { kind: "type"; value: string }
+  | { kind: "role"; value: string; name?: string | RegExp }
+  | { kind: "placeholder"; value: string; exact?: boolean }
+  | { kind: "chain"; parent: LocatorStrategy; child: LocatorStrategy }
+  | { kind: "nth"; parent: LocatorStrategy; index: number };
 
 /**
  * Query all ViewNodes in a tree that match a locator strategy.
@@ -19,16 +19,16 @@ export function queryAll(
   roots: ViewNode[],
   strategy: LocatorStrategy,
 ): ViewNode[] {
-  if (strategy.kind === 'nth') {
+  if (strategy.kind === "nth") {
     const all = queryAll(roots, strategy.parent);
     const index = strategy.index < 0 ? all.length + strategy.index : strategy.index;
     const node = all[index];
     return node ? [node] : [];
   }
 
-  if (strategy.kind === 'chain') {
+  if (strategy.kind === "chain") {
     // Root parent means "search the whole tree" — skip chaining
-    if (strategy.parent.kind === 'root') {
+    if (strategy.parent.kind === "root") {
       return queryAll(roots, strategy.child);
     }
     const parents = queryAll(roots, strategy.parent);
@@ -73,22 +73,22 @@ function matchesStrategy(
   strategy: LocatorStrategy,
 ): boolean {
   switch (strategy.kind) {
-    case 'root':
+    case "root":
       return true;
 
-    case 'label':
+    case "label":
       if (!node.label) return false;
       return strategy.exact === false
         ? node.label.toLowerCase().includes(strategy.value.toLowerCase())
         : node.label === strategy.value;
 
-    case 'testId':
+    case "testId":
       if (node.identifier === strategy.value) return true;
       if (node.resourceId && node.resourceId === strategy.value) return true;
       return false;
 
-    case 'text': {
-      const nodeText = node.text ?? node.label ?? node.value ?? '';
+    case "text": {
+      const nodeText = node.text ?? node.label ?? node.value ?? "";
       if (strategy.value instanceof RegExp) {
         return strategy.value.test(nodeText);
       }
@@ -97,15 +97,15 @@ function matchesStrategy(
         : nodeText === strategy.value;
     }
 
-    case 'type':
+    case "type":
       return (
         node.type.toLowerCase() === strategy.value.toLowerCase()
       );
 
-    case 'role':
+    case "role":
       if (!matchesRole(node, strategy.value)) return false;
       if (strategy.name !== undefined) {
-        const nodeLabel = node.label ?? node.text ?? '';
+        const nodeLabel = node.label ?? node.text ?? "";
         if (strategy.name instanceof RegExp) {
           return strategy.name.test(nodeLabel);
         }
@@ -113,13 +113,13 @@ function matchesStrategy(
       }
       return true;
 
-    case 'placeholder':
+    case "placeholder":
       if (!node.placeholder) return false;
       return strategy.exact === false
         ? node.placeholder.toLowerCase().includes(strategy.value.toLowerCase())
         : node.placeholder === strategy.value;
 
-    case 'chain':
+    case "chain":
       // Handled above in queryAll
       return false;
 
@@ -129,18 +129,18 @@ function matchesStrategy(
 }
 
 const ROLE_TYPE_MAP: Record<string, string[]> = {
-  button: ['button', 'imagebutton'],
-  textfield: ['textfield', 'securetextfield', 'edittext', 'searchfield', 'reactedittext'],
-  text: ['statictext', 'textview', 'text', 'reacttextview'],
-  image: ['image', 'imageview', 'reactimageview'],
-  switch: ['switch', 'toggle'],
-  checkbox: ['checkbox'],
-  slider: ['slider', 'seekbar'],
-  list: ['table', 'collectionview', 'listview', 'recyclerview', 'scrollview', 'reactscrollview'],
-  listitem: ['cell', 'linearlayout', 'relativelayout', 'other'],
-  tab: ['tab', 'tabbar'],
-  link: ['link'],
-  header: ['navigationbar', 'toolbar', 'header'],
+  button: ["button", "imagebutton"],
+  textfield: ["textfield", "securetextfield", "edittext", "searchfield", "reactedittext"],
+  text: ["statictext", "textview", "text", "reacttextview"],
+  image: ["image", "imageview", "reactimageview"],
+  switch: ["switch", "toggle"],
+  checkbox: ["checkbox"],
+  slider: ["slider", "seekbar"],
+  list: ["table", "collectionview", "listview", "recyclerview", "scrollview", "reactscrollview"],
+  listitem: ["cell", "linearlayout", "relativelayout", "other"],
+  tab: ["tab", "tabbar"],
+  link: ["link"],
+  header: ["navigationbar", "toolbar", "header"],
 };
 
 function matchesRole(node: ViewNode, role: string): boolean {
@@ -149,9 +149,9 @@ function matchesRole(node: ViewNode, role: string): boolean {
 
   // React Native's ReactViewGroup is used for everything — only treat it as a
   // button when the element is explicitly marked clickable or accessible.
-  if (normalizedType === 'reactviewgroup') {
-    if (role.toLowerCase() === 'button') {
-      return node.raw?.['clickable'] === 'true' || node.raw?.['accessible'] === 'true';
+  if (normalizedType === "reactviewgroup") {
+    if (role.toLowerCase() === "button") {
+      return node.raw?.["clickable"] === "true" || node.raw?.["accessible"] === "true";
     }
     return false;
   }

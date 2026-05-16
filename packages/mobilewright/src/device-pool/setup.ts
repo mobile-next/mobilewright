@@ -1,9 +1,9 @@
-import { DevicePool } from './application/device-pool.js';
-import { DevicePoolHttpServer } from './adapters/http-server.js';
-import { createAllocator } from './allocator-factory.js';
-import { COORDINATOR_URL_ENV } from './client-factory.js';
-import { loadConfig } from '../config.js';
-import type { FullConfig } from '@playwright/test';
+import { DevicePool } from "./application/device-pool.js";
+import { DevicePoolHttpServer } from "./adapters/http-server.js";
+import { createAllocator } from "./allocator-factory.js";
+import { COORDINATOR_URL_ENV } from "./client-factory.js";
+import { loadConfig } from "../config.js";
+import type { FullConfig } from "@playwright/test";
 
 interface ActiveCoordinator {
   pool: DevicePool;

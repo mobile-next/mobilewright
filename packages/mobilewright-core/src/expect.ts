@@ -1,6 +1,6 @@
-import type { Locator } from './locator.js';
-import { retryUntil } from './poll.js';
-import { filterStack } from './stackTrace.js';
+import type { Locator } from "./locator.js";
+import { retryUntil } from "./poll.js";
+import { filterStack } from "./stackTrace.js";
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -20,7 +20,7 @@ export interface ExpectOptions {
 export function expect(actual: Locator): LocatorAssertions;
 export function expect<T>(actual: T): ValueAssertions<T>;
 export function expect(actual: unknown): any {
-  if (actual && typeof actual === 'object' && 'tap' in actual && 'getText' in actual) {
+  if (actual && typeof actual === "object" && "tap" in actual && "getText" in actual) {
     return new LocatorAssertions(actual as Locator, false);
   }
   return new ValueAssertions(actual, false);
@@ -37,37 +37,37 @@ class LocatorAssertions {
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('visible', () => this.locator.isVisible({ timeout: 0 }), opts);
+    await this.assertBoolean("visible", () => this.locator.isVisible({ timeout: 0 }), opts);
   }
 
   async toBeHidden(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('hidden', async () => {
+    await this.assertBoolean("hidden", async () => {
       const visible = await this.locator.isVisible({ timeout: 0 });
       return !visible;
     }, opts);
   }
 
   async toBeEnabled(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('enabled', () => this.locator.isEnabled({ timeout: 0 }), opts);
+    await this.assertBoolean("enabled", () => this.locator.isEnabled({ timeout: 0 }), opts);
   }
 
   async toBeDisabled(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('disabled', async () => {
+    await this.assertBoolean("disabled", async () => {
       const enabled = await this.locator.isEnabled({ timeout: 0 });
       return !enabled;
     }, opts);
   }
 
   async toBeSelected(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('selected', () => this.locator.isSelected({ timeout: 0 }), opts);
+    await this.assertBoolean("selected", () => this.locator.isSelected({ timeout: 0 }), opts);
   }
 
   async toBeFocused(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('focused', () => this.locator.isFocused({ timeout: 0 }), opts);
+    await this.assertBoolean("focused", () => this.locator.isFocused({ timeout: 0 }), opts);
   }
 
   async toBeChecked(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('checked', () => this.locator.isChecked({ timeout: 0 }), opts);
+    await this.assertBoolean("checked", () => this.locator.isChecked({ timeout: 0 }), opts);
   }
 
   async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
@@ -100,28 +100,28 @@ class LocatorAssertions {
   }
 
   async toBeEmpty(opts?: ExpectOptions): Promise<void> {
-    let lastValue = '';
+    let lastValue = "";
     await this.retryAssertion(
       async () => {
-        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
+        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ""; }
         return lastValue;
       },
       (value) => {
-        const isEmpty = value === '';
+        const isEmpty = value === "";
         return this.negated ? !isEmpty : isEmpty;
       },
       opts?.timeout ?? DEFAULT_TIMEOUT,
       () => this.negated
-        ? `Expected element NOT to be empty, but it was`
+        ? "Expected element NOT to be empty, but it was"
         : `Expected element to be empty, but got "${lastValue}"`,
     );
   }
 
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    let lastValue = '';
+    let lastValue = "";
     await this.retryAssertion(
       async () => {
-        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
+        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ""; }
         return lastValue;
       },
       (value) => {
@@ -155,10 +155,10 @@ class LocatorAssertions {
     expected: string | RegExp,
     opts?: ExpectOptions,
   ): Promise<void> {
-    let lastText = '';
+    let lastText = "";
     await this.retryAssertion(
       async () => {
-        try { lastText = await this.locator.getText({ timeout: 0 }); } catch { lastText = ''; }
+        try { lastText = await this.locator.getText({ timeout: 0 }); } catch { lastText = ""; }
         return lastText;
       },
       (text) => {
@@ -232,7 +232,7 @@ class ValueAssertions<T> {
     const actual = this.actual as any;
     const pass = Array.isArray(actual)
       ? actual.includes(expected)
-      : typeof actual === 'string' ? actual.includes(expected as string) : false;
+      : typeof actual === "string" ? actual.includes(expected as string) : false;
     this.assert(pass, `Expected ${fmt(this.actual)} to contain ${fmt(expected)}`);
   }
 
@@ -246,7 +246,7 @@ class ValueAssertions<T> {
 
   toMatch(pattern: RegExp | string): void {
     const str = String(this.actual);
-    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    const regex = typeof pattern === "string" ? new RegExp(pattern) : pattern;
     this.assert(regex.test(str), `Expected ${fmt(this.actual)} to match ${regex}`);
   }
 
@@ -256,7 +256,7 @@ class ValueAssertions<T> {
   }
 
   toBeDefined(): void {
-    this.assert(this.actual !== undefined, `Expected defined, but received undefined`);
+    this.assert(this.actual !== undefined, "Expected defined, but received undefined");
   }
 
   toBeGreaterThanOrEqual(expected: number): void {
@@ -287,7 +287,7 @@ class ValueAssertions<T> {
     const actual = this.actual as any;
     const hasKey = actual != null && key in actual;
     const pass = value === undefined ? hasKey : hasKey && Object.is(actual[key], value);
-    this.assert(pass, `Expected ${fmt(this.actual)} to have property "${key}"${value !== undefined ? ` with value ${fmt(value)}` : ''}`);
+    this.assert(pass, `Expected ${fmt(this.actual)} to have property "${key}"${value !== undefined ? ` with value ${fmt(value)}` : ""}`);
   }
 
   toMatchObject(expected: Record<string, unknown>): void {
@@ -303,7 +303,7 @@ class ValueAssertions<T> {
   }
 
   toThrow(expected?: string | RegExp): void {
-    if (typeof this.actual !== 'function') {
+    if (typeof this.actual !== "function") {
       throw new ExpectError(`Expected a function, but received ${fmt(this.actual)}`);
     }
     const fn = this.actual as () => unknown;
@@ -316,10 +316,10 @@ class ValueAssertions<T> {
       error = e;
     }
     if (expected === undefined) {
-      this.assert(threw, `Expected function to throw`);
+      this.assert(threw, "Expected function to throw");
     } else {
       const message = threw && error instanceof Error ? error.message : String(error);
-      const matches = typeof expected === 'string' ? message.includes(expected) : expected.test(message);
+      const matches = typeof expected === "string" ? message.includes(expected) : expected.test(message);
       this.assert(threw && matches, `Expected function to throw matching ${fmt(expected)}, but got ${fmt(message)}`);
     }
   }
@@ -333,13 +333,13 @@ class ValueAssertions<T> {
 }
 
 function fmt(value: unknown): string {
-  return typeof value === 'string' ? `"${value}"` : String(value);
+  return typeof value === "string" ? `"${value}"` : String(value);
 }
 
 export class ExpectError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ExpectError';
+    this.name = "ExpectError";
     this.stack = filterStack(this.stack);
   }
 }

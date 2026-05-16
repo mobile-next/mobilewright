@@ -1,7 +1,7 @@
-import sharp from 'sharp';
-import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy } from './query-engine.js';
-import { sleep } from './sleep.js';
+import sharp from "sharp";
+import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from "@mobilewright/protocol";
+import { queryAll, type LocatorStrategy } from "./query-engine.js";
+import { sleep } from "./sleep.js";
 
 export interface LocatorOptions {
   timeout?: number;
@@ -13,7 +13,7 @@ export interface ScrollIntoViewOptions {
   /** Maximum number of swipe attempts before giving up (default: 10) */
   maxSwipes?: number;
   /** Swipe gesture direction — 'up' swipes up (scrolls content down), 'down' swipes down (scrolls content up). Default: 'up' */
-  direction?: 'up' | 'down';
+  direction?: "up" | "down";
 }
 
 const DEFAULT_TIMEOUT = 5_000;
@@ -23,7 +23,7 @@ const DEFAULT_STABILITY_DELAY = 50;
 export class Locator {
   /** Create a root locator that searches the entire view hierarchy. */
   static root(driver: MobilewrightDriver, options: LocatorOptions = {}): Locator {
-    return new Locator(driver, { kind: 'root' }, options);
+    return new Locator(driver, { kind: "root" }, options);
   }
 
   constructor(
@@ -35,33 +35,33 @@ export class Locator {
   // ─── Chaining ────────────────────────────────────────────────
 
   getByLabel(label: string, opts?: { exact?: boolean }): Locator {
-    return this.child({ kind: 'label', value: label, exact: opts?.exact });
+    return this.child({ kind: "label", value: label, exact: opts?.exact });
   }
 
   getByTestId(testId: string): Locator {
-    return this.child({ kind: 'testId', value: testId });
+    return this.child({ kind: "testId", value: testId });
   }
 
   getByText(text: string | RegExp, opts?: { exact?: boolean }): Locator {
-    return this.child({ kind: 'text', value: text, exact: opts?.exact });
+    return this.child({ kind: "text", value: text, exact: opts?.exact });
   }
 
   getByType(type: string): Locator {
-    return this.child({ kind: 'type', value: type });
+    return this.child({ kind: "type", value: type });
   }
 
   getByRole(role: string, opts?: { name?: string | RegExp }): Locator {
-    return this.child({ kind: 'role', value: role, name: opts?.name });
+    return this.child({ kind: "role", value: role, name: opts?.name });
   }
 
   getByPlaceholder(placeholder: string, opts?: { exact?: boolean }): Locator {
-    return this.child({ kind: 'placeholder', value: placeholder, exact: opts?.exact });
+    return this.child({ kind: "placeholder", value: placeholder, exact: opts?.exact });
   }
 
   private child(childStrategy: LocatorStrategy): Locator {
     return new Locator(
       this.driver,
-      { kind: 'chain', parent: this.strategy, child: childStrategy },
+      { kind: "chain", parent: this.strategy, child: childStrategy },
       this.options,
     );
   }
@@ -79,7 +79,7 @@ export class Locator {
   nth(index: number): Locator {
     return new Locator(
       this.driver,
-      { kind: 'nth', parent: this.strategy, index },
+      { kind: "nth", parent: this.strategy, index },
       this.options,
     );
   }
@@ -95,7 +95,7 @@ export class Locator {
     return matches.map((_, i) =>
       new Locator(
         this.driver,
-        { kind: 'nth', parent: this.strategy, index: i },
+        { kind: "nth", parent: this.strategy, index: i },
         this.options,
       ),
     );
@@ -143,7 +143,7 @@ export class Locator {
 
   async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
     const maxSwipes = opts?.maxSwipes ?? 10;
-    const direction: SwipeDirection = opts?.direction ?? 'up';
+    const direction: SwipeDirection = opts?.direction ?? "up";
     const screenSize = await this.driver.getScreenSize();
     const POST_SWIPE_SETTLE = 200;
 
@@ -175,7 +175,7 @@ export class Locator {
   
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
-      await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
+      await this.waitFor({ state: "visible", timeout: opts?.timeout ?? 0 });
       return true;
     } catch {
       return false;
@@ -209,32 +209,32 @@ export class Locator {
 
   async getText(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
-    return node.text ?? node.label ?? node.value ?? '';
+    return node.text ?? node.label ?? node.value ?? "";
   }
 
   async getValue(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
-    return node.value ?? '';
+    return node.value ?? "";
   }
 
   async waitFor(opts?: {
-    state?: 'visible' | 'hidden' | 'enabled' | 'disabled';
+    state?: "visible" | "hidden" | "enabled" | "disabled";
     timeout?: number;
   }): Promise<void> {
-    await this.pollUntilState(opts?.state ?? 'visible', opts?.timeout);
+    await this.pollUntilState(opts?.state ?? "visible", opts?.timeout);
   }
 
   // ─── Internal resolution ─────────────────────────────────────
 
   /** Wait for a visible node and return it. Used by getText, screenshot. */
   private async resolveVisible(timeout?: number): Promise<ViewNode> {
-    const node = await this.pollUntilState('visible', timeout);
+    const node = await this.pollUntilState("visible", timeout);
     return node!;
   }
 
   /** Poll until the given state is satisfied. Returns the matched node (or null for hidden/disabled). */
   private async pollUntilState(
-    state: 'visible' | 'hidden' | 'enabled' | 'disabled',
+    state: "visible" | "hidden" | "enabled" | "disabled",
     timeout?: number,
   ): Promise<ViewNode | null> {
     const effectiveTimeout = timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
@@ -273,18 +273,18 @@ export class Locator {
     const deadline = Date.now() + effectiveTimeout;
 
     let previousBounds: Bounds | null = null;
-    let lastReason = 'no matching element found';
+    let lastReason = "no matching element found";
 
     while (true) {
       const roots = await this.driver.getViewHierarchy();
       const node = queryAll(roots, this.strategy)[0];
 
       if (!node) {
-        lastReason = 'no matching element found';
+        lastReason = "no matching element found";
       } else if (!node.isVisible) {
-        lastReason = 'element found but not visible';
+        lastReason = "element found but not visible";
       } else if (!node.isEnabled) {
-        lastReason = 'element found but not enabled';
+        lastReason = "element found but not enabled";
       } else {
         // Stability check: bounds haven't changed since last poll
         if (previousBounds && boundsEqual(previousBounds, node.bounds)) {
@@ -359,16 +359,16 @@ function boundsEqual(a: Bounds, b: Bounds): boolean {
 
 function checkState(
   node: ViewNode | null,
-  state: 'visible' | 'hidden' | 'enabled' | 'disabled',
+  state: "visible" | "hidden" | "enabled" | "disabled",
 ): boolean {
   switch (state) {
-    case 'visible':
+    case "visible":
       return node !== null && node.isVisible;
-    case 'hidden':
+    case "hidden":
       return node === null || !node.isVisible;
-    case 'enabled':
+    case "enabled":
       return node !== null && node.isEnabled;
-    case 'disabled':
+    case "disabled":
       return node !== null && !node.isEnabled;
   }
 }
@@ -384,10 +384,10 @@ function swipeDirectionToReveal(bounds: Bounds, screen: ScreenSize): SwipeDirect
   const centerY = bounds.y + bounds.height / 2;
   // Element is below the viewport → swipe up to reveal it
   if (centerY > screen.height) {
-    return 'up';
+    return "up";
   }
   // Element is above the viewport → swipe down to reveal it
-  return 'down';
+  return "down";
 }
 
 export class LocatorError extends Error {
@@ -396,6 +396,6 @@ export class LocatorError extends Error {
     public readonly strategy: LocatorStrategy,
   ) {
     super(message);
-    this.name = 'LocatorError';
+    this.name = "LocatorError";
   }
 }

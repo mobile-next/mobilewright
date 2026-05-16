@@ -1,10 +1,10 @@
-import type { Platform, DeviceInfo, MobilewrightDriver } from '@mobilewright/protocol';
-import { Device } from '@mobilewright/core';
-import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
-import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
-import { ensureMobilecliReachable } from './server.js';
-import { toArray } from './config.js';
-import type { DriverConfig } from './config.js';
+import type { Platform, DeviceInfo, MobilewrightDriver } from "@mobilewright/protocol";
+import { Device } from "@mobilewright/core";
+import { MobilecliDriver, DEFAULT_URL } from "@mobilewright/driver-mobilecli";
+import { MobileUseDriver } from "@mobilewright/driver-mobile-use";
+import { ensureMobilecliReachable } from "./server.js";
+import { toArray } from "./config.js";
+import type { DriverConfig } from "./config.js";
 
 export interface LaunchOptions {
   bundleId?: string;
@@ -40,7 +40,7 @@ export interface FindDeviceParams {
 }
 
 export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
-  if (driverConfig?.type === 'mobile-use') {
+  if (driverConfig?.type === "mobile-use") {
     return new MobileUseDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
@@ -79,7 +79,7 @@ export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> 
   const devices = await driver.listDevices({ platform: params.platform });
 
   const match = devices
-    .filter((d) => d.state === 'online')
+    .filter((d) => d.state === "online")
     .filter((d) => !params.deviceId || d.id === params.deviceId)
     .filter((d) => !params.deviceName || params.deviceName.test(d.name))
     .at(0);
@@ -97,7 +97,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
       const url = opts.url ?? DEFAULT_URL;
 
       let serverProcess: { kill: () => void } | undefined;
-      if (!driverConfig || driverConfig.type === 'mobilecli') {
+      if (!driverConfig || driverConfig.type === "mobilecli") {
         const ensured = await ensureMobilecliReachable(url, { autoStart: opts.autoStart ?? true });
         serverProcess = ensured.serverProcess ?? undefined;
       }
@@ -135,7 +135,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
 }
 
 /** iOS platform launcher */
-export const ios = createLauncher('ios');
+export const ios = createLauncher("ios");
 
 /** Android platform launcher */
-export const android = createLauncher('android');
+export const android = createLauncher("android");

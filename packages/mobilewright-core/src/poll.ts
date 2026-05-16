@@ -1,4 +1,4 @@
-import { sleep } from './sleep.js';
+import { sleep } from "./sleep.js";
 
 const POLL_INTERVAL = 100;
 
@@ -17,7 +17,7 @@ export async function retryUntil<T>(
     }
 
     if (Date.now() >= deadline) {
-      const msg = typeof failMessage === 'function' ? failMessage() : failMessage;
+      const msg = typeof failMessage === "function" ? failMessage() : failMessage;
       throw new Error(msg);
     }
 

@@ -1,8 +1,8 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import WebSocket from 'ws';
-import { sleep } from '@mobilewright/core';
-import { DEFAULT_URL, resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
-import { MobilewrightError } from './errors.js';
+import { spawn, type ChildProcess } from "node:child_process";
+import WebSocket from "ws";
+import { sleep } from "@mobilewright/core";
+import { DEFAULT_URL, resolveMobilecliBinary } from "@mobilewright/driver-mobilecli";
+import { MobilewrightError } from "./errors.js";
 
 const HEALTH_CHECK_TIMEOUT = 5_000;
 const SERVER_START_TIMEOUT = 10_000;
@@ -13,7 +13,7 @@ const SERVER_POLL_INTERVAL = 500;
 export function isLocalUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname;
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
   } catch {
     return true;
   }
@@ -30,11 +30,11 @@ export async function startMobilecliServer(opts?: {
   binaryPath?: string;
   port?: number;
 }): Promise<ServerHandle> {
-  const binary = opts?.binaryPath ?? 'mobilecli';
+  const binary = opts?.binaryPath ?? "mobilecli";
   const port = opts?.port ?? 12000;
 
-  const proc = spawn(binary, ['server', 'start', '--listen', `localhost:${port}`], {
-    stdio: 'pipe',
+  const proc = spawn(binary, ["server", "start", "--listen", `localhost:${port}`], {
+    stdio: "pipe",
     detached: false,
   });
 
@@ -46,10 +46,10 @@ export async function startMobilecliServer(opts?: {
       return {
         process: proc,
         kill: async () => {
-          proc.kill('SIGTERM');
+          proc.kill("SIGTERM");
           await new Promise<void>((resolve) => {
-            const timer = setTimeout(() => { proc.kill('SIGKILL'); resolve(); }, 3_000);
-            proc.on('exit', () => { clearTimeout(timer); resolve(); });
+            const timer = setTimeout(() => { proc.kill("SIGKILL"); resolve(); }, 3_000);
+            proc.on("exit", () => { clearTimeout(timer); resolve(); });
           });
         },
       };
@@ -57,7 +57,7 @@ export async function startMobilecliServer(opts?: {
     await sleep(SERVER_POLL_INTERVAL);
   }
 
-  proc.kill('SIGTERM');
+  proc.kill("SIGTERM");
   throw new MobilewrightError(
     `mobilecli server did not become ready within ${SERVER_START_TIMEOUT / 1000}s.\n` +
       `Try starting it manually with: ${binary} server start`,
@@ -75,7 +75,7 @@ export async function ensureMobilecliReachable(
   if (!isLocalUrl(url)) {
     throw new MobilewrightError(
       `Cannot reach mobilecli server at ${url}.\n\n` +
-        `Ensure the remote server is running and accessible.`,
+        "Ensure the remote server is running and accessible.",
     );
   }
 
@@ -90,9 +90,9 @@ export async function ensureMobilecliReachable(
   }
 
   const hint = binaryPath
-    ? `Start it with:\n  mobilecli server start`
-    : `Install mobilecli from:\n  https://github.com/mobile-next/mobilecli\n\n` +
-      `Then start the server with:\n  mobilecli server start`;
+    ? "Start it with:\n  mobilecli server start"
+    : "Install mobilecli from:\n  https://github.com/mobile-next/mobilecli\n\n" +
+      "Then start the server with:\n  mobilecli server start";
 
   throw new MobilewrightError(
     `mobilecli server is not running at ${url}.\n\n${hint}`,
@@ -105,7 +105,7 @@ function checkWebSocket(url: string, timeout: number): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const ws = new WebSocket(url);
     const timer = setTimeout(() => { ws.terminate(); resolve(false); }, timeout);
-    ws.on('open', () => { clearTimeout(timer); ws.close(); resolve(true); });
-    ws.on('error', () => { clearTimeout(timer); resolve(false); });
+    ws.on("open", () => { clearTimeout(timer); ws.close(); resolve(true); });
+    ws.on("error", () => { clearTimeout(timer); resolve(false); });
   });
 }

@@ -7,17 +7,17 @@
  *   - MOBILEWRIGHT_INTEGRATION=1 environment variable
  *   - MOBILEWRIGHT_PLATFORM=ios|android environment variable (default: ios)
  */
-import { test, expect } from '@playwright/test';
-import type { Platform } from '@mobilewright/protocol';
-import { MobilecliDriver } from './driver.js';
+import { test, expect } from "@playwright/test";
+import type { Platform } from "@mobilewright/protocol";
+import { MobilecliDriver } from "./driver.js";
 
-const INTEGRATION = process.env['MOBILEWRIGHT_INTEGRATION'] === '1';
-const PLATFORM = (process.env['MOBILEWRIGHT_PLATFORM'] ?? 'ios') as Platform;
+const INTEGRATION = process.env["MOBILEWRIGHT_INTEGRATION"] === "1";
+const PLATFORM = (process.env["MOBILEWRIGHT_PLATFORM"] ?? "ios") as Platform;
 
-test.describe('mobilecli integration', () => {
-  test.skip(!INTEGRATION, 'Requires MOBILEWRIGHT_INTEGRATION=1');
+test.describe("mobilecli integration", () => {
+  test.skip(!INTEGRATION, "Requires MOBILEWRIGHT_INTEGRATION=1");
 
-  test('connects, dumps UI hierarchy, and takes a screenshot', async () => {
+  test("connects, dumps UI hierarchy, and takes a screenshot", async () => {
     const driver = new MobilecliDriver();
 
     const session = await driver.connect({

@@ -1,7 +1,7 @@
-import { access } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { createRequire } from 'node:module';
+import { access } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 
 const _require = createRequire(import.meta.url);
 
@@ -9,7 +9,7 @@ const _require = createRequire(import.meta.url);
 
 export interface MobilewrightUseOptions {
   /** Platform for this project. */
-  platform?: 'ios' | 'android';
+  platform?: "ios" | "android";
   /** Regex to match device name. */
   deviceName?: RegExp;
   /** App bundle ID for this project. */
@@ -44,11 +44,11 @@ export interface MobilewrightProjectConfig {
 // ─── Config ───────────────────────────────────────────────────────
 
 export interface DriverConfigMobilecli {
-  type: 'mobilecli';
+  type: "mobilecli";
 }
 
 export interface DriverConfigMobileUse {
-  type: 'mobile-use';
+  type: "mobile-use";
   region?: string;
   apiKey?: string;
 }
@@ -58,7 +58,7 @@ export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileUse;
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────
   /** Default platform. */
-  platform?: 'ios' | 'android';
+  platform?: "ios" | "android";
   /** Specific device identifier (local drivers only). */
   deviceId?: string;
   /** Regex to match device name (e.g. /iPhone 17/). */
@@ -100,7 +100,7 @@ export interface MobilewrightConfig {
   /** Fail the test run if test.only is present. Useful for CI. */
   forbidOnly?: boolean;
   /** Reporter to use. */
-  reporter?: 'list' | 'html' | 'json' | 'junit' | Array<[string] | [string, unknown]>;
+  reporter?: "list" | "html" | "json" | "junit" | Array<[string] | [string, unknown]>;
   /** Global setup file — runs once before all tests. */
   globalSetup?: string | string[];
   /** Global teardown file — runs once after all tests. */
@@ -118,8 +118,8 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
 
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
-  const ourSetup = _require.resolve('./device-pool/setup.js');
-  const ourTeardown = _require.resolve('./device-pool/teardown.js');
+  const ourSetup = _require.resolve("./device-pool/setup.js");
+  const ourTeardown = _require.resolve("./device-pool/teardown.js");
   const userSetups = toArray(config.globalSetup);
   const userTeardowns = toArray(config.globalTeardown);
 
@@ -132,16 +132,16 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
 }
 
 const CONFIG_FILES = [
-  'mobilewright.config.ts',
-  'mobilewright.config.js',
-  'mobilewright.config.mjs',
+  "mobilewright.config.ts",
+  "mobilewright.config.js",
+  "mobilewright.config.mjs",
 ];
 
 async function importConfig(fullPath: string): Promise<MobilewrightConfig> {
   const mod = await import(pathToFileURL(fullPath).href);
   let config = mod.default ?? mod;
   // Some loaders (e.g. Playwright's TS transpiler) double-wrap the default export
-  if (config && typeof config === 'object' && 'default' in config) {
+  if (config && typeof config === "object" && "default" in config) {
     config = config.default;
   }
   return config as MobilewrightConfig;
