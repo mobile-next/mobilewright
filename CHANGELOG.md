@@ -1,3 +1,12 @@
+## [0.0.36] (2026-05-16)
+* Feat: add toHaveCount and toBeEmpty assertions ([#122](https://github.com/mobile-next/mobilewright/pull/122)), thanks to [@alexC2K](https://github.com/alexC2K)
+* Feat: add device info annotations to test report ([#125](https://github.com/mobile-next/mobilewright/pull/125))
+* Feat(test): attach accessibility tree on test failure via saveTreeOnFailure ([#111](https://github.com/mobile-next/mobilewright/pull/111)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+* Feat: add eslint with @typescript-eslint and @stylistic rules ([#127](https://github.com/mobile-next/mobilewright/pull/127))
+* Fix(driver): reject .ipa installs on iOS simulators with a clear error ([#74](https://github.com/mobile-next/mobilewright/pull/74)), thanks to [@krismuhi](https://github.com/krismuhi)
+* Fix: only catch LocatorError in expect assertions, rethrow unexpected errors ([#126](https://github.com/mobile-next/mobilewright/pull/126))
+* Fix: respect autoAppLaunch config option in test fixture ([#110](https://github.com/mobile-next/mobilewright/pull/110)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+
 ## [0.0.35] (2026-05-12)
 * Fix(android): updated mobilecli to 0.3.73 to fix missing elements that had non-null resource-id ([#120](https://github.com/mobile-next/mobilewright/pull/120))
 
