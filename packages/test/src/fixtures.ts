@@ -1,5 +1,5 @@
 import { test as base, type TestInfo } from '@playwright/test';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, openSync, readSync, closeSync } from 'node:fs';
 import { mkdir, unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
@@ -16,6 +16,21 @@ import { expect } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
 
 const debug = createDebug('mw:test:fixtures');
+
+const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+
+function assertValidZipFile(path: string): void {
+  const buf = Buffer.alloc(4);
+  const fd = openSync(path, 'r');
+  try {
+    readSync(fd, buf, { offset: 0, length: 4, position: 0 });
+  } finally {
+    closeSync(fd);
+  }
+  if (!buf.equals(ZIP_MAGIC)) {
+    throw new Error(`"${path}" is not a valid ZIP file`);
+  }
+}
 
 async function attachVideo(testInfo: TestInfo, url: string | undefined, localPath: string): Promise<void> {
   if (url) {
@@ -83,6 +98,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
     
     if (merged.platform !== 'ios' && merged.platform !== 'android') {
       throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
+    }
+
+    for (const appPath of toArray(merged.installApps)) {
+      assertValidZipFile(appPath);
     }
 
     const client = getClient();

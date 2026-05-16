@@ -1,5 +1,6 @@
 import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
+import { openSync, readSync, closeSync } from 'node:fs';
 import type {
   AppInfo,
   ConnectionConfig,
@@ -129,6 +130,21 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
     children: el.children?.map(elementToViewNode) ?? [],
     raw: { ...el },
   };
+}
+
+const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+
+function assertValidZipFile(path: string): void {
+  const buf = Buffer.alloc(4);
+  const fd = openSync(path, 'r');
+  try {
+    readSync(fd, buf, { offset: 0, length: 4, position: 0 });
+  } finally {
+    closeSync(fd);
+  }
+  if (!buf.equals(ZIP_MAGIC)) {
+    throw new Error(`"${path}" is not a valid ZIP file`);
+  }
 }
 
 const debug = createDebug('mw:driver-mobilecli');
@@ -416,6 +432,7 @@ export class MobilecliDriver implements MobilewrightDriver {
       }
     }
 
+    assertValidZipFile(path);
     await this.call('device.apps.install', { path });
   }
 

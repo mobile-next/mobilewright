@@ -1,5 +1,27 @@
 import { test, expect } from '@playwright/test';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { MobilecliDriver } from './driver.js';
+
+const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+const tmpDir = mkdtempSync(join(tmpdir(), 'mw-driver-test-'));
+
+test.afterAll(() => {
+  rmSync(tmpDir, { recursive: true });
+});
+
+function createValidZipFile(name: string): string {
+  const path = join(tmpDir, name);
+  writeFileSync(path, ZIP_MAGIC);
+  return path;
+}
+
+function createCorruptZipFile(name: string): string {
+  const path = join(tmpDir, name);
+  writeFileSync(path, Buffer.from([0x00, 0x00, 0x00, 0x00]));
+  return path;
+}
 
 const SIMULATOR_DEVICE_ID = 'sim-iphone-15';
 const SIMULATOR_DEVICE_NAME = 'iPhone 15';
@@ -53,7 +75,14 @@ test.describe('MobilecliDriver.installApp()', () => {
     test('accepts a .zip file', async () => {
       const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
       allowRpc(driver);
-      await expect(driver.installApp('/path/to/MyApp.zip')).resolves.toBeUndefined();
+      await expect(driver.installApp(createValidZipFile('MyApp.zip'))).resolves.toBeUndefined();
+    });
+
+    test('rejects a .zip file that is not a valid ZIP', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+      await expect(driver.installApp(createCorruptZipFile('corrupt-sim.zip'))).rejects.toThrow(
+        'is not a valid ZIP file',
+      );
     });
 
     test('rejects a .ipa file with instructions for building a .zip', async () => {
@@ -102,7 +131,14 @@ test.describe('MobilecliDriver.installApp()', () => {
     test('accepts a .ipa file', async () => {
       const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
       allowRpc(driver);
-      await expect(driver.installApp('/path/to/MyApp.ipa')).resolves.toBeUndefined();
+      await expect(driver.installApp(createValidZipFile('MyApp.ipa'))).resolves.toBeUndefined();
+    });
+
+    test('rejects an .ipa file that is not a valid ZIP', async () => {
+      const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
+      await expect(driver.installApp(createCorruptZipFile('corrupt-real.ipa'))).rejects.toThrow(
+        'is not a valid ZIP file',
+      );
     });
 
     test('rejects a .zip file', async () => {
@@ -122,7 +158,7 @@ test.describe('MobilecliDriver.installApp()', () => {
     test('is case-insensitive for extension check', async () => {
       const driver = createDriverWithSession({ platform: 'ios', deviceType: 'real' });
       allowRpc(driver);
-      await expect(driver.installApp('/path/to/MyApp.IPA')).resolves.toBeUndefined();
+      await expect(driver.installApp(createValidZipFile('MyApp.IPA'))).resolves.toBeUndefined();
     });
   });
 
@@ -130,7 +166,14 @@ test.describe('MobilecliDriver.installApp()', () => {
     test('accepts a .apk file', async () => {
       const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
       allowRpc(driver);
-      await expect(driver.installApp('/path/to/app.apk')).resolves.toBeUndefined();
+      await expect(driver.installApp(createValidZipFile('app.apk'))).resolves.toBeUndefined();
+    });
+
+    test('rejects an .apk file that is not a valid ZIP', async () => {
+      const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+      await expect(driver.installApp(createCorruptZipFile('corrupt.apk'))).rejects.toThrow(
+        'is not a valid ZIP file',
+      );
     });
 
     test('rejects a .ipa file', async () => {
@@ -150,7 +193,7 @@ test.describe('MobilecliDriver.installApp()', () => {
     test('is case-insensitive for extension check', async () => {
       const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
       allowRpc(driver);
-      await expect(driver.installApp('/path/to/app.APK')).resolves.toBeUndefined();
+      await expect(driver.installApp(createValidZipFile('app.APK'))).resolves.toBeUndefined();
     });
   });
 });

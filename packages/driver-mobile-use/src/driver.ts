@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs';
+import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import createDebug from 'debug';
@@ -130,6 +130,21 @@ function elementToViewNode(el: MobileUseElement): ViewNode {
 function appendQueryParam(url: string, key: string, value: string): string {
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
+const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+
+function assertValidZipFile(path: string): void {
+  const buf = Buffer.alloc(4);
+  const fd = openSync(path, 'r');
+  try {
+    readSync(fd, buf, { offset: 0, length: 4, position: 0 });
+  } finally {
+    closeSync(fd);
+  }
+  if (!buf.equals(ZIP_MAGIC)) {
+    throw new Error(`"${path}" is not a valid ZIP file`);
+  }
 }
 
 function sanitizeFilename(name: string): string {
@@ -468,6 +483,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async installApp(filePath: string): Promise<void> {
+    assertValidZipFile(filePath);
     const fileInfo = await stat(filePath);
     const filename = sanitizeFilename(basename(filePath));
 
