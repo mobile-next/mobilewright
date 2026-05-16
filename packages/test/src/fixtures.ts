@@ -71,20 +71,25 @@ export const test = base.extend<MobilewrightTestFixtures>({
       deviceId: merged.deviceId,
     });
 
-    testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
-    testInfo.annotations.push({ type: 'device.platform', description: handle.platform });
-    if (handle.driver) {
-      testInfo.annotations.push({ type: 'device.driver', description: handle.driver });
-    }
-    if (handle.model) {
-      testInfo.annotations.push({ type: 'device.model', description: handle.model });
-    }
-    if (handle.osVersion) {
-      testInfo.annotations.push({ type: 'device.osVersion', description: handle.osVersion });
-    }
     if (handle.type) {
       testInfo.annotations.push({ type: 'device.type', description: handle.type });
     }
+
+    testInfo.annotations.push({ type: 'device.platform', description: handle.platform });
+
+    if (handle.osVersion) {
+      testInfo.annotations.push({ type: 'device.osVersion', description: handle.osVersion });
+    }
+
+    if (handle.model) {
+      testInfo.annotations.push({ type: 'device.model', description: handle.model });
+    }
+
+    if (handle.driver) {
+      testInfo.annotations.push({ type: 'device.driver', description: handle.driver });
+    }
+
+    testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
 
     const device = await connectDevice({
       platform: handle.platform,
