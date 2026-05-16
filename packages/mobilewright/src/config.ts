@@ -14,6 +14,8 @@ export interface MobilewrightUseOptions {
   deviceName?: RegExp;
   /** App bundle ID for this project. */
   bundleId?: string;
+  /** App paths (APK/IPA) to install for this project. Overrides top-level installApps. */
+  installApps?: string | string[];
 }
 
 export interface MobilewrightProjectConfig {
