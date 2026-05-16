@@ -1,4 +1,4 @@
-import type { DeviceType, Platform } from "@mobilewright/protocol";
+import type { DeviceType, Platform } from '@mobilewright/protocol';
 
 /**
  * Thrown by a DeviceAllocator when no device is currently available but one
@@ -9,7 +9,7 @@ import type { DeviceType, Platform } from "@mobilewright/protocol";
 export class NoDeviceAvailableError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "NoDeviceAvailableError";
+    this.name = 'NoDeviceAvailableError';
   }
 }
 

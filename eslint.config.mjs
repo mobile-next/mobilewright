@@ -32,7 +32,7 @@ export default [
       'eqeqeq': ['error', 'always'],
 
       // style
-      '@stylistic/quotes': ['error', 'double'],
+      '@stylistic/quotes': ['error', 'single'],
       '@stylistic/semi': ['error', 'always'],
       '@stylistic/object-curly-spacing': ['error', 'always'],
       '@stylistic/indent': ['error', 2],

@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import WebSocket from 'ws';
 
 export class RpcError extends Error {
   constructor(
@@ -7,19 +7,19 @@ export class RpcError extends Error {
     readonly data?: unknown,
   ) {
     super(message);
-    this.name = "RpcError";
+    this.name = 'RpcError';
   }
 }
 
 export interface JsonRpcRequest {
-  jsonrpc: "2.0";
+  jsonrpc: '2.0';
   id: number;
   method: string;
   params?: Record<string, unknown>;
 }
 
 export interface JsonRpcResponse {
-  jsonrpc: "2.0";
+  jsonrpc: '2.0';
   id: number;
   result?: unknown;
   error?: { code: number; message: string; data?: unknown };
@@ -57,7 +57,7 @@ export class RpcClient {
         }
       }, this.requestTimeout);
 
-      ws.on("open", () => {
+      ws.on('open', () => {
         clearTimeout(timeout);
         this.ws = ws;
         this.connectionPromise = null;
@@ -65,26 +65,26 @@ export class RpcClient {
         resolve();
       });
 
-      ws.on("error", (err) => {
+      ws.on('error', (err) => {
         clearTimeout(timeout);
         this.connectionPromise = null;
         if (!settled) {
           settled = true;
           if (err instanceof AggregateError && err.errors.length > 0) {
-            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join("; ")}`));
+            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
           } else {
             reject(new Error(`Failed to connect to ${this.url}: ${err.message}`));
           }
         }
       });
 
-      ws.on("message", (data: WebSocket.Data) => {
+      ws.on('message', (data: WebSocket.Data) => {
         this.handleMessage(data);
       });
 
-      ws.on("close", (code: number, reason: Buffer) => {
+      ws.on('close', (code: number, reason: Buffer) => {
         this.ws = null;
-        const reasonStr = reason.toString() || "no reason";
+        const reasonStr = reason.toString() || 'no reason';
         const msg = `WebSocket connection closed (code=${code}, reason=${reasonStr})`;
         if (!settled) {
           clearTimeout(timeout);
@@ -110,12 +110,12 @@ export class RpcClient {
     await this.connect();
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      throw new Error("WebSocket is not connected");
+      throw new Error('WebSocket is not connected');
     }
 
     const id = this.nextId++;
     const request: JsonRpcRequest = {
-      jsonrpc: "2.0",
+      jsonrpc: '2.0',
       id,
       method,
       ...(params !== undefined && { params }),
@@ -169,7 +169,7 @@ export class RpcClient {
       // contains the real error (e.g. "exit status 4") while
       // response.error.message is just "Server error".
       const detail =
-        typeof response.error.data === "string"
+        typeof response.error.data === 'string'
           ? response.error.data
           : response.error.message;
       pending.reject(new RpcError(detail, response.error.code, response.error.data));

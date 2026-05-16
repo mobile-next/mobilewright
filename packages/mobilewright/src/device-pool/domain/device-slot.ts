@@ -1,16 +1,16 @@
-import type { DeviceType, Platform } from "@mobilewright/protocol";
+import type { DeviceType, Platform } from '@mobilewright/protocol';
 
-export type DeviceSlotState = "allocating" | "available" | "allocated";
+export type DeviceSlotState = 'allocating' | 'available' | 'allocated';
 
 export class DeviceSlotStateError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "DeviceSlotStateError";
+    this.name = 'DeviceSlotStateError';
   }
 }
 
 export class DeviceSlot {
-  private _state: DeviceSlotState = "allocating";
+  private _state: DeviceSlotState = 'allocating';
   private _deviceId?: string;
   private _platform?: Platform;
   private _allocationId?: string;
@@ -53,12 +53,12 @@ export class DeviceSlot {
   }
 
   markAvailable(deviceId: string, platform: Platform, driver?: string, model?: string, osVersion?: string, type?: DeviceType): void {
-    if (this._state !== "allocating") {
+    if (this._state !== 'allocating') {
       throw new DeviceSlotStateError(
         `markAvailable requires state 'allocating', got '${this._state}'`,
       );
     }
-    this._state = "available";
+    this._state = 'available';
     this._deviceId = deviceId;
     this._platform = platform;
     this._driver = driver;
@@ -68,22 +68,22 @@ export class DeviceSlot {
   }
 
   claim(allocationId: string): void {
-    if (this._state !== "available") {
+    if (this._state !== 'available') {
       throw new DeviceSlotStateError(
         `claim requires state 'available', got '${this._state}'`,
       );
     }
-    this._state = "allocated";
+    this._state = 'allocated';
     this._allocationId = allocationId;
   }
 
   release(): void {
-    if (this._state !== "allocated") {
+    if (this._state !== 'allocated') {
       throw new DeviceSlotStateError(
         `release requires state 'allocated', got '${this._state}'`,
       );
     }
-    this._state = "available";
+    this._state = 'available';
     this._allocationId = undefined;
   }
 

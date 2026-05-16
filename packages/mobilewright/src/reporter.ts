@@ -8,40 +8,40 @@
  * - Adds click-to-fullscreen for screenshot thumbnails
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const GITHUB_REPO_URL = "https://github.com/mobile-next/mobilewright";
+const GITHUB_REPO_URL = 'https://github.com/mobile-next/mobilewright';
 
 function getFaviconDataUrl(): string {
-  const iconPath = resolve(__dirname, "..", "assets", "mobilewright-icon.png");
+  const iconPath = resolve(__dirname, '..', 'assets', 'mobilewright-icon.png');
   const iconData = readFileSync(iconPath);
-  return `data:image/png;base64,${iconData.toString("base64")}`;
+  return `data:image/png;base64,${iconData.toString('base64')}`;
 }
 
 /**
  * Post-processes a Playwright HTML report to apply Mobilewright branding.
  */
 export function brandReport(reportPath: string): void {
-  const indexPath = resolve(reportPath, "index.html");
-  let html = readFileSync(indexPath, "utf-8");
+  const indexPath = resolve(reportPath, 'index.html');
+  let html = readFileSync(indexPath, 'utf-8');
 
   const faviconDataUrl = getFaviconDataUrl();
 
   // 1. Replace title
   html = html.replace(
-    "<title>Playwright Test Report</title>",
-    "<title>Mobilewright Test Report</title>",
+    '<title>Playwright Test Report</title>',
+    '<title>Mobilewright Test Report</title>',
   );
 
   // 2. Replace the JS-side document.title fallback
   html = html.replace(
     /document\.title="Playwright Test Report"/g,
-    "document.title=\"Mobilewright Test Report\"",
+    'document.title="Mobilewright Test Report"',
   );
 
   // 3. Add favicon link and custom styles/scripts in <head>
@@ -101,7 +101,7 @@ export function brandReport(reportPath: string): void {
       }
     </style>
   `;
-  html = html.replace("</head>", headInjection + "\n  </head>");
+  html = html.replace('</head>', headInjection + '\n  </head>');
 
   // 4. Add script for branding injection and screenshot fullscreen
   const bodyScript = `
@@ -184,7 +184,7 @@ export function brandReport(reportPath: string): void {
     })();
     </script>
   `;
-  html = html.replace("</body>", bodyScript + "\n  </body>");
+  html = html.replace('</body>', bodyScript + '\n  </body>');
 
-  writeFileSync(indexPath, html, "utf-8");
+  writeFileSync(indexPath, html, 'utf-8');
 }

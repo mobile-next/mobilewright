@@ -1,6 +1,6 @@
-import type { DeviceInfo, Platform } from "@mobilewright/protocol";
-import { NoDeviceAvailableError } from "../application/ports.js";
-import type { AllocationCriteria, AllocateResult, DeviceAllocator } from "../application/ports.js";
+import type { DeviceInfo, Platform } from '@mobilewright/protocol';
+import { NoDeviceAvailableError } from '../application/ports.js';
+import type { AllocationCriteria, AllocateResult, DeviceAllocator } from '../application/ports.js';
 
 interface ListDevicesOpts {
   platform?: Platform;
@@ -34,7 +34,7 @@ export class MobilecliAllocator implements DeviceAllocator {
       : undefined;
 
     const match = devices
-      .filter((d) => d.state === "online")
+      .filter((d) => d.state === 'online')
       .filter((d) => !takenDeviceIds.has(d.id))
       .filter((d) => !criteria.deviceId || d.id === criteria.deviceId)
       .filter((d) => !namePattern || namePattern.test(d.name))
@@ -45,7 +45,7 @@ export class MobilecliAllocator implements DeviceAllocator {
         `no online device available matching criteria ${JSON.stringify(criteria)}`,
       );
     }
-    return { deviceId: match.id, platform: match.platform, driver: "mobilecli", model: match.model, osVersion: match.osVersion, type: match.type };
+    return { deviceId: match.id, platform: match.platform, driver: 'mobilecli', model: match.model, osVersion: match.osVersion, type: match.type };
   }
 
   async release(_deviceId: string): Promise<void> {

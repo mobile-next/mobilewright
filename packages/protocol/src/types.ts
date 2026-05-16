@@ -32,9 +32,9 @@ export interface ViewNode {
 
 // ─── Device ──────────────────────────────────────────────────────
 
-export type Platform = "ios" | "android";
-export type DeviceType = "real" | "simulator" | "emulator";
-export type DeviceState = "online" | "offline";
+export type Platform = 'ios' | 'android';
+export type DeviceType = 'real' | 'simulator' | 'emulator';
+export type DeviceState = 'online' | 'offline';
 
 export interface DeviceInfo {
   id: string;
@@ -85,7 +85,7 @@ export interface Session {
 
 // ─── Input ───────────────────────────────────────────────────────
 
-export type SwipeDirection = "up" | "down" | "left" | "right";
+export type SwipeDirection = 'up' | 'down' | 'left' | 'right';
 
 export interface SwipeOptions {
   /** Distance in points (default: 50% of screen dimension) */
@@ -98,20 +98,20 @@ export interface SwipeOptions {
 }
 
 export type HardwareButton =
-  | "HOME"
-  | "BACK"
-  | "POWER"
-  | "VOLUME_UP"
-  | "VOLUME_DOWN"
-  | "ENTER"
-  | "DPAD_UP"
-  | "DPAD_DOWN"
-  | "DPAD_LEFT"
-  | "DPAD_RIGHT"
-  | "DPAD_CENTER"
-  | "APP_SWITCH";
+  | 'HOME'
+  | 'BACK'
+  | 'POWER'
+  | 'VOLUME_UP'
+  | 'VOLUME_DOWN'
+  | 'ENTER'
+  | 'DPAD_UP'
+  | 'DPAD_DOWN'
+  | 'DPAD_LEFT'
+  | 'DPAD_RIGHT'
+  | 'DPAD_CENTER'
+  | 'APP_SWITCH';
 
-export type Orientation = "portrait" | "landscape";
+export type Orientation = 'portrait' | 'landscape';
 
 export interface GesturePoint {
   x: number;
@@ -127,7 +127,7 @@ export interface GestureSequence {
 
 // ─── Screen ──────────────────────────────────────────────────────
 
-export type ScreenshotFormat = "png" | "jpeg";
+export type ScreenshotFormat = 'png' | 'jpeg';
 
 export interface ScreenshotOptions {
   format?: ScreenshotFormat;

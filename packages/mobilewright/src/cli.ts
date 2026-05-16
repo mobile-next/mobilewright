@@ -1,49 +1,49 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
-import { execFileSync } from "node:child_process";
-import { existsSync, renameSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { Command } from 'commander';
+import { execFileSync } from 'node:child_process';
+import { existsSync, renameSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { createRequire } from "node:module";
-import type { DeviceInfo } from "@mobilewright/protocol";
-import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary } from "@mobilewright/driver-mobilecli";
-import { ensureMobilecliReachable } from "./server.js";
-import { loadConfig } from "./config.js";
-import { gatherChecks, renderTerminal, renderJSON } from "./commands/doctor.js";
-import { brandReport } from "./reporter.js";
-import { telemetry } from "./telemetry.js";
+import { createRequire } from 'node:module';
+import type { DeviceInfo } from '@mobilewright/protocol';
+import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
+import { ensureMobilecliReachable } from './server.js';
+import { loadConfig } from './config.js';
+import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
+import { brandReport } from './reporter.js';
+import { telemetry } from './telemetry.js';
 
 const _require = createRequire(import.meta.url);
-const _pkg = _require("../package.json") as { version: string };
+const _pkg = _require('../package.json') as { version: string };
 
-const HTML_REPORT_DIR = "mobilewright-report";
-const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "templates");
+const HTML_REPORT_DIR = 'mobilewright-report';
+const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
 const program = new Command();
-program.name("mobilewright");
+program.name('mobilewright');
 program.version(_pkg.version);
 
 // ── test ───────────────────────────────────────────────────────────────
 program
-  .command("test [test-filter...]")
-  .description("run tests")
-  .option("-c, --config <file>", "configuration file")
-  .option("--reporter <reporter>", "reporter to use (e.g. list, html, json)")
-  .option("--grep <grep>", "only run tests matching this regex")
-  .option("--grep-invert <grep>", "only run tests NOT matching this regex")
-  .option("--project <name...>", "only run tests from specified projects")
-  .option("--retries <retries>", "maximum retry count for flaky tests")
-  .option("--timeout <timeout>", "test timeout in milliseconds")
-  .option("--workers <workers>", "number of concurrent workers")
-  .option("--shard <shard>", "shard to run, e.g. 1/3 (run first of three shards)")
-  .option("--pass-with-no-tests", "exit with code 0 when no tests found")
-  .option("--list", "list all tests without running them")
+  .command('test [test-filter...]')
+  .description('run tests')
+  .option('-c, --config <file>', 'configuration file')
+  .option('--reporter <reporter>', 'reporter to use (e.g. list, html, json)')
+  .option('--grep <grep>', 'only run tests matching this regex')
+  .option('--grep-invert <grep>', 'only run tests NOT matching this regex')
+  .option('--project <name...>', 'only run tests from specified projects')
+  .option('--retries <retries>', 'maximum retry count for flaky tests')
+  .option('--timeout <timeout>', 'test timeout in milliseconds')
+  .option('--workers <workers>', 'number of concurrent workers')
+  .option('--shard <shard>', 'shard to run, e.g. 1/3 (run first of three shards)')
+  .option('--pass-with-no-tests', 'exit with code 0 when no tests found')
+  .option('--list', 'list all tests without running them')
   .action(async (args: string[], opts: Record<string, unknown>) => {
-    const { loadConfigFromFile } = await import("playwright/lib/common/configLoader");
-    const { runAllTestsWithConfig } = await import("playwright/lib/runner/testRunner");
+    const { loadConfigFromFile } = await import('playwright/lib/common/configLoader');
+    const { runAllTestsWithConfig } = await import('playwright/lib/runner/testRunner');
 
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
@@ -65,10 +65,10 @@ program
       overrides.workers = n;
     }
     if (opts.reporter) {
-      const names = (opts.reporter as string).split(",");
+      const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {
         const n = name.trim();
-        if (n === "html") return [n, { outputFolder: HTML_REPORT_DIR }];
+        if (n === 'html') return [n, { outputFolder: HTML_REPORT_DIR }];
         return [n];
       });
     }
@@ -76,8 +76,8 @@ program
     // Default to mobilewright.config.{ts,js} if no --config is given.
     let configFile = opts.config as string | undefined;
     if (!configFile) {
-      for (const ext of [".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"]) {
-        const candidate = resolve(process.cwd(), "mobilewright.config" + ext);
+      for (const ext of ['.ts', '.js', '.mts', '.mjs', '.cts', '.cjs']) {
+        const candidate = resolve(process.cwd(), 'mobilewright.config' + ext);
         if (existsSync(candidate)) {
           configFile = candidate;
           break;
@@ -94,10 +94,10 @@ program
     if (opts.list) c.cliListOnly = true;
     if (opts.passWithNoTests) c.cliPassWithNoTests = true;
 
-    telemetry("mw_test");
+    telemetry('mw_test');
     const status = await runAllTestsWithConfig(config);
 
-    telemetry("mw_test-ended", { Status: status });
+    telemetry('mw_test-ended', { Status: status });
 
     // Post-process HTML report with Mobilewright branding.
     // Apply whenever the report dir exists — covers both --reporter html
@@ -110,7 +110,7 @@ program
       }
     }
 
-    const exitCode = status === "interrupted" ? 130 : status === "passed" ? 0 : 1;
+    const exitCode = status === 'interrupted' ? 130 : status === 'passed' ? 0 : 1;
     process.exit(exitCode);
   });
 
@@ -118,15 +118,15 @@ program
 // Delegate to Playwright's built-in show-report, which handles
 // content types, trace files, screenshots, and attachments correctly.
 program
-  .command("show-report [report]")
-  .description("show HTML report")
-  .option("--host <host>", "host to serve report on", "localhost")
-  .option("--port <port>", "port to serve report on", "9323")
+  .command('show-report [report]')
+  .description('show HTML report')
+  .option('--host <host>', 'host to serve report on', 'localhost')
+  .option('--port <port>', 'port to serve report on', '9323')
   .action(async (report: string | undefined, opts: { host: string; port: string }) => {
-    const { program: pwProgram } = await import("playwright/lib/program");
-    const args = ["node", "playwright", "show-report"];
+    const { program: pwProgram } = await import('playwright/lib/program');
+    const args = ['node', 'playwright', 'show-report'];
     args.push(report || HTML_REPORT_DIR);
-    args.push("--host", opts.host, "--port", opts.port);
+    args.push('--host', opts.host, '--port', opts.port);
     await pwProgram.parseAsync(args);
   });
 
@@ -134,21 +134,21 @@ program
 // Delegate to Playwright's merge-reports, then rename playwright-report
 // to mobilewright-report when the html reporter is used.
 program
-  .command("merge-reports [dir]")
-  .description("merge blob reports from sharded runs into one report")
-  .option("--reporter <reporter>", "reporter to use for the merged output (e.g. html, json)")
-  .option("--config <file>", "configuration file")
+  .command('merge-reports [dir]')
+  .description('merge blob reports from sharded runs into one report')
+  .option('--reporter <reporter>', 'reporter to use for the merged output (e.g. html, json)')
+  .option('--config <file>', 'configuration file')
   .action(async (dir: string | undefined, opts: { reporter?: string; config?: string }) => {
-    const { program: pwProgram } = await import("playwright/lib/program");
-    const args = ["node", "playwright", "merge-reports"];
+    const { program: pwProgram } = await import('playwright/lib/program');
+    const args = ['node', 'playwright', 'merge-reports'];
     if (dir) { args.push(dir); }
-    if (opts.reporter) { args.push("--reporter", opts.reporter); }
-    if (opts.config) { args.push("--config", opts.config); }
+    if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    if (opts.config) { args.push('--config', opts.config); }
     await pwProgram.parseAsync(args);
 
-    const reporter = opts.reporter ?? "html";
-    if (reporter === "html") {
-      const playwrightReport = resolve(process.cwd(), "playwright-report");
+    const reporter = opts.reporter ?? 'html';
+    if (reporter === 'html') {
+      const playwrightReport = resolve(process.cwd(), 'playwright-report');
       const mobilewriteReport = resolve(process.cwd(), HTML_REPORT_DIR);
       try {
         renameSync(playwrightReport, mobilewriteReport);
@@ -160,13 +160,13 @@ program
 
 function printDevicesTable(devices: DeviceInfo[]): void {
   console.log(
-    padRight("ID", 40) +
-      padRight("Name", 25) +
-      padRight("Platform", 10) +
-      padRight("Type", 12) +
-      padRight("State", 10),
+    padRight('ID', 40) +
+      padRight('Name', 25) +
+      padRight('Platform', 10) +
+      padRight('Type', 12) +
+      padRight('State', 10),
   );
-  console.log("-".repeat(97));
+  console.log('-'.repeat(97));
 
   for (const d of devices) {
     console.log(
@@ -181,14 +181,14 @@ function printDevicesTable(devices: DeviceInfo[]): void {
 
 // ── devices ────────────────────────────────────────────────────────────
 program
-  .command("devices")
-  .description("list all connected devices, simulators, and emulators")
+  .command('devices')
+  .description('list all connected devices, simulators, and emulators')
   .action(async () => {
     const driver = new MobilecliDriver();
     const devices = await driver.listDevices();
 
     if (devices.length === 0) {
-      console.log("No devices found, try using 'mobilewright doctor' command");
+      console.log('No devices found, try using \'mobilewright doctor\' command');
       return;
     }
 
@@ -211,13 +211,13 @@ async function resolveDeviceId(
   }
 
   const devices = await driver.listDevices();
-  const online = devices.filter(d => d.state === "online");
+  const online = devices.filter(d => d.state === 'online');
   if (online.length === 0) {
-    console.error("No online devices found. Specify one with --device <id>, or try 'mobilewright doctor' to check your environment.");
+    console.error('No online devices found. Specify one with --device <id>, or try \'mobilewright doctor\' to check your environment.');
     process.exit(1);
   }
   if (online.length > 1) {
-    console.error("Multiple devices found. Specify one with --device <id>:\n");
+    console.error('Multiple devices found. Specify one with --device <id>:\n');
     printDevicesTable(online);
     process.exit(1);
   }
@@ -225,18 +225,18 @@ async function resolveDeviceId(
 }
 
 program
-  .command("screenshot")
-  .description("take a screenshot of a connected device")
-  .option("-d, --device <id>", "device ID (run \"mobilewright devices\" to list)")
-  .option("-o, --output <file>", "output file path", "screenshot.png")
-  .option("--url <url>", "mobilecli server URL", DEFAULT_URL)
+  .command('screenshot')
+  .description('take a screenshot of a connected device')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
+  .option('-o, --output <file>', 'output file path', 'screenshot.png')
+  .option('--url <url>', 'mobilecli server URL', DEFAULT_URL)
   .action(async (opts: { device?: string; output: string; url: string }) => {
     const { serverProcess } = await ensureMobilecliReachable(opts.url, { autoStart: true });
     try {
       const driver = new MobilecliDriver({ url: opts.url });
       const deviceId = await resolveDeviceId(opts.device, driver);
 
-      await driver.connect({ platform: "ios", deviceId, url: opts.url });
+      await driver.connect({ platform: 'ios', deviceId, url: opts.url });
       const buffer = await driver.screenshot();
       await driver.disconnect();
 
@@ -250,26 +250,26 @@ program
 
 // ── install ───────────────────────────────────────────────────────
 program
-  .command("install")
-  .description("install the agent on a connected device")
-  .option("-d, --device <id>", "device ID (run \"mobilewright devices\" to list)")
-  .option("--force", "force reinstall the agent")
-  .option("--provisioning-profile <profile>", "provisioning profile to use (iOS)")
+  .command('install')
+  .description('install the agent on a connected device')
+  .option('-d, --device <id>', 'device ID (run "mobilewright devices" to list)')
+  .option('--force', 'force reinstall the agent')
+  .option('--provisioning-profile <profile>', 'provisioning profile to use (iOS)')
   .action(async (opts: { device?: string; force?: boolean; provisioningProfile?: string }) => {
     const driver = new MobilecliDriver();
     const deviceId = await resolveDeviceId(opts.device, driver);
 
     const binary = resolveMobilecliBinary();
-    const args = ["agent", "install", "--device", deviceId];
+    const args = ['agent', 'install', '--device', deviceId];
     if (opts.force) {
-      args.push("--force");
+      args.push('--force');
     }
     if (opts.provisioningProfile) {
-      args.push("--provisioning-profile", opts.provisioningProfile);
+      args.push('--provisioning-profile', opts.provisioningProfile);
     }
 
     try {
-      execFileSync(binary, args, { stdio: ["inherit", "inherit", "inherit"] });
+      execFileSync(binary, args, { stdio: ['inherit', 'inherit', 'inherit'] });
     } catch (err: unknown) {
       process.exit(1);
     }
@@ -277,20 +277,20 @@ program
 
 // ── doctor ─────────────────────────────────────────────────────────────
 program
-  .command("doctor")
-  .description("check your environment for mobile development readiness")
-  .option("--json", "output as JSON — machine-readable, ideal for AI agent consumption")
-  .option("--category <name>", "run checks for one category only: system | ios | android")
+  .command('doctor')
+  .description('check your environment for mobile development readiness')
+  .option('--json', 'output as JSON — machine-readable, ideal for AI agent consumption')
+  .option('--category <name>', 'run checks for one category only: system | ios | android')
   .action((opts: { json?: boolean; category?: string }) => {
-    const validCategories = ["system", "ios", "android"] as const;
+    const validCategories = ['system', 'ios', 'android'] as const;
     type Category = typeof validCategories[number];
 
     if (opts.category && !validCategories.includes(opts.category as Category)) {
-      console.error(`Unknown category "${opts.category}". Valid options: ${validCategories.join(", ")}`);
+      console.error(`Unknown category "${opts.category}". Valid options: ${validCategories.join(', ')}`);
       process.exit(1);
     }
 
-    telemetry("mw_doctor");
+    telemetry('mw_doctor');
     const checks = gatherChecks(opts.category as Category | undefined);
 
     if (opts.json) {
@@ -299,18 +299,18 @@ program
       process.stdout.write(renderTerminal(checks, _pkg.version));
     }
 
-    if (checks.some(c => c.status === "error")) process.exitCode = 1;
+    if (checks.some(c => c.status === 'error')) process.exitCode = 1;
   });
 
 // ── init ───────────────────────────────────────────────────────────────
 program
-  .command("init")
-  .description("scaffold a mobilewright.config.ts and example test in the current directory")
+  .command('init')
+  .description('scaffold a mobilewright.config.ts and example test in the current directory')
   .action(async () => {
-    telemetry("mw_init");
+    telemetry('mw_init');
     const files = [
-      { src: "mobilewright.config.ts", dest: resolve(process.cwd(), "mobilewright.config.ts") },
-      { src: "example.test.ts", dest: resolve(process.cwd(), "example.test.ts") },
+      { src: 'mobilewright.config.ts', dest: resolve(process.cwd(), 'mobilewright.config.ts') },
+      { src: 'example.test.ts', dest: resolve(process.cwd(), 'example.test.ts') },
     ];
 
     for (const { src, dest } of files) {
@@ -318,14 +318,14 @@ program
         console.log(`skipped  ${src} (already exists)`);
         continue;
       }
-      const content = await readFile(resolve(TEMPLATES_DIR, src), "utf8");
-      await writeFile(dest, content, "utf8");
+      const content = await readFile(resolve(TEMPLATES_DIR, src), 'utf8');
+      await writeFile(dest, content, 'utf8');
       console.log(`created  ${src}`);
     }
   });
 
 function padRight(str: string, len: number): string {
-  return str.length >= len ? str + "  " : str + " ".repeat(len - str.length);
+  return str.length >= len ? str + '  ' : str + ' '.repeat(len - str.length);
 }
 
 program.parse(process.argv);

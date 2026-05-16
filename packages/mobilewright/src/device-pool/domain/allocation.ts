@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
-import type { Platform } from "@mobilewright/protocol";
+import { randomBytes } from 'node:crypto';
+import type { Platform } from '@mobilewright/protocol';
 
 export interface AllocationParams {
   allocationId: string;
@@ -28,7 +28,7 @@ export class Allocation {
   }
 
   static create(params: AllocationCreateParams): Allocation {
-    const id = `alloc-${randomBytes(8).toString("hex")}`;
+    const id = `alloc-${randomBytes(8).toString('hex')}`;
     return new Allocation({ allocationId: id, ...params });
   }
 }

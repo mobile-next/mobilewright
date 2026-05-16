@@ -15,7 +15,7 @@ import type {
   SwipeDirection,
   SwipeOptions,
   ViewNode,
-} from "./types.js";
+} from './types.js';
 
 export interface MobilewrightDriver {
   // Connection

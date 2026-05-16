@@ -1,11 +1,11 @@
-import { DeviceSlot } from "../domain/device-slot.js";
-import { Allocation } from "../domain/allocation.js";
-import { NoDeviceAvailableError } from "./ports.js";
+import { DeviceSlot } from '../domain/device-slot.js';
+import { Allocation } from '../domain/allocation.js';
+import { NoDeviceAvailableError } from './ports.js';
 import type {
   AllocationCriteria,
   AllocationHandle,
   DeviceAllocator,
-} from "./ports.js";
+} from './ports.js';
 
 export interface DevicePoolOptions {
   allocator: DeviceAllocator;
@@ -38,7 +38,7 @@ export class DevicePool {
 
   allocate(criteria: AllocationCriteria): Promise<AllocationHandle> {
     if (this.isShutdown) {
-      return Promise.reject(new Error("device pool is shut down"));
+      return Promise.reject(new Error('device pool is shut down'));
     }
     return new Promise<AllocationHandle>((resolve, reject) => {
       this.waiters.push({ criteria, resolve, reject });
@@ -51,17 +51,17 @@ export class DevicePool {
 
     const drained = this.waiters.splice(0);
     for (const waiter of drained) {
-      waiter.reject(new Error("device pool shutdown"));
+      waiter.reject(new Error('device pool shutdown'));
     }
 
     for (const waiter of this.inFlightWaiters) {
-      waiter.reject(new Error("device pool shutdown"));
+      waiter.reject(new Error('device pool shutdown'));
     }
     this.inFlightWaiters.clear();
 
     const releases: Promise<void>[] = [];
     for (const slot of this.slots) {
-      if (slot.state !== "allocating" && slot.deviceId !== undefined) {
+      if (slot.state !== 'allocating' && slot.deviceId !== undefined) {
         releases.push(this.allocator.release(slot.deviceId).catch(() => {}));
       }
     }
@@ -117,7 +117,7 @@ export class DevicePool {
   private findFreeSlot(criteria: AllocationCriteria): number {
     for (let i = 0; i < this.slots.length; i++) {
       const slot = this.slots[i];
-      if (slot.state === "available" && slotMatches(slot, criteria)) {
+      if (slot.state === 'available' && slotMatches(slot, criteria)) {
         return i;
       }
     }
@@ -129,7 +129,7 @@ export class DevicePool {
     const deviceId = slot.deviceId;
     const platform = slot.platform;
     if (deviceId === undefined || platform === undefined) {
-      waiter.reject(new Error("internal: slot missing deviceId/platform"));
+      waiter.reject(new Error('internal: slot missing deviceId/platform'));
       return;
     }
     const allocation = Allocation.create({ deviceId, platform, slotIndex });

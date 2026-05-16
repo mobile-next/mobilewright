@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test';
 import type {
   MobilewrightDriver,
   ViewNode,
@@ -7,8 +7,8 @@ import type {
   ScreenSize,
   AppInfo,
   DeviceInfo,
-} from "@mobilewright/protocol";
-import { Locator, LocatorError } from "./locator.js";
+} from '@mobilewright/protocol';
+import { Locator, LocatorError } from './locator.js';
 
 function node(
   overrides: Partial<ViewNode> & { type: string },
@@ -59,7 +59,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
   return {
     _tracker: tracker,
     _setHierarchy: (h: ViewNode[]) => { currentHierarchy = h; },
-    connect: async () => ({ deviceId: "device1", platform: "ios" as const }),
+    connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => currentHierarchy,
     tap: async (...args: any[]) => { tracker.tapCalls.push(args); },
@@ -69,14 +69,14 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
-    screenshot: async () => Buffer.from(""),
+    screenshot: async () => Buffer.from(''),
     getScreenSize: async () => ({ width: 390, height: 844, scale: 3 }),
-    getOrientation: async () => "portrait" as Orientation,
+    getOrientation: async () => 'portrait' as Orientation,
     setOrientation: async (...args: any[]) => { tracker.setOrientationCalls.push(args); },
     launchApp: async (...args: any[]) => { tracker.launchAppCalls.push(args); },
     terminateApp: async (...args: any[]) => { tracker.terminateAppCalls.push(args); },
     listApps: async () => [] as AppInfo[],
-    getForegroundApp: async () => ({ bundleId: "com.test" }),
+    getForegroundApp: async () => ({ bundleId: 'com.test' }),
     installApp: async (...args: any[]) => { tracker.installAppCalls.push(args); },
     uninstallApp: async (...args: any[]) => { tracker.uninstallAppCalls.push(args); },
     listDevices: async () => [] as DeviceInfo[],
@@ -86,27 +86,27 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
   };
 }
 
-test.describe("Locator", () => {
+test.describe('Locator', () => {
   const hierarchy: ViewNode[] = [
     node({
-      type: "Window",
+      type: 'Window',
       children: [
         node({
-          type: "Button",
-          label: "Submit",
-          identifier: "submitBtn",
+          type: 'Button',
+          label: 'Submit',
+          identifier: 'submitBtn',
           bounds: { x: 20, y: 100, width: 200, height: 50 },
         }),
         node({
-          type: "TextField",
-          label: "Email",
-          identifier: "emailField",
+          type: 'TextField',
+          label: 'Email',
+          identifier: 'emailField',
           bounds: { x: 20, y: 200, width: 350, height: 44 },
         }),
         node({
-          type: "Button",
-          label: "Cancel",
-          identifier: "cancelBtn",
+          type: 'Button',
+          label: 'Cancel',
+          identifier: 'cancelBtn',
           isEnabled: false,
           bounds: { x: 20, y: 300, width: 200, height: 50 },
         }),
@@ -114,12 +114,12 @@ test.describe("Locator", () => {
     }),
   ];
 
-  test.describe("tap", () => {
-    test("taps at center of matched element", async () => {
+  test.describe('tap', () => {
+    test('taps at center of matched element', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
-        kind: "label",
-        value: "Submit",
+        kind: 'label',
+        value: 'Submit',
       });
 
       await locator.tap();
@@ -127,64 +127,64 @@ test.describe("Locator", () => {
       expect(driver._tracker.tapCalls).toEqual([[120, 125]]);
     });
 
-    test("throws LocatorError when element not found", async () => {
+    test('throws LocatorError when element not found', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
-        kind: "label",
-        value: "Nonexistent",
+        kind: 'label',
+        value: 'Nonexistent',
       }, { timeout: 200 });
 
       await expect(locator.tap()).rejects.toThrow(LocatorError);
     });
   });
 
-  test.describe("swipe", () => {
-    test("swipes from element center in the given direction", async () => {
+  test.describe('swipe', () => {
+    test('swipes from element center in the given direction', async () => {
       const driver = createMockDriver(hierarchy);
-      const locator = new Locator(driver, { kind: "label", value: "Submit" });
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
 
-      await locator.swipe({ direction: "left" });
+      await locator.swipe({ direction: 'left' });
 
-      expect(driver._tracker.swipeCalls).toEqual([["left", { startX: 120, startY: 125 }]]);
+      expect(driver._tracker.swipeCalls).toEqual([['left', { startX: 120, startY: 125 }]]);
     });
 
-    test("throws LocatorError when element not found", async () => {
+    test('throws LocatorError when element not found', async () => {
       const driver = createMockDriver(hierarchy);
-      const locator = new Locator(driver, { kind: "label", value: "Nonexistent" }, { timeout: 200 });
+      const locator = new Locator(driver, { kind: 'label', value: 'Nonexistent' }, { timeout: 200 });
 
-      await expect(locator.swipe({ direction: "left" })).rejects.toThrow(LocatorError);
+      await expect(locator.swipe({ direction: 'left' })).rejects.toThrow(LocatorError);
     });
   });
 
-  test.describe("fill", () => {
-    test("taps to focus then types text", async () => {
+  test.describe('fill', () => {
+    test('taps to focus then types text', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
-        kind: "testId",
-        value: "emailField",
+        kind: 'testId',
+        value: 'emailField',
       });
 
-      await locator.fill("test@example.com");
+      await locator.fill('test@example.com');
 
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
-      expect(driver._tracker.typeTextCalls).toEqual([["test@example.com"]]);
+      expect(driver._tracker.typeTextCalls).toEqual([['test@example.com']]);
     });
   });
 
-  test.describe("auto-waiting", () => {
-    test("waits for element to become visible", async () => {
+  test.describe('auto-waiting', () => {
+    test('waits for element to become visible', async () => {
       const hiddenNode = node({
-        type: "Button",
-        label: "Delayed",
-        identifier: "delayedBtn",
+        type: 'Button',
+        label: 'Delayed',
+        identifier: 'delayedBtn',
         isVisible: false,
         bounds: { x: 10, y: 10, width: 100, height: 40 },
       });
 
       const visibleNode = { ...hiddenNode, isVisible: true };
-      const tree = [node({ type: "Window", children: [hiddenNode] })];
+      const tree = [node({ type: 'Window', children: [hiddenNode] })];
       const treeVisible = [
-        node({ type: "Window", children: [visibleNode] }),
+        node({ type: 'Window', children: [visibleNode] }),
       ];
 
       const driver = createMockDriver(tree);
@@ -195,41 +195,41 @@ test.describe("Locator", () => {
       };
 
       const locator = new Locator(driver, {
-        kind: "testId",
-        value: "delayedBtn",
+        kind: 'testId',
+        value: 'delayedBtn',
       }, { timeout: 2000, pollInterval: 10, stabilityDelay: 10 });
 
       await locator.tap();
       expect(driver._tracker.tapCalls.length).toBeGreaterThan(0);
     });
 
-    test("rejects action on disabled element after timeout", async () => {
+    test('rejects action on disabled element after timeout', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
-        kind: "testId",
-        value: "cancelBtn",
+        kind: 'testId',
+        value: 'cancelBtn',
       }, { timeout: 200 });
 
       await expect(locator.tap()).rejects.toThrow(/not enabled/);
     });
   });
 
-  test.describe("waitFor", () => {
-    test("resolves immediately when element is already visible", async () => {
+  test.describe('waitFor', () => {
+    test('resolves immediately when element is already visible', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
-        kind: "label",
-        value: "Submit",
+        kind: 'label',
+        value: 'Submit',
       });
 
-      await locator.waitFor({ state: "visible" });
+      await locator.waitFor({ state: 'visible' });
       const text = await locator.getText({ timeout: 0 });
-      expect(text).toBe("Submit");
+      expect(text).toBe('Submit');
     });
 
-    test("waits for hidden state", async () => {
+    test('waits for hidden state', async () => {
       const emptyTree: ViewNode[] = [
-        node({ type: "Window", children: [] }),
+        node({ type: 'Window', children: [] }),
       ];
       const driver = createMockDriver(hierarchy);
       let callCount = 0;
@@ -239,25 +239,25 @@ test.describe("Locator", () => {
       };
 
       const locator = new Locator(driver, {
-        kind: "label",
-        value: "Submit",
+        kind: 'label',
+        value: 'Submit',
       }, { timeout: 2000, pollInterval: 10 });
 
       // waitFor hidden should resolve once the element disappears
-      await locator.waitFor({ state: "hidden" });
+      await locator.waitFor({ state: 'hidden' });
     });
   });
 
-  test.describe("getText", () => {
-    test("returns text/label/value of matched element", async () => {
+  test.describe('getText', () => {
+    test('returns text/label/value of matched element', async () => {
       const treeWithText: ViewNode[] = [
         node({
-          type: "Window",
+          type: 'Window',
           children: [
             node({
-              type: "StaticText",
-              label: "Welcome",
-              text: "Welcome back!",
+              type: 'StaticText',
+              label: 'Welcome',
+              text: 'Welcome back!',
               bounds: { x: 10, y: 10, width: 200, height: 30 },
             }),
           ],
@@ -265,113 +265,113 @@ test.describe("Locator", () => {
       ];
       const driver = createMockDriver(treeWithText);
       const locator = new Locator(driver, {
-        kind: "label",
-        value: "Welcome",
+        kind: 'label',
+        value: 'Welcome',
       });
 
       const text = await locator.getText();
-      expect(text).toBe("Welcome back!");
+      expect(text).toBe('Welcome back!');
     });
   });
 
-  test.describe("collection methods", () => {
+  test.describe('collection methods', () => {
     const listTree: ViewNode[] = [
       node({
-        type: "Window",
+        type: 'Window',
         children: [
-          node({ type: "Cell", label: "Apple", bounds: { x: 0, y: 0, width: 390, height: 44 } }),
-          node({ type: "Cell", label: "Banana", bounds: { x: 0, y: 44, width: 390, height: 44 } }),
-          node({ type: "Cell", label: "Cherry", bounds: { x: 0, y: 88, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Apple', bounds: { x: 0, y: 0, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Banana', bounds: { x: 0, y: 44, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Cherry', bounds: { x: 0, y: 88, width: 390, height: 44 } }),
         ],
       }),
     ];
 
-    test("count returns number of matching elements", async () => {
+    test('count returns number of matching elements', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const result = await locator.count();
       expect(result).toBe(3);
     });
 
-    test("count returns zero when nothing matches", async () => {
+    test('count returns zero when nothing matches', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Button" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Button' });
 
       const result = await locator.count();
       expect(result).toBe(0);
     });
 
-    test("all returns a locator for each match", async () => {
+    test('all returns a locator for each match', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const locators = await locator.all();
       expect(locators).toHaveLength(3);
 
       const texts = await Promise.all(locators.map(l => l.getText()));
-      expect(texts).toEqual(["Apple", "Banana", "Cherry"]);
+      expect(texts).toEqual(['Apple', 'Banana', 'Cherry']);
     });
 
-    test("first returns the first match", async () => {
+    test('first returns the first match', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const text = await locator.first().getText();
-      expect(text).toBe("Apple");
+      expect(text).toBe('Apple');
     });
 
-    test("last returns the last match", async () => {
+    test('last returns the last match', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const text = await locator.last().getText();
-      expect(text).toBe("Cherry");
+      expect(text).toBe('Cherry');
     });
 
-    test("nth returns the element at the given index", async () => {
+    test('nth returns the element at the given index', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const text = await locator.nth(1).getText();
-      expect(text).toBe("Banana");
+      expect(text).toBe('Banana');
     });
 
-    test("nth supports negative indices", async () => {
+    test('nth supports negative indices', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       const text = await locator.nth(-2).getText();
-      expect(text).toBe("Banana");
+      expect(text).toBe('Banana');
     });
 
-    test("nth taps the correct element", async () => {
+    test('nth taps the correct element', async () => {
       const driver = createMockDriver(listTree);
-      const locator = new Locator(driver, { kind: "type", value: "Cell" });
+      const locator = new Locator(driver, { kind: 'type', value: 'Cell' });
 
       await locator.nth(2).tap();
       expect(driver._tracker.tapCalls).toEqual([[195, 110]]);
     });
   });
 
-  test.describe("chaining", () => {
-    test("supports chained locators", async () => {
+  test.describe('chaining', () => {
+    test('supports chained locators', async () => {
       const treeWithList: ViewNode[] = [
         node({
-          type: "Window",
+          type: 'Window',
           children: [
             node({
-              type: "Table",
-              identifier: "list1",
+              type: 'Table',
+              identifier: 'list1',
               children: [
                 node({
-                  type: "Cell",
-                  label: "Item 1",
+                  type: 'Cell',
+                  label: 'Item 1',
                   bounds: { x: 0, y: 0, width: 390, height: 44 },
                 }),
                 node({
-                  type: "Cell",
-                  label: "Item 2",
+                  type: 'Cell',
+                  label: 'Item 2',
                   bounds: { x: 0, y: 44, width: 390, height: 44 },
                 }),
               ],
@@ -382,9 +382,9 @@ test.describe("Locator", () => {
 
       const driver = createMockDriver(treeWithList);
       const locator = new Locator(driver, {
-        kind: "testId",
-        value: "list1",
-      }).getByLabel("Item 2");
+        kind: 'testId',
+        value: 'list1',
+      }).getByLabel('Item 2');
 
       await locator.tap();
       expect(driver._tracker.tapCalls).toEqual([[195, 66]]);

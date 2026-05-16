@@ -7,10 +7,10 @@ import type {
   RecordingOptions,
   RecordingResult,
   Session,
-} from "@mobilewright/protocol";
-import { Screen } from "./screen.js";
-import type { LocatorOptions } from "./locator.js";
-import { retryUntil } from "./poll.js";
+} from '@mobilewright/protocol';
+import { Screen } from './screen.js';
+import type { LocatorOptions } from './locator.js';
+import { retryUntil } from './poll.js';
 
 const LAUNCH_APP_TIMEOUT = 20_000;
 
@@ -92,7 +92,7 @@ export class Device {
         `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
       );
     } catch (err) {
-      if (String(err).includes("could not determine foreground app")) {
+      if (String(err).includes('could not determine foreground app')) {
         // mobilecli's WebSocket RPC path for device.apps.foreground fails on
         // some Android devices even though the app launched successfully.
         // Warn and continue rather than failing the launch entirely.

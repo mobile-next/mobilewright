@@ -1,8 +1,8 @@
-import { test, expect } from "@playwright/test";
-import { DevicePool } from "../application/device-pool.js";
-import { DevicePoolHttpServer } from "./http-server.js";
-import { HttpDevicePoolClient } from "./http-client.js";
-import type { AllocateResult, DeviceAllocator } from "../application/ports.js";
+import { test, expect } from '@playwright/test';
+import { DevicePool } from '../application/device-pool.js';
+import { DevicePoolHttpServer } from './http-server.js';
+import { HttpDevicePoolClient } from './http-client.js';
+import type { AllocateResult, DeviceAllocator } from '../application/ports.js';
 
 function makeAllocator(devices: AllocateResult[]): DeviceAllocator {
   let i = 0;
@@ -29,15 +29,15 @@ async function startServerAndClient(pool: DevicePool): Promise<ServerHandle> {
   };
 }
 
-test("client.allocate returns a handle from the server", async () => {
+test('client.allocate returns a handle from the server', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: "d1", platform: "ios" }]),
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);
   try {
-    const handle = await client.allocate({ platform: "ios" });
-    expect(handle.deviceId).toBe("d1");
+    const handle = await client.allocate({ platform: 'ios' });
+    expect(handle.deviceId).toBe('d1');
     expect(handle.allocationId).toMatch(/^alloc-/);
     await client.release(handle.allocationId);
   } finally {
@@ -45,35 +45,35 @@ test("client.allocate returns a handle from the server", async () => {
   }
 });
 
-test("client.release frees the device for a subsequent allocate", async () => {
+test('client.release frees the device for a subsequent allocate', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: "d1", platform: "ios" }]),
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);
   try {
-    const first = await client.allocate({ platform: "ios" });
+    const first = await client.allocate({ platform: 'ios' });
     await client.release(first.allocationId);
 
-    const second = await client.allocate({ platform: "ios" });
-    expect(second.deviceId).toBe("d1");
+    const second = await client.allocate({ platform: 'ios' });
+    expect(second.deviceId).toBe('d1');
     await client.release(second.allocationId);
   } finally {
     await stop();
   }
 });
 
-test("install-tracking round-trip via client", async () => {
+test('install-tracking round-trip via client', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: "d1", platform: "ios" }]),
+    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);
   try {
-    const handle = await client.allocate({ platform: "ios" });
-    expect(await client.isAppInstalled(handle.allocationId, "a.ipa")).toBe(false);
-    await client.recordAppInstalled(handle.allocationId, "a.ipa");
-    expect(await client.isAppInstalled(handle.allocationId, "a.ipa")).toBe(true);
+    const handle = await client.allocate({ platform: 'ios' });
+    expect(await client.isAppInstalled(handle.allocationId, 'a.ipa')).toBe(false);
+    await client.recordAppInstalled(handle.allocationId, 'a.ipa');
+    expect(await client.isAppInstalled(handle.allocationId, 'a.ipa')).toBe(true);
     await client.release(handle.allocationId);
   } finally {
     await stop();
