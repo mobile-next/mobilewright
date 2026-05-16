@@ -1,4 +1,4 @@
-import type { Platform, DeviceInfo, MobilewrightDriver } from '@mobilewright/protocol';
+import type { Platform, DeviceInfo, DeviceType, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
@@ -26,6 +26,7 @@ interface PlatformLauncher {
 export interface ConnectDeviceParams {
   platform: Platform;
   deviceId: string;
+  deviceType?: DeviceType;
   driverConfig?: DriverConfig;
   url?: string;
   timeout?: number;
@@ -58,6 +59,7 @@ export async function connectDevice(params: ConnectDeviceParams): Promise<Device
   await device.connect({
     platform: params.platform,
     deviceId: params.deviceId,
+    deviceType: params.deviceType,
     timeout: params.timeout,
   });
   return device;

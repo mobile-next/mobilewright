@@ -86,11 +86,13 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
 
     const client = getClient();
+    debug('allocating device (platform=%s)', merged.platform);
     const handle = await client.allocate({
       platform: merged.platform,
       deviceNamePattern: merged.deviceName?.source,
       deviceId: merged.deviceId,
     });
+    debug('allocated device %s', handle.deviceId);
 
     if (handle.type) {
       testInfo.annotations.push({ type: 'device.type', description: handle.type });
@@ -112,13 +114,16 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
     testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
 
+    debug('connecting to device %s', handle.deviceId);
     const device = await connectDevice({
       platform: handle.platform,
       deviceId: handle.deviceId,
+      deviceType: handle.type,
       driverConfig: merged.driver,
       url: merged.url,
       timeout: merged.timeout,
     });
+    debug('connected to device %s', handle.deviceId);
 
     try {
       for (const appPath of toArray(merged.installApps)) {

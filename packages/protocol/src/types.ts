@@ -70,6 +70,8 @@ export interface ConnectionConfig {
   platform: Platform;
   /** Specific device identifier (local drivers only). */
   deviceId?: string;
+  /** Device type hint — skips listDevices() when provided alongside deviceId. */
+  deviceType?: DeviceType;
   /** Regex or string to match device name. */
   deviceName?: RegExp | string;
   /** OS version filter (e.g. '18.0', '>=17'). */

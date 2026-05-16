@@ -30,6 +30,7 @@
   ],
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
+    "debug": "^4.4.3",
     "sharp": "^0.34.5"
   }
 }
