@@ -109,7 +109,8 @@ export type HardwareButton =
   | 'DPAD_LEFT'
   | 'DPAD_RIGHT'
   | 'DPAD_CENTER'
-  | 'APP_SWITCH';
+  | 'APP_SWITCH'
+  | 'LOCK';
 
 export type Orientation = 'portrait' | 'landscape';
 
