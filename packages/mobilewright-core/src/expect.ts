@@ -1,4 +1,5 @@
 import type { Locator } from './locator.js';
+import { LocatorError } from './locator.js';
 import { retryUntil } from './poll.js';
 import { filterStack } from './stackTrace.js';
 
@@ -102,11 +103,17 @@ class LocatorAssertions {
   async toBeEmpty(opts?: ExpectOptions): Promise<void> {
     let lastValue = '';
     await this.retryAssertion(
-      async () => {
-        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
-        return lastValue;
+      async (): Promise<string | null> => {
+        try {
+          lastValue = await this.locator.getValue({ timeout: 0 });
+          return lastValue;
+        } catch (e) {
+          if (!(e instanceof LocatorError)) { throw e; }
+          return null;
+        }
       },
       (value) => {
+        if (value === null) { return false; }
         const isEmpty = value === '';
         return this.negated ? !isEmpty : isEmpty;
       },
@@ -120,11 +127,17 @@ class LocatorAssertions {
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
     let lastValue = '';
     await this.retryAssertion(
-      async () => {
-        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
-        return lastValue;
+      async (): Promise<string | null> => {
+        try {
+          lastValue = await this.locator.getValue({ timeout: 0 });
+          return lastValue;
+        } catch (e) {
+          if (!(e instanceof LocatorError)) { throw e; }
+          return null;
+        }
       },
       (value) => {
+        if (value === null) { return false; }
         const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
         return this.negated ? !matches : matches;
       },
@@ -157,11 +170,17 @@ class LocatorAssertions {
   ): Promise<void> {
     let lastText = '';
     await this.retryAssertion(
-      async () => {
-        try { lastText = await this.locator.getText({ timeout: 0 }); } catch { lastText = ''; }
-        return lastText;
+      async (): Promise<string | null> => {
+        try {
+          lastText = await this.locator.getText({ timeout: 0 });
+          return lastText;
+        } catch (e) {
+          if (!(e instanceof LocatorError)) { throw e; }
+          return null;
+        }
       },
       (text) => {
+        if (text === null) { return false; }
         const matches = predicate(text);
         return this.negated ? !matches : matches;
       },
