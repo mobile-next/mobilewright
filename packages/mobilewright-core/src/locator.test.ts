@@ -210,6 +210,17 @@ test.describe('Locator', () => {
 
       await expect(locator.tap()).rejects.toThrow(/not enabled/);
     });
+
+    test('isVisible rethrows non-locator errors', async () => {
+      const driver = createMockDriver([]);
+      driver.getViewHierarchy = async () => {
+        throw new Error('device disconnected');
+      };
+
+      const locator = new Locator(driver, { kind: 'testId', value: 'missing' });
+
+      await expect(locator.isVisible()).rejects.toThrow('device disconnected');
+    });
   });
 
   test.describe('waitFor', () => {

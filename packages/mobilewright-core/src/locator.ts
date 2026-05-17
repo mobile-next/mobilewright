@@ -172,12 +172,13 @@ export class Locator {
     const node = await this.resolve(0);
     return node !== null;
   }
-  
+
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
       return true;
-    } catch {
+    } catch(error) {
+      if(!(error instanceof LocatorError)) {throw error; }
       return false;
     }
   }
