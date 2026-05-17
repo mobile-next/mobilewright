@@ -21,7 +21,9 @@ function createDriverWithSession(opts?: {
   // Inject a fake active session directly into the private field.
   (driver as any).session = {
     deviceId: SIMULATOR_DEVICE_ID,
+    deviceName: SIMULATOR_DEVICE_NAME,
     platform,
+    deviceType,
     rpc: {
       call: async () => {
         throw new Error('RPC call should not have been made');

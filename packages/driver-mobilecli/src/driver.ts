@@ -134,7 +134,7 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
 const debug = createDebug('mw:driver-mobilecli');
 
 export class MobilecliDriver implements MobilewrightDriver {
-  private session: { deviceId: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
+  private session: { deviceId: string; deviceName: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
   private readonly serverUrl: string;
 
   constructor(opts?: { url?: string }) {
@@ -163,7 +163,7 @@ export class MobilecliDriver implements MobilewrightDriver {
 
     this.ensureAgentInstalled(device);
 
-    this.session = { deviceId: device.id, platform, deviceType: device.type, rpc };
+    this.session = { deviceId: device.id, deviceName: device.name, platform, deviceType: device.type, rpc };
     return { deviceId: device.id, platform };
   }
 
@@ -409,10 +409,10 @@ export class MobilecliDriver implements MobilewrightDriver {
       if (isSimulator) {
         if (!/\.zip$/i.test(path)) {
           throw new Error(
-            `iOS simulator requires a .zip of the .app bundle, got: "${path}".\n\n` +
+            `iOS simulator "${session.deviceName}" requires a .zip of the .app bundle, got: "${path}".\n\n` +
             'Build and package it with:\n\n' +
             '  xcodebuild -scheme <Scheme> -configuration Debug \\\n' +
-            '    -destination "platform=iOS Simulator,name=<simulator name>" \\\n' +
+            `    -destination "platform=iOS Simulator,name=${session.deviceName}" \\\n` +
             '    -derivedDataPath build build\n' +
             '  cd build/Build/Products/Debug-iphonesimulator\n' +
             '  zip -r MyApp.zip MyApp.app\n\n' +
