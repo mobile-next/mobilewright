@@ -1,3 +1,4 @@
+import createDebug from 'debug';
 import type {
   AppInfo,
   ConnectionConfig,
@@ -11,6 +12,8 @@ import type {
 import { Screen } from './screen.js';
 import type { LocatorOptions } from './locator.js';
 import { retryUntil } from './poll.js';
+
+const debug = createDebug('mw:device');
 
 const LAUNCH_APP_TIMEOUT = 20_000;
 
@@ -84,6 +87,7 @@ export class Device {
     if (opts?.noWaitAfter) {
       return;
     }
+    debug('waiting for %s to reach foreground', bundleId);
     try {
       await retryUntil(
         () => this.getForegroundApp(),
@@ -91,6 +95,7 @@ export class Device {
         LAUNCH_APP_TIMEOUT,
         `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
       );
+      debug('%s is in foreground', bundleId);
     } catch (err) {
       if (String(err).includes('could not determine foreground app')) {
         // mobilecli's WebSocket RPC path for device.apps.foreground fails on
@@ -104,6 +109,7 @@ export class Device {
   }
 
   async terminateApp(bundleId: string): Promise<void> {
+    debug('terminating %s', bundleId);
     return this.driver.terminateApp(bundleId);
   }
 

@@ -150,7 +150,7 @@ function assertValidZipFile(path: string): void {
 const debug = createDebug('mw:driver-mobilecli');
 
 export class MobilecliDriver implements MobilewrightDriver {
-  private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
+  private session: { deviceId: string; deviceName: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
   private readonly serverUrl: string;
 
   constructor(opts?: { url?: string }) {
@@ -168,7 +168,9 @@ export class MobilecliDriver implements MobilewrightDriver {
 
     const platform = config.platform;
     let device: DeviceInfo;
-    if (config.deviceId) {
+    if (config.deviceId && config.deviceType) {
+      device = { id: config.deviceId, name: '', platform, type: config.deviceType, state: 'online' };
+    } else if (config.deviceId) {
       device = await this.findDeviceById(config.deviceId);
     } else {
       device = await this.resolveDevice(platform, config.deviceName);
@@ -177,7 +179,7 @@ export class MobilecliDriver implements MobilewrightDriver {
 
     this.ensureAgentInstalled(device);
 
-    this.session = { deviceId: device.id, platform, rpc };
+    this.session = { deviceId: device.id, deviceName: device.name, platform, deviceType: device.type, rpc };
     return { deviceId: device.id, platform };
   }
 
@@ -369,14 +371,28 @@ export class MobilecliDriver implements MobilewrightDriver {
   // ─── App Operations ──────────────────────────────────────────
 
   async launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
+    debug('launching %s', bundleId);
+    // iOS/simulator: DeviceKit must be running before the app launches.
+    // A getForegroundApp() call here ensures DeviceKit is up first —
+    // otherwise its startup minimizes the freshly-launched app.
+    if (this.requireSession().platform === 'ios') {
+      try {
+        await this.getForegroundApp();
+      } catch {
+        // No foreground app yet — fine, we just need DeviceKit running.
+      }
+    }
     await this.call('device.apps.launch', {
       bundleId,
       ...(opts?.locales && { locales: opts.locales }),
     });
+    debug('launched %s', bundleId);
   }
 
   async terminateApp(bundleId: string): Promise<void> {
+    debug('terminating %s', bundleId);
     await this.call('device.apps.terminate', { bundleId });
+    debug('terminated %s', bundleId);
   }
 
   async listApps(): Promise<AppInfo[]> {
@@ -403,18 +419,16 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async installApp(path: string): Promise<void> {
     const session = this.requireSession();
-    const devices = await this.listDevices();
-    const device = devices.find((d) => d.id === session.deviceId);
-    const isSimulator = device?.type === 'simulator' || device?.type === 'emulator';
+    const isSimulator = session.deviceType === 'simulator' || session.deviceType === 'emulator';
 
     if (session.platform === 'ios') {
       if (isSimulator) {
         if (!/\.zip$/i.test(path)) {
           throw new Error(
-            `iOS simulator "${device!.name}" requires a .zip of the .app bundle, got: "${path}".\n\n` +
+            `iOS simulator "${session.deviceName}" requires a .zip of the .app bundle, got: "${path}".\n\n` +
             'Build and package it with:\n\n' +
             '  xcodebuild -scheme <Scheme> -configuration Debug \\\n' +
-            `    -destination "platform=iOS Simulator,name=${device!.name}" \\\n` +
+            `    -destination "platform=iOS Simulator,name=${session.deviceName}" \\\n` +
             '    -derivedDataPath build build\n' +
             '  cd build/Build/Products/Debug-iphonesimulator\n' +
             '  zip -r MyApp.zip MyApp.app\n\n' +
@@ -433,7 +447,9 @@ export class MobilecliDriver implements MobilewrightDriver {
     }
 
     assertValidZipFile(path);
+    debug('installing %s', path);
     await this.call('device.apps.install', { path });
+    debug('installed %s', path);
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
@@ -444,6 +460,7 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
     const binary = resolveMobilecliBinary();
+    debug('listing devices');
     const output = execFileSync(binary, ['devices'], { encoding: 'utf8' });
     const response = JSON.parse(output) as MobilecliDevicesResponse;
     let devices = response.data.devices;
@@ -455,7 +472,7 @@ export class MobilecliDriver implements MobilewrightDriver {
       devices = devices.filter((d) => d.state === opts.state);
     }
 
-    return devices
+    const result = devices
       .filter((d) => toPlatform(d.platform) !== undefined)
       .map((d) => ({
         id: d.id ?? d.udid ?? '',
@@ -466,6 +483,8 @@ export class MobilecliDriver implements MobilewrightDriver {
         model: d.model,
         osVersion: d.version,
       }));
+    debug('found %d device(s)', result.length);
+    return result;
   }
 
   async openUrl(url: string): Promise<void> {
