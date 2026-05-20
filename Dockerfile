@@ -8,19 +8,14 @@ ARG MOBILEWRIGHT_VERSION=latest
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-# Install base deps and Node.js in a single layer
+# Install base deps, Node.js, and ADB client in a single layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl gpg ca-certificates && \
     mkdir -p /etc/apt/keyrings && \
     curl -sL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_VERSION}.x nodistro main" >> /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install ADB client (no full SDK — client only, connects to host ADB server)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends android-tools-adb && \
+    apt-get install -y --no-install-recommends nodejs android-tools-adb && \
     rm -rf /var/lib/apt/lists/*
 
 # Point ADB client at the host's ADB server.
@@ -32,7 +27,7 @@ ENV ANDROID_ADB_SERVER_PORT=5037
 # Install mobilewright CLI globally (mobilecli binaries for all arches are
 # bundled inside the mobilecli npm package — no optionalDependencies needed)
 RUN npm install -g mobilewright@${MOBILEWRIGHT_VERSION} && \
-    rm -rf ~/.npm/
+    npm cache clean --force
 
 # Non-root user (activated, unlike Playwright which only creates pwuser)
 RUN adduser --disabled-password --gecos "" mwuser
