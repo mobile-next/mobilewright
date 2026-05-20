@@ -5,7 +5,7 @@ title: Docker
 
 # Docker
 
-The `mobilewright/mobilewright` Docker image runs `mobilewright` commands inside a container — without installing Node.js or the Android SDK on your machine. It works two ways:
+The `ghcr.io/mobile-next/mobilewright` Docker image runs `mobilewright` commands inside a container — without installing Node.js or the Android SDK on your machine. It works two ways:
 
 - **Local Android emulator** — connects to an emulator running on your host via ADB.
 - **Cloud devices** — connects to real Android and iOS devices on [Mobile Next Cloud](https://mobilenext.ai).
@@ -25,7 +25,7 @@ Use `doctor` to verify the container can reach your host's ADB server.
 `host.docker.internal` resolves automatically in Docker Desktop — no extra flags needed:
 
 ```bash
-docker run --rm mobilewright/mobilewright doctor
+docker run --rm ghcr.io/mobile-next/mobilewright doctor
 ```
 
 #### Linux
@@ -35,7 +35,7 @@ Pass `--add-host` so `host.docker.internal` resolves to the host gateway:
 ```bash
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
-  mobilewright/mobilewright doctor
+  ghcr.io/mobile-next/mobilewright doctor
 ```
 
 #### Expected output
@@ -66,7 +66,7 @@ Mount your project directory into the container at `/home/mwuser` and run `mobil
 ```bash
 docker run --rm \
   -v "$(pwd):/home/mwuser" \
-  mobilewright/mobilewright test
+  ghcr.io/mobile-next/mobilewright test
 ```
 
 #### Linux
@@ -75,7 +75,7 @@ docker run --rm \
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -v "$(pwd):/home/mwuser" \
-  mobilewright/mobilewright test
+  ghcr.io/mobile-next/mobilewright test
 ```
 
 Test results, screenshots, and other output are written to the mounted directory and remain available after the container exits.
@@ -89,7 +89,7 @@ Mount your current directory so the output file lands on the host. The screensho
 ```bash
 docker run --rm \
   -v "$(pwd):/home/mwuser" \
-  mobilewright/mobilewright screenshot
+  ghcr.io/mobile-next/mobilewright screenshot
 # → screenshot.png appears in the current directory
 ```
 
@@ -99,7 +99,7 @@ docker run --rm \
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -v "$(pwd):/home/mwuser" \
-  mobilewright/mobilewright screenshot
+  ghcr.io/mobile-next/mobilewright screenshot
 ```
 
 Use `--output` to specify a different filename:
@@ -107,7 +107,7 @@ Use `--output` to specify a different filename:
 ```bash
 docker run --rm \
   -v "$(pwd):/home/mwuser" \
-  mobilewright/mobilewright screenshot --output before-login.png
+  ghcr.io/mobile-next/mobilewright screenshot --output before-login.png
 ```
 
 ## Cloud devices
@@ -138,7 +138,7 @@ Mount your project and pass the API key with `-e`:
 docker run --rm \
   -v "$(pwd):/home/mwuser" \
   -e MOBILE_USE_API_KEY="$MOBILE_USE_API_KEY" \
-  mobilewright/mobilewright test
+  ghcr.io/mobile-next/mobilewright test
 ```
 
 This works for both Android and iOS — the devices run in the cloud, so nothing else is required on the host.
