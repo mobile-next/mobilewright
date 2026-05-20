@@ -79,6 +79,36 @@ docker run --rm \
 
 Test results, screenshots, and other output are written to the mounted directory and remain available after the container exits.
 
+## Capture a screenshot
+
+Mount your current directory so the output file lands on the host. The screenshot is written to `--output` relative to the working directory (`/home/mwuser`), which maps directly to your mounted path.
+
+### macOS and Windows
+
+```bash
+docker run --rm \
+  -v "$(pwd):/home/mwuser" \
+  mobilewright/mobilewright screenshot
+# → screenshot.png appears in the current directory
+```
+
+### Linux
+
+```bash
+docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
+  -v "$(pwd):/home/mwuser" \
+  mobilewright/mobilewright screenshot
+```
+
+Use `--output` to specify a different filename:
+
+```bash
+docker run --rm \
+  -v "$(pwd):/home/mwuser" \
+  mobilewright/mobilewright screenshot --output before-login.png
+```
+
 ## Volume and environment reference
 
 | Option | Purpose |
