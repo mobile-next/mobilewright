@@ -1,0 +1,84 @@
+name: Publish Docker Image
+
+on:
+  workflow_run:
+    workflows: ["Publish to npm"]
+    types:
+      - completed
+
+jobs:
+  build-amd64:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set version
+        id: version
+        run: |
+          TAG=$(git describe --tags --exact-match ${{ github.event.workflow_run.head_sha }})
+          echo "value=${TAG#v}" >> $GITHUB_OUTPUT
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: mobilewright/mobilewright:${{ steps.version.outputs.value }}-amd64
+          build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
+
+  build-arm64:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set version
+        id: version
+        run: |
+          TAG=$(git describe --tags --exact-match ${{ github.event.workflow_run.head_sha }})
+          echo "value=${TAG#v}" >> $GITHUB_OUTPUT
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: mobilewright/mobilewright:${{ steps.version.outputs.value }}-arm64
+          build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
+
+  manifest:
+    runs-on: ubuntu-24.04
+    needs: [build-amd64, build-arm64]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set version
+        id: version
+        run: |
+          TAG=$(git describe --tags --exact-match ${{ github.event.workflow_run.head_sha }})
+          echo "value=${TAG#v}" >> $GITHUB_OUTPUT
+      - uses: docker/setup-buildx-action@v3
+      - name: Create and push multi-arch manifest
+        run: |
+          VERSION=${{ steps.version.outputs.value }}
+          docker buildx imagetools create \
+            --tag mobilewright/mobilewright:${VERSION} \
+            --tag mobilewright/mobilewright:latest \
+            mobilewright/mobilewright:${VERSION}-amd64 \
+            mobilewright/mobilewright:${VERSION}-arm64
