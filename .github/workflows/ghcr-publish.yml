@@ -10,14 +10,18 @@ jobs:
   build-amd64:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set version
         id: version
         run: |
@@ -28,21 +32,26 @@ jobs:
         with:
           context: .
           push: true
+          provenance: false
           platforms: linux/amd64
-          tags: mobilewright/mobilewright:${{ steps.version.outputs.value }}-amd64
+          tags: ghcr.io/mobile-next/mobilewright:${{ steps.version.outputs.value }}-amd64
           build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
 
   build-arm64:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set version
         id: version
         run: |
@@ -53,21 +62,28 @@ jobs:
         with:
           context: .
           push: true
+          provenance: false
           platforms: linux/arm64
-          tags: mobilewright/mobilewright:${{ steps.version.outputs.value }}-arm64
+          tags: ghcr.io/mobile-next/mobilewright:${{ steps.version.outputs.value }}-arm64
           build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
 
   manifest:
     runs-on: ubuntu-24.04
     needs: [build-amd64, build-arm64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set version
         id: version
         run: |
@@ -77,8 +93,20 @@ jobs:
       - name: Create and push multi-arch manifest
         run: |
           VERSION=${{ steps.version.outputs.value }}
+          IMAGE=ghcr.io/mobile-next/mobilewright
           docker buildx imagetools create \
-            --tag mobilewright/mobilewright:${VERSION} \
-            --tag mobilewright/mobilewright:latest \
-            mobilewright/mobilewright:${VERSION}-amd64 \
-            mobilewright/mobilewright:${VERSION}-arm64
+            --tag "${IMAGE}:${VERSION}" \
+            --tag "${IMAGE}:latest" \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-arm64"
+      - name: Resolve manifest digest
+        id: digest
+        run: |
+          IMAGE=ghcr.io/mobile-next/mobilewright
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${{ steps.version.outputs.value }}" --format '{{.Manifest.Digest}}')
+          echo "value=${DIGEST}" >> $GITHUB_OUTPUT
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/mobile-next/mobilewright
+          subject-digest: ${{ steps.digest.outputs.value }}
+          push-to-registry: true
