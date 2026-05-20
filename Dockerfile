@@ -24,6 +24,11 @@ RUN apt-get update && \
 ENV ANDROID_ADB_SERVER_HOST=host.docker.internal
 ENV ANDROID_ADB_SERVER_PORT=5037
 
+# ADB does not natively read ANDROID_ADB_SERVER_HOST. This wrapper injects
+# -H/-P so every adb call (doctor, mobilecli, etc.) reaches the host's server.
+RUN printf '#!/bin/sh\nexec /usr/bin/adb -H "${ANDROID_ADB_SERVER_HOST:-127.0.0.1}" -P "${ANDROID_ADB_SERVER_PORT:-5037}" "$@"\n' \
+    > /usr/local/bin/adb && chmod +x /usr/local/bin/adb
+
 # Install mobilewright CLI globally (mobilecli binaries for all arches are
 # bundled inside the mobilecli npm package — no optionalDependencies needed)
 RUN npm install -g mobilewright@${MOBILEWRIGHT_VERSION} && \
