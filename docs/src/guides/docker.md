@@ -5,15 +5,22 @@ title: Docker
 
 # Docker
 
-The `mobilewright/mobilewright` Docker image lets you run `mobilewright` commands inside a container without installing Node.js or the Android SDK on your machine. It connects to an Android emulator running on the host via ADB.
+The `mobilewright/mobilewright` Docker image runs `mobilewright` commands inside a container — without installing Node.js or the Android SDK on your machine. It works two ways:
 
-**Android only.** iOS requires macOS and cannot run inside a Docker container.
+- **Local Android emulator** — connects to an emulator running on your host via ADB.
+- **Cloud devices** — connects to real Android and iOS devices on [Mobile Next Cloud](https://mobilenext.ai).
 
-## Run `doctor`
+The container runs Linux and cannot reach an iOS simulator running on your Mac host. To test iOS, use cloud devices.
+
+## Local Android emulator
+
+The image ships the ADB client and points it at the ADB server running on your host, so an emulator started on your machine is visible inside the container.
+
+### Run `doctor`
 
 Use `doctor` to verify the container can reach your host's ADB server.
 
-### macOS and Windows
+#### macOS and Windows
 
 `host.docker.internal` resolves automatically in Docker Desktop — no extra flags needed:
 
@@ -21,7 +28,7 @@ Use `doctor` to verify the container can reach your host's ADB server.
 docker run --rm mobilewright/mobilewright doctor
 ```
 
-### Linux
+#### Linux
 
 Pass `--add-host` so `host.docker.internal` resolves to the host gateway:
 
@@ -31,9 +38,9 @@ docker run --rm \
   mobilewright/mobilewright doctor
 ```
 
-## Expected `doctor` output
+#### Expected output
 
-The `ANDROID_HOME` check will show a warning. This is expected — the image ships only the ADB client, not the full Android SDK. All other Android checks should pass as long as your host ADB server is running and an emulator is connected.
+All Android checks pass as long as your host ADB server is running and an emulator is connected.
 
 ```
 mobilewright doctor  v0.0.x
@@ -48,19 +55,13 @@ mobilewright doctor  v0.0.x
 
   Android
     ✓  ADB (Android Debug Bridge)  1.0.41
-    ⚠  ANDROID_HOME  not set (expected inside Docker — ADB client only)
-
-────────────────────────────────────────────────────────────
-  Summary  N ok, 1 warning
 ```
 
-The `ANDROID_HOME` warning does not affect test execution.
-
-## Run tests
+### Run tests
 
 Mount your project directory into the container at `/home/mwuser` and run `mobilewright test`.
 
-### macOS and Windows
+#### macOS and Windows
 
 ```bash
 docker run --rm \
@@ -68,7 +69,7 @@ docker run --rm \
   mobilewright/mobilewright test
 ```
 
-### Linux
+#### Linux
 
 ```bash
 docker run --rm \
@@ -79,11 +80,11 @@ docker run --rm \
 
 Test results, screenshots, and other output are written to the mounted directory and remain available after the container exits.
 
-## Capture a screenshot
+### Capture a screenshot
 
 Mount your current directory so the output file lands on the host. The screenshot is written to `--output` relative to the working directory (`/home/mwuser`), which maps directly to your mounted path.
 
-### macOS and Windows
+#### macOS and Windows
 
 ```bash
 docker run --rm \
@@ -92,7 +93,7 @@ docker run --rm \
 # → screenshot.png appears in the current directory
 ```
 
-### Linux
+#### Linux
 
 ```bash
 docker run --rm \
@@ -109,14 +110,48 @@ docker run --rm \
   mobilewright/mobilewright screenshot --output before-login.png
 ```
 
+## Cloud devices
+
+[Mobile Next Cloud](https://mobilenext.ai) gives the container access to real Android and iOS devices over the network. No host ADB server, emulator, or `--add-host` flag is needed, and the commands are identical on macOS, Windows, and Linux.
+
+### Configure the cloud driver
+
+Point your `mobilewright.config.ts` at the cloud driver. Read the API key from an environment variable so it is never committed:
+
+```ts
+import { defineConfig } from 'mobilewright';
+
+export default defineConfig({
+  platform: 'ios', // or 'android'
+  driver: {
+    type: 'mobile-use',
+    apiKey: process.env.MOBILE_USE_API_KEY,
+  },
+});
+```
+
+### Run tests
+
+Mount your project and pass the API key with `-e`:
+
+```bash
+docker run --rm \
+  -v "$(pwd):/home/mwuser" \
+  -e MOBILE_USE_API_KEY="$MOBILE_USE_API_KEY" \
+  mobilewright/mobilewright test
+```
+
+This works for both Android and iOS — the devices run in the cloud, so nothing else is required on the host.
+
 ## Volume and environment reference
 
 | Option | Purpose |
 |--------|---------|
-| `-v "$(pwd):/home/mwuser"` | Mount your project so tests and output are accessible on the host |
-| `--add-host=host.docker.internal:host-gateway` | Required on Linux — makes the host reachable as `host.docker.internal` |
-| `-e ANDROID_SERIAL=emulator-5554` | Target a specific emulator when multiple are connected |
+| `-v "$(pwd):/home/mwuser"` | Mount your project so config, tests, and output are accessible on the host |
+| `--add-host=host.docker.internal:host-gateway` | Local Android on Linux only — makes the host reachable as `host.docker.internal` |
+| `-e MOBILE_USE_API_KEY=…` | Cloud devices only — authenticates with Mobile Next Cloud |
 
-## iOS is not supported
+## Limitations
 
-iOS automation requires macOS system frameworks that are unavailable inside Linux containers. Run iOS tests directly on macOS using `npx mobilewright test`.
+- **No local iOS simulator.** The container runs Linux and cannot reach an iOS simulator running on your Mac host. Test iOS against [cloud devices](#cloud-devices), or run directly on macOS with `npx mobilewright test`.
+- **`screenshot` is local-only.** The `mobilewright screenshot` command always uses the local ADB driver and cannot capture Mobile Next Cloud devices. Capture cloud-device screenshots from within a test run instead.
