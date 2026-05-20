@@ -7,3 +7,5 @@ playwright-report
 test-results
 .env
 docs/superpowers
+.DS_Store
+*.tsbuildinfo
