@@ -177,8 +177,10 @@ export class Locator {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
       return true;
-    } catch(error) {
-      if(!(error instanceof LocatorError)) {throw error; }
+    } catch (error) {
+      if (!(error instanceof LocatorError)) {
+        throw error;
+      }
       return false;
     }
   }
