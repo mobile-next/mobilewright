@@ -185,6 +185,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
       }
     }
 
+    device.screen.setStepFn((title, fn, location) => (base.step as any)(title, fn, { location }));
+
     await use(device.screen);
 
     if (shouldRecord) {

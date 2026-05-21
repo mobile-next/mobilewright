@@ -8,7 +8,7 @@ import type {
   SwipeOptions,
   ViewNode,
 } from '@mobilewright/protocol';
-import { Locator, type LocatorOptions } from './locator.js';
+import { Locator, type LocatorOptions, type StepFn } from './locator.js';
 
 export class Screen {
   private readonly root: Locator;
@@ -18,6 +18,10 @@ export class Screen {
     locatorDefaults: LocatorOptions = {},
   ) {
     this.root = Locator.root(driver, locatorDefaults);
+  }
+
+  setStepFn(fn: StepFn): void {
+    this.root._stepFn = fn;
   }
 
   // ─── Locator factories (delegated to root locator) ─────────
