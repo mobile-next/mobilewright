@@ -31,3 +31,22 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test
+
+  docker:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -t mobilewright:ci .
+      - name: Smoke test
+        run: docker run --rm mobilewright:ci help
