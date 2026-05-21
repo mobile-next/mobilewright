@@ -1,3 +1,8 @@
+## [0.0.39] (2026-05-21)
+* Feat: add test step instrumentation for HTML reporter ([#144](https://github.com/mobile-next/mobilewright/pull/144))
+* Feat: add Dockerfile for mobilewright image, multi-arch for arm64 and amd64 ([#143](https://github.com/mobile-next/mobilewright/pull/143))
+* Fix(locator): `isVisible()` no longer swallows driver/session errors — only returns `false` for element-not-found failures, rethrows all other errors ([#138](https://github.com/mobile-next/mobilewright/pull/138)), thanks to [@JustasMonkev](https://github.com/JustasMonkev)
+
 ## [0.0.38] (2026-05-17)
 * Fix(ios): call `getForegroundApp()` before `launchApp()` in mobilecli driver to ensure DeviceKit is running first, preventing a race where its startup minimizes the newly-launched app ([#89](https://github.com/mobile-next/mobilewright/issues/89))
 * Fix(android): using instruments to get view tree, solves bug when constant UI change would fail "uiautomator dump" (fix is in mobilecli 0.3.74)
