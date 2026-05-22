@@ -52,3 +52,23 @@ test('toArray wraps a single string into an array', () => {
 test('toArray returns the array unchanged when already an array', () => {
   expect(toArray(['app.apk', 'other.apk'])).toEqual(['app.apk', 'other.apk']);
 });
+
+test('defineConfig accepts mobilenext driver with testResult config', () => {
+  const config = defineConfig({
+    driver: {
+      type: 'mobilenext',
+      apiKey: 'test-key',
+      testResult: {
+        uploadReport: 'on',
+        name: 'My Suite',
+        tags: ['ci', 'nightly'],
+        environment: 'staging',
+      },
+    },
+  });
+  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
+  expect(driver.testResult?.uploadReport).toBe('on');
+  expect(driver.testResult?.name).toBe('My Suite');
+  expect(driver.testResult?.tags).toEqual(['ci', 'nightly']);
+  expect(driver.testResult?.environment).toBe('staging');
+});

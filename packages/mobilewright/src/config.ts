@@ -49,10 +49,18 @@ export interface DriverConfigMobilecli {
   type: 'mobilecli';
 }
 
+export interface MobileNextTestResultConfig {
+  uploadReport?: 'on' | 'off' | 'on-failure';
+  name?: string;
+  tags?: string[];
+  environment?: string;
+}
+
 export interface DriverConfigMobileNext {
   type: 'mobilenext' | 'mobile-use';
   region?: string;
   apiKey?: string;
+  testResult?: MobileNextTestResultConfig;
 }
 
 export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext;
