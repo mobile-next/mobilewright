@@ -2,6 +2,9 @@ import { access } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 const _require = createRequire(import.meta.url);
 
@@ -128,6 +131,51 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
+function normalizeReporters(
+  reporter: MobilewrightConfig['reporter'],
+): Array<[string] | [string, unknown]> {
+  if (!reporter) {
+    return [];
+  }
+  if (typeof reporter === 'string') {
+    return [[reporter]];
+  }
+  return reporter;
+}
+
+function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
+  const driver = config.driver;
+  if (!driver || (driver.type !== 'mobilenext' && driver.type !== 'mobile-use')) {
+    return config;
+  }
+  const mobileNextDriver = driver as DriverConfigMobileNext;
+  const uploadReport = mobileNextDriver.testResult?.uploadReport;
+  if (!uploadReport || uploadReport === 'off') {
+    return config;
+  }
+
+  const jsonResultsPath = path.join(
+    os.tmpdir(),
+    `mobilewright-results-${randomUUID()}.json`,
+  );
+  const uploadReporterPath = _require.resolve('./reporters/mobilenext-upload.js');
+  const reporters = normalizeReporters(config.reporter);
+
+  return {
+    ...config,
+    reporter: [
+      ...reporters,
+      ['json', { outputFile: jsonResultsPath }],
+      [uploadReporterPath, {
+        apiKey: mobileNextDriver.apiKey ?? '',
+        jsonResultsPath,
+        outputDir: config.outputDir ?? 'test-results',
+        testResult: mobileNextDriver.testResult,
+      }],
+    ],
+  };
+}
+
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   const ourSetup = _require.resolve('./device-pool/setup.js');
@@ -135,12 +183,14 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   const userSetups = toArray(config.globalSetup);
   const userTeardowns = toArray(config.globalTeardown);
 
-  return {
+  const base: MobilewrightConfig = {
     workers: 1,
     ...config,
     globalSetup: userSetups.length > 0 ? [ourSetup, ...userSetups] : ourSetup,
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
+
+  return injectUploadReporter(base);
 }
 
 const CONFIG_FILES = [
