@@ -1,25 +1,25 @@
 import createDebug from 'debug';
-import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
-import type { MobileUseDriverOptions } from '@mobilewright/driver-mobile-use';
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
+import type { MobileNextDriverOptions } from '@mobilewright/driver-mobilenext';
 import type { AllocationCriteria, AllocateResult, DeviceAllocator } from '../application/ports.js';
 
-const debug = createDebug('mw:device-pool:mobile-use');
+const debug = createDebug('mw:device-pool:mobilenext');
 
-export interface MobileUseAllocatorOptions {
-  driverOptions: MobileUseDriverOptions;
+export interface MobileNextAllocatorOptions {
+  driverOptions: MobileNextDriverOptions;
 }
 
-export class MobileUseAllocator implements DeviceAllocator {
-  private readonly driverOptions: MobileUseDriverOptions;
-  private readonly activeDrivers = new Map<string, MobileUseDriver>();
+export class MobileNextAllocator implements DeviceAllocator {
+  private readonly driverOptions: MobileNextDriverOptions;
+  private readonly activeDrivers = new Map<string, MobileNextDriver>();
 
-  constructor(options: MobileUseAllocatorOptions) {
+  constructor(options: MobileNextAllocatorOptions) {
     this.driverOptions = options.driverOptions;
   }
 
   async allocate(criteria: AllocationCriteria): Promise<AllocateResult> {
     debug('allocating device (criteria=%o)', criteria);
-    const driver = new MobileUseDriver(this.driverOptions);
+    const driver = new MobileNextDriver(this.driverOptions);
     const session = await driver.connect({
       platform: criteria.platform ?? 'ios',
       deviceName: criteria.deviceNamePattern ? new RegExp(criteria.deviceNamePattern) : undefined,
@@ -28,7 +28,7 @@ export class MobileUseAllocator implements DeviceAllocator {
     this.activeDrivers.set(session.deviceId, driver);
     debug('allocated device %s (platform=%s)', session.deviceId, session.platform);
     const info = driver.deviceInfo;
-    return { deviceId: session.deviceId, platform: session.platform, driver: 'mobile-use', model: info?.model, osVersion: info?.osVersion, type: info?.type };
+    return { deviceId: session.deviceId, platform: session.platform, driver: 'mobilenext', model: info?.model, osVersion: info?.osVersion, type: info?.type };
   }
 
   async release(deviceId: string): Promise<void> {

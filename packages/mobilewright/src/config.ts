@@ -49,13 +49,13 @@ export interface DriverConfigMobilecli {
   type: 'mobilecli';
 }
 
-export interface DriverConfigMobileUse {
-  type: 'mobile-use';
+export interface DriverConfigMobileNext {
+  type: 'mobilenext' | 'mobile-use';
   region?: string;
   apiKey?: string;
 }
 
-export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileUse;
+export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext;
 
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────

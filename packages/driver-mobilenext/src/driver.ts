@@ -26,11 +26,11 @@ import type {
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 
-export const DEFAULT_URL = 'wss://api.mobilenexthq.com/ws';
+export const DEFAULT_URL = 'wss://api.mobilenext.ai/ws';
 
 // ─── RPC response types ───────────────────────────────────────
 
-interface MobileUseElement {
+interface MobileNextElement {
   type: string;
   text?: string;
   label?: string;
@@ -39,19 +39,19 @@ interface MobileUseElement {
   identifier?: string;
   placeholder?: string;
   rect?: { x: number; y: number; width: number; height: number };
-  children?: MobileUseElement[];
+  children?: MobileNextElement[];
   visible?: boolean;
   enabled?: boolean;
 }
 
-interface MobileUseAppEntry {
+interface MobileNextAppEntry {
   packageName?: string;
   bundleId?: string;
   appName?: string;
   version?: string;
 }
 
-interface MobileUseDeviceInfoResponse {
+interface MobileNextDeviceInfoResponse {
   device: {
     platform: string;
     screenSize?: { width: number; height: number; scale: number };
@@ -61,7 +61,7 @@ interface MobileUseDeviceInfoResponse {
   };
 }
 
-interface MobileUseDeviceEntry {
+interface MobileNextDeviceEntry {
   id?: string;
   udid?: string;
   name: string;
@@ -72,24 +72,24 @@ interface MobileUseDeviceEntry {
   version?: string;
 }
 
-interface MobileUseScreenshotResponse {
+interface MobileNextScreenshotResponse {
   data: string;
 }
 
-interface MobileUseOrientationResponse {
+interface MobileNextOrientationResponse {
   orientation: string;
 }
 
-interface MobileUseUIDumpResponse {
-  elements: MobileUseElement[];
+interface MobileNextUIDumpResponse {
+  elements: MobileNextElement[];
 }
 
-interface MobileUseDevicesResponse {
+interface MobileNextDevicesResponse {
   status: string;
-  data: { devices: MobileUseDeviceEntry[] };
+  data: { devices: MobileNextDeviceEntry[] };
 }
 
-export interface MobileUseDriverOptions {
+export interface MobileNextDriverOptions {
   region?: string;
   apiKey?: string;
 }
@@ -110,7 +110,7 @@ function toDeviceState(value: string): DeviceState {
   return VALID_DEVICE_STATES.has(value) ? value as DeviceState : 'offline';
 }
 
-function elementToViewNode(el: MobileUseElement): ViewNode {
+function elementToViewNode(el: MobileNextElement): ViewNode {
   const bounds = el.rect ?? { x: 0, y: 0, width: 0, height: 0 };
   return {
     type: el.type ?? 'Unknown',
@@ -195,7 +195,7 @@ interface ActiveSession {
   type?: DeviceType;
 }
 
-export interface MobileUseDeviceInfo {
+export interface MobileNextDeviceInfo {
   model?: string;
   osVersion?: string;
   type?: DeviceType;
@@ -207,21 +207,21 @@ type DeviceFilter =
   | { attribute: 'name'; operator: 'EQUALS' | 'STARTS_WITH' | 'CONTAINS'; value: string }
   | { attribute: 'version'; operator: 'EQUALS' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUALS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUALS'; value: string };
 
-const debug = createDebug('mw:driver-mobile-use');
+const debug = createDebug('mw:driver-mobilenext');
 
-export class MobileUseDriver implements MobilewrightDriver {
+export class MobileNextDriver implements MobilewrightDriver {
   private session: ActiveSession | null = null;
-  private readonly options: MobileUseDriverOptions;
+  private readonly options: MobileNextDriverOptions;
   private ownsLease = false;
 
-  get deviceInfo(): MobileUseDeviceInfo | null {
+  get deviceInfo(): MobileNextDeviceInfo | null {
     if (!this.session) {
       return null;
     }
     return { model: this.session.model, osVersion: this.session.osVersion, type: this.session.type };
   }
 
-  constructor(options: MobileUseDriverOptions = {}) {
+  constructor(options: MobileNextDriverOptions = {}) {
     this.options = options;
   }
 
@@ -341,7 +341,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── UI hierarchy ───────────────────────────────────────────
 
   async getViewHierarchy(): Promise<ViewNode[]> {
-    const result = await this.call<MobileUseUIDumpResponse>('device.dump.ui');
+    const result = await this.call<MobileNextUIDumpResponse>('device.dump.ui');
     return result.elements.map(elementToViewNode);
   }
 
@@ -405,7 +405,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── Screen ─────────────────────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
-    const result = await this.call<MobileUseScreenshotResponse>('device.screenshot', {
+    const result = await this.call<MobileNextScreenshotResponse>('device.screenshot', {
       ...(opts?.format && { format: opts.format }),
       ...(opts?.quality !== undefined && { quality: opts.quality }),
     });
@@ -418,13 +418,13 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async getScreenSize(): Promise<ScreenSize> {
-    const result = await this.call<MobileUseDeviceInfoResponse>('device.info');
+    const result = await this.call<MobileNextDeviceInfoResponse>('device.info');
     const info = result.device;
     return info.screenSize ?? { width: info.screenWidth ?? 0, height: info.screenHeight ?? 0, scale: 1 };
   }
 
   async getOrientation(): Promise<Orientation> {
-    const result = await this.call<MobileUseOrientationResponse>('device.io.orientation.get');
+    const result = await this.call<MobileNextOrientationResponse>('device.io.orientation.get');
     return result.orientation === 'landscape' ? 'landscape' : 'portrait';
   }
 
@@ -464,7 +464,7 @@ export class MobileUseDriver implements MobilewrightDriver {
 
   async listApps(): Promise<AppInfo[]> {
     // iOS returns a flat array, Android returns { apps: [...] }.
-    const result = await this.call<MobileUseAppEntry[] | { apps: MobileUseAppEntry[] }>('device.apps.list');
+    const result = await this.call<MobileNextAppEntry[] | { apps: MobileNextAppEntry[] }>('device.apps.list');
     const apps = Array.isArray(result) ? result : result.apps;
     return apps.map((app) => ({
       bundleId: app.bundleId ?? app.packageName ?? '',
@@ -474,7 +474,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async getForegroundApp(): Promise<AppInfo> {
-    const result = await this.call<MobileUseAppEntry>('device.apps.foreground');
+    const result = await this.call<MobileNextAppEntry>('device.apps.foreground');
     return {
       bundleId: result.bundleId ?? result.packageName ?? '',
       name: result.appName,
@@ -520,7 +520,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── Device ─────────────────────────────────────────────────
 
   async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
-    const result = await this.call<MobileUseDevicesResponse>('device.list');
+    const result = await this.call<MobileNextDevicesResponse>('device.list');
     let devices = result.data.devices;
 
     if (opts?.platform) {

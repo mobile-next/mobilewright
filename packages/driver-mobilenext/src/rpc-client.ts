@@ -1,7 +1,7 @@
 import createDebug from 'debug';
 import WebSocket from 'ws';
 
-const debug = createDebug('mw:driver-mobile-use');
+const debug = createDebug('mw:driver-mobilenext');
 
 const WS_CLOSE_NORMAL = 1000;
 

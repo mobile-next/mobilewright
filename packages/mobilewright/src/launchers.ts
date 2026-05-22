@@ -1,7 +1,7 @@
 import type { Platform, DeviceInfo, DeviceType, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
-import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 import { ensureMobilecliReachable } from './server.js';
 import { toArray } from './config.js';
 import type { DriverConfig } from './config.js';
@@ -41,8 +41,8 @@ export interface FindDeviceParams {
 }
 
 export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
-  if (driverConfig?.type === 'mobile-use') {
-    return new MobileUseDriver({
+  if (driverConfig?.type === 'mobilenext' || driverConfig?.type === 'mobile-use') {
+    return new MobileNextDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
     });
@@ -52,7 +52,7 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
 
 export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
   // URL is baked into the driver at construction time; don't override it here.
-  // Passing mobilecli's default URL into MobileUseDriver.connect() would send
+  // Passing mobilecli's default URL into MobileNextDriver.connect() would send
   // requests to the wrong server.
   const driver = createDriver(params.driverConfig, params.url);
   const device = new Device(driver);

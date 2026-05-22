@@ -89,11 +89,11 @@ set DEBUG=mw:*
 npx mobilewright test
 ```
 
-Example output with `DEBUG=mw:driver-mobile-use`:
+Example output with `DEBUG=mw:driver-mobilenext`:
 
 ```
-mw:driver-mobile-use connecting to wss://api.mobile-use.com/ws +0ms
-mw:driver-mobile-use websocket connected +570ms
-mw:driver-mobile-use allocating device with filters [ { attribute: 'platform', operator: 'EQUALS', value: 'ios' } ] +0ms
-mw:driver-mobile-use allocated device 00008140-001A24601E06001C (session=47abbd72-..., model=iPhone17,3) +192ms
+mw:driver-mobilenext connecting to wss://api.mobilenext.ai/ws +0ms
+mw:driver-mobilenext websocket connected +570ms
+mw:driver-mobilenext allocating device with filters [ { attribute: 'platform', operator: 'EQUALS', value: 'ios' } ] +0ms
+mw:driver-mobilenext allocated device 00008140-001A24601E06001C (session=47abbd72-..., model=iPhone17,3) +192ms
 ```

@@ -124,8 +124,8 @@ import { defineConfig } from 'mobilewright';
 export default defineConfig({
   platform: 'ios', // or 'android'
   driver: {
-    type: 'mobile-use',
-    apiKey: process.env.MOBILE_USE_API_KEY,
+    type: 'mobilenext',
+    apiKey: process.env.MOBILENEXT_API_KEY,
   },
 });
 ```
@@ -137,7 +137,7 @@ Mount your project and pass the API key with `-e`:
 ```bash
 docker run --rm \
   -v "$(pwd):/home/mwuser" \
-  -e MOBILE_USE_API_KEY="$MOBILE_USE_API_KEY" \
+  -e MOBILENEXT_API_KEY="$MOBILENEXT_API_KEY" \
   ghcr.io/mobile-next/mobilewright test
 ```
 
@@ -149,7 +149,7 @@ This works for both Android and iOS — the devices run in the cloud, so nothing
 |--------|---------|
 | `-v "$(pwd):/home/mwuser"` | Mount your project so config, tests, and output are accessible on the host |
 | `--add-host=host.docker.internal:host-gateway` | Local Android on Linux only — makes the host reachable as `host.docker.internal` |
-| `-e MOBILE_USE_API_KEY=…` | Cloud devices only — authenticates with Mobile Next Cloud |
+| `-e MOBILENEXT_API_KEY=…` | Cloud devices only — authenticates with Mobile Next Cloud |
 
 ## Limitations
 
