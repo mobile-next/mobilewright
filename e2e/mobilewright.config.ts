@@ -6,21 +6,21 @@ function resolveDriver(): DriverConfig {
   console.log(`Using driver: ${name}`);
 
   switch (name) {
-    case 'mobile-use':
-      if (!process.env['MOBILE_USE_API_KEY']) {
-        throw new Error('MOBILE_USE_API_KEY is required for mobile-use driver');
+    case 'mobilenext':
+      if (!process.env['MOBILENEXT_API_KEY']) {
+        throw new Error('MOBILENEXT_API_KEY is required for mobilenext driver');
       }
       
       return {
-        type: 'mobile-use',
-        apiKey: process.env['MOBILE_USE_API_KEY'],
+        type: 'mobilenext',
+        apiKey: process.env['MOBILENEXT_API_KEY'],
       };
 
     case 'mobilecli': 
     return { type: 'mobilecli' };
 
     default:
-      throw new Error(`Unknown driver: ${name}. Use ['mobilecli' or 'mobile-use']`);
+      throw new Error(`Unknown driver: ${name}. Use ['mobilecli' or 'mobilenext']`);
   }
 }
 
@@ -34,7 +34,7 @@ const config: MobilewrightConfig = defineConfig({
   // parallel by test() instead of parallel by file
   fullyParallel: true,
 
-  // supports mobilecli and mobile-use drivers
+  // supports mobilecli and mobilenext drivers
   driver: resolveDriver(),
 
   // filter used devices with regexp
