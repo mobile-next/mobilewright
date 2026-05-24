@@ -1,7 +1,10 @@
-import { mkdtempSync, cpSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const _require = createRequire(import.meta.url);
+
+const BASE_URL = 'https://api.mobilenext.ai';
+const DASHBOARD_BASE_URL = 'https://app.mobilenext.ai';
 
 export interface UploadTestResultParams {
   apiKey: string;
@@ -10,16 +13,55 @@ export interface UploadTestResultParams {
   name?: string;
   tags?: string[];
   environment?: string;
+  _fetchFn?: typeof fetch;
+}
+
+interface TestResultResponse {
+  id: string;
+  name: string;
+  userAgent: string;
+  createdAt: string;
 }
 
 export async function uploadTestResult(params: UploadTestResultParams): Promise<{ url: string }> {
-  const uploadDir = mkdtempSync(join(tmpdir(), `mobilewright-upload-${randomUUID()}-`));
+  const fetchFn = params._fetchFn ?? fetch;
+  const pkg = _require('../../package.json') as { version: string };
+  const userAgent = `mobilewright/${pkg.version}`;
 
-  cpSync(params.jsonResultsPath, join(uploadDir, 'results.json'));
+  const createRes = await fetchFn(`${BASE_URL}/api/v1/test-results`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${params.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: params.name ?? 'Test Run',
+      userAgent,
+    }),
+  });
 
-  if (existsSync(params.outputDir)) {
-    cpSync(params.outputDir, join(uploadDir, 'artifacts'), { recursive: true });
+  if (!createRes.ok) {
+    throw new Error(`Failed to create test result: ${createRes.status}`);
   }
 
-  return { url: `file://${uploadDir}` };
+  const testResult = await createRes.json() as TestResultResponse;
+
+  const jsonContent = readFileSync(params.jsonResultsPath);
+  const form = new FormData();
+  form.append('name', 'results.json');
+  form.append('file', new Blob([jsonContent], { type: 'application/json' }), 'results.json');
+
+  const uploadRes = await fetchFn(`${BASE_URL}/api/v1/test-results/${testResult.id}/assets`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${params.apiKey}`,
+    },
+    body: form,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`Failed to upload results.json: ${uploadRes.status}`);
+  }
+
+  return { url: `${DASHBOARD_BASE_URL}/dashboard/test-results/${testResult.id}` };
 }
