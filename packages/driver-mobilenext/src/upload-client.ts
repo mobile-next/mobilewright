@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
 import createDebug from 'debug';
 
 const _require = createRequire(import.meta.url);
@@ -23,6 +24,74 @@ interface TestResultResponse {
   name: string;
   userAgent: string;
   createdAt: string;
+}
+
+interface AssetResponse {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+}
+
+function extensionForContentType(contentType: string): string {
+  const extensions: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  return extensions[contentType] ?? 'bin';
+}
+
+async function uploadAttachmentBodies(
+  obj: unknown,
+  testResultId: string,
+  apiKey: string,
+  fetchFn: typeof fetch,
+): Promise<void> {
+  if (!obj || typeof obj !== 'object') { return; }
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      await uploadAttachmentBodies(item, testResultId, apiKey, fetchFn);
+    }
+    return;
+  }
+  const record = obj as Record<string, unknown>;
+  if (Array.isArray(record['attachments'])) {
+    for (const att of record['attachments'] as Record<string, unknown>[]) {
+      if (typeof att['body'] === 'string') {
+        const contentType = typeof att['contentType'] === 'string' ? att['contentType'] : 'application/octet-stream';
+        const ext = extensionForContentType(contentType);
+        const assetName = `${randomUUID()}.${ext}`;
+        const buffer = Buffer.from(att['body'], 'base64');
+        const sizeKB = (buffer.length / 1024).toFixed(1);
+        debug('uploading attachment name=%s contentType=%s size=%skB as %s', att['name'], contentType, sizeKB, assetName);
+
+        const form = new FormData();
+        form.append('name', assetName);
+        form.append('file', new Blob([buffer], { type: contentType }), assetName);
+
+        const res = await fetchFn(`${BASE_URL}/api/v1/test-results/${testResultId}/assets`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+          body: form,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to upload attachment "${att['name'] as string}": ${res.status}`);
+        }
+
+        const asset = await res.json() as AssetResponse;
+        delete att['body'];
+        att['assetId'] = asset.id;
+        debug('attachment uploaded assetId=%s', asset.id);
+      }
+    }
+  }
+  for (const value of Object.values(record)) {
+    await uploadAttachmentBodies(value, testResultId, apiKey, fetchFn);
+  }
 }
 
 export async function uploadTestResult(params: UploadTestResultParams): Promise<{ url: string }> {
@@ -50,13 +119,20 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   const testResult = await createRes.json() as TestResultResponse;
   debug('test result created id=%s', testResult.id);
 
-  const jsonContent = readFileSync(params.jsonResultsPath);
-  const fileSizeKB = (jsonContent.length / 1024).toFixed(1);
+  // Parse into a fresh in-memory copy — original file on disk is never modified
+  const rawJson = readFileSync(params.jsonResultsPath);
+  const report = JSON.parse(rawJson.toString()) as Record<string, unknown>;
+
+  await uploadAttachmentBodies(report, testResult.id, params.apiKey, fetchFn);
+
+  const modifiedJson = JSON.stringify(report);
+  const modifiedBuffer = Buffer.from(modifiedJson);
+  const fileSizeKB = (modifiedBuffer.length / 1024).toFixed(1);
   debug('uploading report.json size=%skB path=%s', fileSizeKB, params.jsonResultsPath);
 
   const form = new FormData();
   form.append('name', 'report.json');
-  form.append('file', new Blob([jsonContent], { type: 'application/json' }), 'report.json');
+  form.append('file', new Blob([modifiedBuffer], { type: 'application/json' }), 'report.json');
 
   const progressTimer = setInterval(() => {
     debug('still uploading report.json...');
@@ -64,9 +140,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
 
   const uploadRes = await fetchFn(`${BASE_URL}/api/v1/test-results/${testResult.id}/assets`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${params.apiKey}`,
-    },
+    headers: { 'Authorization': `Bearer ${params.apiKey}` },
     body: form,
   }).finally(() => clearInterval(progressTimer));
 

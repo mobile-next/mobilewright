@@ -160,3 +160,154 @@ test('throws when asset upload API returns a non-2xx status', async () => {
 
   rmSync(workDir, { recursive: true });
 });
+
+test('uploads inline attachment bodies as separate assets before report.json', async () => {
+  const workDir = mkdtempSync(join(tmpdir(), 'mw-upload-test-'));
+  const jsonPath = join(workDir, 'results.json');
+  const pngBase64 = Buffer.from('fake-png-data').toString('base64');
+  const report = {
+    suites: [{ specs: [{ tests: [{ results: [{ attachments: [
+      { name: 'screenshot', contentType: 'image/png', body: pngBase64 },
+    ] }] }] }] }],
+  };
+  writeFileSync(jsonPath, JSON.stringify(report));
+
+  let assetCallCount = 0;
+  const mockFetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const urlStr = String(url);
+    if (urlStr.endsWith('/test-results')) {
+      return new Response(
+        JSON.stringify({ id: 'result-abc', name: 'Test Run', userAgent: 'mobilewright/0.0.1', createdAt: '2026-01-01T00:00:00Z' }),
+        { status: 201 },
+      );
+    }
+    assetCallCount++;
+    return new Response(
+      JSON.stringify({ id: `asset-${assetCallCount}`, name: 'x', contentType: 'image/png', size: 10, createdAt: '2026-01-01T00:00:00Z' }),
+      { status: 201 },
+    );
+  };
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    jsonResultsPath: jsonPath,
+    outputDir: join(workDir, 'artifacts'),
+    _fetchFn: mockFetch as unknown as typeof fetch,
+  });
+
+  // 2 asset calls: one for the PNG attachment, one for report.json
+  expect(assetCallCount).toBe(2);
+
+  rmSync(workDir, { recursive: true });
+});
+
+test('removes body and sets assetId in the uploaded report.json', async () => {
+  const workDir = mkdtempSync(join(tmpdir(), 'mw-upload-test-'));
+  const jsonPath = join(workDir, 'results.json');
+  const pngBase64 = Buffer.from('fake-png-data').toString('base64');
+  const report = {
+    suites: [{ specs: [{ tests: [{ results: [{ attachments: [
+      { name: 'screenshot', contentType: 'image/png', body: pngBase64 },
+    ] }] }] }] }],
+  };
+  writeFileSync(jsonPath, JSON.stringify(report));
+
+  let assetCallCount = 0;
+  let capturedReportForm: FormData | undefined;
+  const mockFetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const urlStr = String(url);
+    if (urlStr.endsWith('/test-results')) {
+      return new Response(
+        JSON.stringify({ id: 'result-abc', name: 'Test Run', userAgent: 'mobilewright/0.0.1', createdAt: '2026-01-01T00:00:00Z' }),
+        { status: 201 },
+      );
+    }
+    assetCallCount++;
+    if (assetCallCount === 2) {
+      capturedReportForm = init?.body as FormData;
+    }
+    return new Response(
+      JSON.stringify({ id: `asset-${assetCallCount}`, name: 'x', contentType: 'image/png', size: 10, createdAt: '2026-01-01T00:00:00Z' }),
+      { status: 201 },
+    );
+  };
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    jsonResultsPath: jsonPath,
+    outputDir: join(workDir, 'artifacts'),
+    _fetchFn: mockFetch as unknown as typeof fetch,
+  });
+
+  const reportFile = capturedReportForm?.get('file') as File;
+  const parsedReport = JSON.parse(await reportFile.text()) as typeof report;
+  const att = parsedReport.suites[0].specs[0].tests[0].results[0].attachments[0] as Record<string, unknown>;
+  expect(att['body']).toBeUndefined();
+  expect(att['assetId']).toBe('asset-1');
+
+  rmSync(workDir, { recursive: true });
+});
+
+test('does not modify the original json file on disk', async () => {
+  const workDir = mkdtempSync(join(tmpdir(), 'mw-upload-test-'));
+  const jsonPath = join(workDir, 'results.json');
+  const pngBase64 = Buffer.from('fake-png-data').toString('base64');
+  const report = {
+    suites: [{ specs: [{ tests: [{ results: [{ attachments: [
+      { name: 'screenshot', contentType: 'image/png', body: pngBase64 },
+    ] }] }] }] }],
+  };
+  const originalJson = JSON.stringify(report);
+  writeFileSync(jsonPath, originalJson);
+  const { mockFetch } = makeMockFetch('result-abc');
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    jsonResultsPath: jsonPath,
+    outputDir: join(workDir, 'artifacts'),
+    _fetchFn: mockFetch,
+  });
+
+  const { readFileSync: read } = await import('node:fs');
+  expect(read(jsonPath, 'utf8')).toBe(originalJson);
+
+  rmSync(workDir, { recursive: true });
+});
+
+test('leaves path-based attachments unchanged', async () => {
+  const workDir = mkdtempSync(join(tmpdir(), 'mw-upload-test-'));
+  const jsonPath = join(workDir, 'results.json');
+  const report = {
+    suites: [{ specs: [{ tests: [{ results: [{ attachments: [
+      { name: 'video', contentType: 'video/mp4', path: '/some/path/video.mp4' },
+    ] }] }] }] }],
+  };
+  writeFileSync(jsonPath, JSON.stringify(report));
+
+  let assetCallCount = 0;
+  const mockFetch = async (url: string | URL | Request, _init?: RequestInit): Promise<Response> => {
+    if (String(url).endsWith('/test-results')) {
+      return new Response(
+        JSON.stringify({ id: 'result-abc', name: 'Test Run', userAgent: 'mobilewright/0.0.1', createdAt: '2026-01-01T00:00:00Z' }),
+        { status: 201 },
+      );
+    }
+    assetCallCount++;
+    return new Response(
+      JSON.stringify({ id: 'asset-1', name: 'report.json', contentType: 'application/json', size: 10, createdAt: '2026-01-01T00:00:00Z' }),
+      { status: 201 },
+    );
+  };
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    jsonResultsPath: jsonPath,
+    outputDir: join(workDir, 'artifacts'),
+    _fetchFn: mockFetch as unknown as typeof fetch,
+  });
+
+  // Only 1 asset call: just report.json (no upload for path-based attachments)
+  expect(assetCallCount).toBe(1);
+
+  rmSync(workDir, { recursive: true });
+});
