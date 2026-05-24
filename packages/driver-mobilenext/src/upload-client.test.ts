@@ -21,7 +21,7 @@ function makeMockFetch(testResultId: string) {
       );
     }
     return new Response(
-      JSON.stringify({ id: 'asset-1', name: 'results.json', contentType: 'application/json', size: 12, createdAt: '2026-01-01T00:00:00Z' }),
+      JSON.stringify({ id: 'asset-1', name: 'report.json', contentType: 'application/json', size: 12, createdAt: '2026-01-01T00:00:00Z' }),
       { status: 201 },
     );
   };
@@ -74,7 +74,7 @@ test('uses provided name in the create test result request', async () => {
   rmSync(workDir, { recursive: true });
 });
 
-test('uploads results.json as multipart FormData to the asset endpoint', async () => {
+test('uploads report.json as multipart FormData to the asset endpoint', async () => {
   const workDir = mkdtempSync(join(tmpdir(), 'mw-upload-test-'));
   const jsonPath = join(workDir, 'results.json');
   writeFileSync(jsonPath, '{"tests":[]}');

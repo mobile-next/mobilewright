@@ -50,11 +50,11 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   const testResult = await createRes.json() as TestResultResponse;
   debug('test result created id=%s', testResult.id);
 
-  debug('uploading results.json path=%s', params.jsonResultsPath);
+  debug('uploading report.json path=%s', params.jsonResultsPath);
   const jsonContent = readFileSync(params.jsonResultsPath);
   const form = new FormData();
-  form.append('name', 'results.json');
-  form.append('file', new Blob([jsonContent], { type: 'application/json' }), 'results.json');
+  form.append('name', 'report.json');
+  form.append('file', new Blob([jsonContent], { type: 'application/json' }), 'report.json');
 
   const uploadRes = await fetchFn(`${BASE_URL}/api/v1/test-results/${testResult.id}/assets`, {
     method: 'POST',
