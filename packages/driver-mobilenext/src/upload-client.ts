@@ -50,11 +50,17 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   const testResult = await createRes.json() as TestResultResponse;
   debug('test result created id=%s', testResult.id);
 
-  debug('uploading report.json path=%s', params.jsonResultsPath);
   const jsonContent = readFileSync(params.jsonResultsPath);
+  const fileSizeKB = (jsonContent.length / 1024).toFixed(1);
+  debug('uploading report.json size=%skB path=%s', fileSizeKB, params.jsonResultsPath);
+
   const form = new FormData();
   form.append('name', 'report.json');
   form.append('file', new Blob([jsonContent], { type: 'application/json' }), 'report.json');
+
+  const progressTimer = setInterval(() => {
+    debug('still uploading report.json...');
+  }, 10_000);
 
   const uploadRes = await fetchFn(`${BASE_URL}/api/v1/test-results/${testResult.id}/assets`, {
     method: 'POST',
@@ -62,10 +68,10 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
       'Authorization': `Bearer ${params.apiKey}`,
     },
     body: form,
-  });
+  }).finally(() => clearInterval(progressTimer));
 
   if (!uploadRes.ok) {
-    throw new Error(`Failed to upload results.json: ${uploadRes.status}`);
+    throw new Error(`Failed to upload report.json: ${uploadRes.status}`);
   }
 
   debug('upload complete url=%s', `${DASHBOARD_BASE_URL}/dashboard/test-results/${testResult.id}`);
