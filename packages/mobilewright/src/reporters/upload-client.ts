@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import createDebug from 'debug';
 
 const _require = createRequire(import.meta.url);
+const debug = createDebug('mw:reporter:upload');
 
 const BASE_URL = 'https://api.mobilenext.ai';
 const DASHBOARD_BASE_URL = 'https://app.mobilenext.ai';
@@ -28,6 +30,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   const pkg = _require('../../package.json') as { version: string };
   const userAgent = `mobilewright/${pkg.version}`;
 
+  debug('creating test result name=%s userAgent=%s', params.name ?? 'Test Run', userAgent);
   const createRes = await fetchFn(`${BASE_URL}/api/v1/test-results`, {
     method: 'POST',
     headers: {
@@ -45,7 +48,9 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   }
 
   const testResult = await createRes.json() as TestResultResponse;
+  debug('test result created id=%s', testResult.id);
 
+  debug('uploading results.json path=%s', params.jsonResultsPath);
   const jsonContent = readFileSync(params.jsonResultsPath);
   const form = new FormData();
   form.append('name', 'results.json');
@@ -63,5 +68,6 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
     throw new Error(`Failed to upload results.json: ${uploadRes.status}`);
   }
 
+  debug('upload complete url=%s', `${DASHBOARD_BASE_URL}/dashboard/test-results/${testResult.id}`);
   return { url: `${DASHBOARD_BASE_URL}/dashboard/test-results/${testResult.id}` };
 }
