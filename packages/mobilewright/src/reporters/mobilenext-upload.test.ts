@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { TestResult, FullResult } from '@playwright/test/reporter';
 import MobileNextUploadReporter from './mobilenext-upload.js';
-import type { UploadTestResultParams } from './upload-client.js';
+import type { UploadTestResultParams } from '@mobilewright/driver-mobilenext';
 
 test('does not upload when uploadReport is on-failure and no tests failed', async () => {
   let uploadCalled = false;

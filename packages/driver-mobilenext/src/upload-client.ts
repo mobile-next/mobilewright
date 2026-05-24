@@ -27,7 +27,7 @@ interface TestResultResponse {
 
 export async function uploadTestResult(params: UploadTestResultParams): Promise<{ url: string }> {
   const fetchFn = params._fetchFn ?? fetch;
-  const pkg = _require('../../package.json') as { version: string };
+  const pkg = _require('../package.json') as { version: string };
   const userAgent = `mobilewright/${pkg.version}`;
 
   debug('creating test result name=%s userAgent=%s', params.name ?? 'Test Run', userAgent);

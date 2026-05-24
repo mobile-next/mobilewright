@@ -1,6 +1,6 @@
 import type { Reporter, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
 import type { MobileNextTestResultConfig } from '../config.js';
-import { uploadTestResult, type UploadTestResultParams } from './upload-client.js';
+import { uploadTestResult, type UploadTestResultParams } from '@mobilewright/driver-mobilenext';
 
 type UploadFn = (params: UploadTestResultParams) => Promise<{ url: string }>;
 
