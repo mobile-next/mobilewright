@@ -1,4 +1,4 @@
-import type { Reporter, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
+import type { Reporter, TestCase, TestResult, FullResult, FullConfig, Suite } from '@playwright/test/reporter';
 import type { MobileNextTestResultConfig } from '../config.js';
 import { uploadTestResult, type UploadTestResultParams } from '@mobilewright/driver-mobilenext';
 
@@ -14,10 +14,15 @@ interface MobileNextUploadReporterOptions {
 
 export default class MobileNextUploadReporter implements Reporter {
   private hasFailed = false;
+  private hasTests = false;
   private readonly options: MobileNextUploadReporterOptions;
 
   constructor(options: MobileNextUploadReporterOptions) {
     this.options = options;
+  }
+
+  onBegin(_config: FullConfig, suite: Suite): void {
+    this.hasTests = suite.allTests().length > 0;
   }
 
   onTestEnd(_test: TestCase, result: TestResult): void {
@@ -27,6 +32,9 @@ export default class MobileNextUploadReporter implements Reporter {
   }
 
   async onEnd(_result: FullResult): Promise<void> {
+    if (!this.hasTests) {
+      return;
+    }
     const { uploadReport } = this.options.testResult;
     if (uploadReport === 'on-failure' && !this.hasFailed) {
       return;
