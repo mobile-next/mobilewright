@@ -1,3 +1,7 @@
+## [0.0.41] (2026-05-26)
+* Refactor: rename `mobile-use` driver to `mobilenext` ([#146](https://github.com/mobile-next/mobilewright/pull/146))
+* Chore(driver-mobilecli): update mobilecli to fix websocket 1006 errors ([#150](https://github.com/mobile-next/mobilewright/pull/150))
+
 ## [0.0.39] (2026-05-21)
 * Feat: add test step instrumentation for HTML reporter ([#144](https://github.com/mobile-next/mobilewright/pull/144))
 * Feat: add Dockerfile for mobilewright image, multi-arch for arm64 and amd64 ([#143](https://github.com/mobile-next/mobilewright/pull/143))
