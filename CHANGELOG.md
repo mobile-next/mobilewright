@@ -1,4 +1,4 @@
-## [0.0.40] (2026-05-26)
+## [0.0.41] (2026-05-26)
 * Refactor: rename `mobile-use` driver to `mobilenext` ([#146](https://github.com/mobile-next/mobilewright/pull/146))
 * Chore(driver-mobilecli): update mobilecli to fix websocket 1006 errors ([#150](https://github.com/mobile-next/mobilewright/pull/150))
 

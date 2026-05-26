@@ -29,7 +29,7 @@ jobs:
       - run: npm publish --access public --provenance
         working-directory: packages/driver-mobilecli
       - run: npm publish --access public --provenance
-        working-directory: packages/driver-mobile-use
+        working-directory: packages/driver-mobilenext
       - run: cp ../../README.md .
         working-directory: packages/mobilewright
       - run: npm publish --access public --provenance
