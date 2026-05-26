@@ -3,7 +3,6 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import os from 'node:os';
-import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const _require = createRequire(import.meta.url);
@@ -154,7 +153,7 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
     return config;
   }
 
-  const jsonResultsPath = path.join(
+  const jsonResultsPath = join(
     os.tmpdir(),
     `mobilewright-results-${randomUUID()}.json`,
   );
@@ -169,7 +168,6 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
       [uploadReporterPath, {
         apiKey: mobileNextDriver.apiKey ?? '',
         jsonResultsPath,
-        outputDir: config.outputDir ?? 'test-results',
         testResult: mobileNextDriver.testResult,
       }],
     ],
