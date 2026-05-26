@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import createDebug from 'debug';
+import { getGitInfo } from './git-info.js';
 
 const _require = createRequire(import.meta.url);
 const debug = createDebug('mw:reporter:upload');
@@ -99,6 +100,9 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   const pkg = _require('../package.json') as { version: string };
   const userAgent = `mobilewright/${pkg.version}`;
 
+  const gitInfo = getGitInfo();
+  const hasGitInfo = Object.values(gitInfo).some(v => v !== undefined);
+
   debug('creating test result name=%s userAgent=%s', params.name ?? 'Test Run', userAgent);
   const createRes = await fetchFn(`${BASE_URL}/api/v1/test-results`, {
     method: 'POST',
@@ -109,6 +113,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
     body: JSON.stringify({
       name: params.name ?? 'Test Run',
       userAgent,
+      ...(hasGitInfo ? { git: gitInfo } : {}),
     }),
   });
 
