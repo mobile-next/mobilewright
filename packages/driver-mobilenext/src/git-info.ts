@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 
 export interface GitInfo {
   repoUrl?: string;
@@ -10,11 +10,10 @@ export interface GitInfo {
 
 function runGit(args: string[]): string | undefined {
   try {
-    const result = execSync(['git', ...args].join(' '), {
+    return execFileSync('git', args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    return result || undefined;
+    }).trim() || undefined;
   } catch {
     return undefined;
   }
