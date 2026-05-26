@@ -70,6 +70,26 @@ test('uploads when uploadReport is on-failure and a test timed out', async () =>
   expect(uploadCalled).toBe(true);
 });
 
+test('uploads by default when uploadReport is not set', async () => {
+  let uploadCalled = false;
+  const spyUpload = async (_params: UploadTestResultParams) => {
+    uploadCalled = true;
+    return { url: 'file:///tmp/fake' };
+  };
+
+  const reporter = new MobileNextUploadReporter({
+    apiKey: 'key',
+    jsonResultsPath: '/tmp/results.json',
+    outputDir: '/tmp/test-results',
+    testResult: {},
+    _uploadFn: spyUpload,
+  });
+
+  reporter.onBegin({} as FullConfig, suiteWithTests(1));
+  await reporter.onEnd({ status: 'passed' } as FullResult);
+  expect(uploadCalled).toBe(true);
+});
+
 test('always uploads when uploadReport is on regardless of test outcomes', async () => {
   let uploadCalled = false;
   const spyUpload = async (_params: UploadTestResultParams) => {

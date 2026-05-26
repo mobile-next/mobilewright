@@ -53,6 +53,20 @@ test('toArray returns the array unchanged when already an array', () => {
   expect(toArray(['app.apk', 'other.apk'])).toEqual(['app.apk', 'other.apk']);
 });
 
+test('defineConfig injects upload reporter by default when testResult is set without uploadReport', () => {
+  const config = defineConfig({
+    driver: {
+      type: 'mobilenext',
+      apiKey: 'test-key',
+      testResult: {},
+    },
+  });
+  const reporters = config.reporter as Array<[string, unknown]>;
+  expect(Array.isArray(reporters)).toBe(true);
+  const paths = reporters.map((r) => r[0]);
+  expect(paths.some((p) => String(p).includes('mobilenext-upload'))).toBe(true);
+});
+
 test('defineConfig injects upload reporter when mobilenext driver has uploadReport on', () => {
   const config = defineConfig({
     driver: {
