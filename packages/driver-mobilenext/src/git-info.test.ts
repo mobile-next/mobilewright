@@ -1,16 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { getGitInfo, normalizeRepoUrl } from './git-info.js';
 
-function withEnv(vars: Record<string, string>, fn: () => void): void {
+const ALL_CI_KEYS = [
+  'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL',
+  'CIRCLECI', 'TRAVIS', 'TF_BUILD', 'BITBUCKET_PIPELINE_UUID',
+];
+
+function withCIEnv(vars: Record<string, string>, fn: () => void): void {
   const saved: Record<string, string | undefined> = {};
-  for (const key of Object.keys(vars)) {
+  const keysToManage = [...new Set([...ALL_CI_KEYS, ...Object.keys(vars)])];
+  for (const key of keysToManage) {
     saved[key] = process.env[key];
-    process.env[key] = vars[key];
+    delete process.env[key];
+  }
+  for (const [key, value] of Object.entries(vars)) {
+    process.env[key] = value;
   }
   try {
     fn();
   } finally {
-    for (const key of Object.keys(vars)) {
+    for (const key of keysToManage) {
       if (saved[key] === undefined) {
         delete process.env[key];
       } else {
@@ -37,7 +46,7 @@ test('normalizeRepoUrl leaves plain HTTPS URL unchanged', () => {
 });
 
 test('getGitInfo reads GitHub Actions environment variables', () => {
-  withEnv({
+  withCIEnv({
     GITHUB_ACTIONS: 'true',
     GITHUB_REPOSITORY: 'myorg/myrepo',
     GITHUB_SHA: 'abc123def456',
@@ -55,7 +64,7 @@ test('getGitInfo reads GitHub Actions environment variables', () => {
 });
 
 test('getGitInfo reads GitLab CI environment variables', () => {
-  withEnv({
+  withCIEnv({
     GITLAB_CI: 'true',
     CI_PROJECT_URL: 'https://gitlab.com/myorg/myrepo',
     CI_COMMIT_SHA: 'deadbeef',
@@ -73,7 +82,7 @@ test('getGitInfo reads GitLab CI environment variables', () => {
 });
 
 test('getGitInfo reads Azure DevOps environment variables and strips refs/heads/ prefix', () => {
-  withEnv({
+  withCIEnv({
     TF_BUILD: 'true',
     BUILD_REPOSITORY_URI: 'https://dev.azure.com/org/project/_git/repo',
     BUILD_SOURCEBRANCH: 'refs/heads/main',
@@ -90,28 +99,12 @@ test('getGitInfo reads Azure DevOps environment variables and strips refs/heads/
 
 test('getGitInfo falls back to local git when no CI env vars are set', () => {
   // This test runs inside the mobilewright git repo, so local git should work.
-  const ciKeys = [
-    'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL',
-    'CIRCLECI', 'TRAVIS', 'TF_BUILD', 'BITBUCKET_PIPELINE_UUID',
-  ];
-  const saved: Record<string, string | undefined> = {};
-  for (const key of ciKeys) {
-    saved[key] = process.env[key];
-    delete process.env[key];
-  }
-
-  try {
+  withCIEnv({}, () => {
     const info = getGitInfo();
     expect(typeof info.branch).toBe('string');
     expect(typeof info.commitSha).toBe('string');
     expect(info.commitSha).toHaveLength(40);
-  } finally {
-    for (const key of ciKeys) {
-      if (saved[key] !== undefined) {
-        process.env[key] = saved[key];
-      }
-    }
-  }
+  });
 });
 
 test('getGitInfo returns empty object when not in a git repo and no CI env vars', () => {
