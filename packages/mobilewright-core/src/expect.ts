@@ -37,6 +37,10 @@ class LocatorAssertions {
     return new LocatorAssertions(this.locator, !this.negated);
   }
 
+  private assertionTimeout(opts?: ExpectOptions): number {
+    return opts?.timeout ?? this.locator.expectTimeout ?? DEFAULT_TIMEOUT;
+  }
+
   private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
     const stepFn = this.locator._stepFn;
     const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
@@ -122,7 +126,7 @@ class LocatorAssertions {
           const matches = count === expected;
           return this.negated ? !matches : matches;
         },
-        opts?.timeout ?? DEFAULT_TIMEOUT,
+        this.assertionTimeout(opts),
         () => this.negated
           ? `Expected element count NOT to be ${expected}, but got ${lastCount}`
           : `Expected element count to be ${expected}, but got ${lastCount}`,
@@ -152,7 +156,7 @@ class LocatorAssertions {
           const isEmpty = value === '';
           return this.negated ? !isEmpty : isEmpty;
         },
-        opts?.timeout ?? DEFAULT_TIMEOUT,
+        this.assertionTimeout(opts),
         () => this.negated
           ? 'Expected element NOT to be empty, but it was'
           : `Expected element to be empty, but got "${lastValue}"`,
@@ -182,7 +186,7 @@ class LocatorAssertions {
           const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
           return this.negated ? !matches : matches;
         },
-        opts?.timeout ?? DEFAULT_TIMEOUT,
+        this.assertionTimeout(opts),
         () => this.negated
           ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
           : `Expected element to have value "${expected}", but got "${lastValue}"`,
@@ -198,7 +202,7 @@ class LocatorAssertions {
     await this.retryAssertion(
       poll,
       (result) => (this.negated ? !result : result),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
+      this.assertionTimeout(opts),
       this.negated
         ? `Expected element to NOT be ${name}, but it was`
         : `Expected element to be ${name}, but it was not`,
@@ -230,7 +234,7 @@ class LocatorAssertions {
         const matches = predicate(text);
         return this.negated ? !matches : matches;
       },
-      opts?.timeout ?? DEFAULT_TIMEOUT,
+      this.assertionTimeout(opts),
       () => this.negated
         ? `Expected element NOT to have text "${expected}", but got "${lastText}"`
         : `Expected element to have text "${expected}", but got "${lastText}"`,

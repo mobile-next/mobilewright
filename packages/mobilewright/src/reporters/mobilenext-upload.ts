@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { Reporter, TestCase, TestResult, FullResult, FullConfig, Suite, TestStep } from '@playwright/test/reporter';
 import type { MobileNextTestResultConfig } from '../config.js';
-import { uploadTestResult, getGitInfo, type UploadTestResultParams } from '@mobilewright/driver-mobilenext';
+import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams } from '@mobilewright/driver-mobilenext';
 
 const _require = createRequire(import.meta.url);
 
@@ -12,6 +12,7 @@ interface MobileNextUploadReporterOptions {
   apiKey: string;
   jsonResultsPath: string;
   testResult: MobileNextTestResultConfig;
+  uploadTimeout?: number;
   _uploadFn?: UploadFn;
 }
 
@@ -91,7 +92,7 @@ export default class MobileNextUploadReporter implements Reporter {
     const rawContent = readFileSync(this.options.jsonResultsPath, 'utf8');
     const report = JSON.parse(rawContent) as JsonReport;
     this.injectSnippets(report);
-    const gitInfo = getGitInfo();
+    const gitInfo = extractGitInfoFromReport(report);
 
     try {
       const uploadResult = await upload({
@@ -102,6 +103,7 @@ export default class MobileNextUploadReporter implements Reporter {
         name: this.options.testResult.name,
         tags: this.options.testResult.tags,
         environment: this.options.testResult.environment,
+        timeout: this.options.uploadTimeout,
       });
       console.log(`\n  Report uploaded: ${uploadResult.url}`);
     } catch (err) {

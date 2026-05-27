@@ -10,6 +10,8 @@ export interface LocatorOptions {
   timeout?: number;
   pollInterval?: number;
   stabilityDelay?: number;
+  /** Default timeout for expect() assertions on this locator, in ms. */
+  expectTimeout?: number;
 }
 
 export interface ScrollIntoViewOptions {
@@ -36,6 +38,10 @@ export class Locator {
     private readonly strategy: LocatorStrategy,
     private readonly options: LocatorOptions = {},
   ) {}
+
+  get expectTimeout(): number | undefined {
+    return this.options.expectTimeout;
+  }
 
   private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
     if (this._stepFn) {

@@ -180,7 +180,20 @@ test('does not upload when onBegin was never called', async () => {
 });
 
 test('passes apiKey, name, tags, environment, report, and userAgent to upload function', async () => {
-  const { path, cleanup } = makeTempResultsFile('{"suites":[]}');
+  const reportContent = JSON.stringify({
+    suites: [],
+    config: {
+      metadata: {
+        gitCommit: {
+          hash: 'abc123def456',
+          subject: 'test: add upload reporter',
+          author: { name: 'Test Author', email: 'test@example.com', time: 1700000000 },
+          branch: 'main',
+        },
+      },
+    },
+  });
+  const { path, cleanup } = makeTempResultsFile(reportContent);
   let capturedParams: UploadTestResultParams | undefined;
   const spyUpload = async (params: UploadTestResultParams) => {
     capturedParams = params;
@@ -207,8 +220,13 @@ test('passes apiKey, name, tags, environment, report, and userAgent to upload fu
   expect(capturedParams?.tags).toEqual(['ci', 'nightly']);
   expect(capturedParams?.environment).toBe('staging');
   expect(capturedParams?.userAgent).toMatch(/^mobilewright\//);
-  expect(capturedParams?.report).toEqual({ suites: [] });
-  expect(typeof capturedParams?.gitInfo).toBe('object');
+  expect(capturedParams?.report).toEqual(JSON.parse(reportContent));
+  expect(capturedParams?.gitInfo).toEqual({
+    commitSha: 'abc123def456',
+    commitMessage: 'test: add upload reporter',
+    authorName: 'Test Author',
+    branch: 'main',
+  });
   cleanup();
 });
 

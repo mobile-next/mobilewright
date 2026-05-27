@@ -16,6 +16,10 @@ export interface LaunchOptions {
   timeout?: number;
   autoStart?: boolean;
   driver?: DriverConfig;
+  actionTimeout?: number;
+  expectTimeout?: number;
+  appLaunchTimeout?: number;
+  installTimeout?: number;
 }
 
 interface PlatformLauncher {
@@ -30,6 +34,10 @@ export interface ConnectDeviceParams {
   driverConfig?: DriverConfig;
   url?: string;
   timeout?: number;
+  actionTimeout?: number;
+  expectTimeout?: number;
+  appLaunchTimeout?: number;
+  installTimeout?: number;
 }
 
 export interface FindDeviceParams {
@@ -45,6 +53,7 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
     return new MobileNextDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
+      allocationTimeout: driverConfig.allocationTimeout,
     });
   }
   return new MobilecliDriver({ url });
@@ -55,7 +64,14 @@ export async function connectDevice(params: ConnectDeviceParams): Promise<Device
   // Passing mobilecli's default URL into MobileNextDriver.connect() would send
   // requests to the wrong server.
   const driver = createDriver(params.driverConfig, params.url);
-  const device = new Device(driver);
+  const device = new Device(driver, {
+    locatorDefaults: {
+      ...(params.actionTimeout !== undefined && { timeout: params.actionTimeout }),
+      ...(params.expectTimeout !== undefined && { expectTimeout: params.expectTimeout }),
+    },
+    appLaunchTimeout: params.appLaunchTimeout,
+    installTimeout: params.installTimeout,
+  });
   await device.connect({
     platform: params.platform,
     deviceId: params.deviceId,
@@ -118,6 +134,10 @@ function createLauncher(platform: Platform): PlatformLauncher {
         driverConfig,
         url,
         timeout: opts.timeout,
+        actionTimeout: opts.actionTimeout,
+        expectTimeout: opts.expectTimeout,
+        appLaunchTimeout: opts.appLaunchTimeout,
+        installTimeout: opts.installTimeout,
       });
 
       if (serverProcess) {

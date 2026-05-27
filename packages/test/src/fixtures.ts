@@ -141,6 +141,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
       driverConfig: merged.driver,
       url: merged.url,
       timeout: merged.timeout,
+      actionTimeout: merged.use?.actionTimeout,
+      expectTimeout: merged.expect?.timeout,
+      appLaunchTimeout: merged.use?.appLaunchTimeout,
+      installTimeout: merged.use?.installTimeout,
     });
     debug('connected to device %s', handle.deviceId);
 

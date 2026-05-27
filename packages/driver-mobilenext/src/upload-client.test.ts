@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { uploadTestResult } from './upload-client.js';
+import { uploadTestResult, extractGitInfoFromReport } from './upload-client.js';
 
 type FetchCall = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
@@ -122,6 +122,43 @@ test('omits git field when gitInfo is undefined', async () => {
   const createCall = calls.find(c => c.url.endsWith('/test-results'));
   const body = JSON.parse(createCall?.body as string);
   expect(body.git).toBeUndefined();
+});
+
+test('includes tags, environment, and stats in the create request', async () => {
+  const { mockFetch, calls } = makeMockFetch('result-abc');
+  const stats = { startTime: '2026-01-01T00:00:00Z', duration: 5000, expected: 3, skipped: 1, unexpected: 0, flaky: 0 };
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    report: { stats },
+    userAgent: 'mobilewright/test',
+    tags: ['ci', 'nightly'],
+    environment: 'staging',
+    _fetchFn: mockFetch,
+  });
+
+  const createCall = calls.find(c => c.url.endsWith('/test-results'));
+  const body = JSON.parse(createCall?.body as string);
+  expect(body.tags).toEqual(['ci', 'nightly']);
+  expect(body.environment).toBe('staging');
+  expect(body.stats).toEqual(stats);
+});
+
+test('omits tags, environment, and stats when not present', async () => {
+  const { mockFetch, calls } = makeMockFetch('result-abc');
+
+  await uploadTestResult({
+    apiKey: 'mob_key',
+    report: {},
+    userAgent: 'mobilewright/test',
+    _fetchFn: mockFetch,
+  });
+
+  const createCall = calls.find(c => c.url.endsWith('/test-results'));
+  const body = JSON.parse(createCall?.body as string);
+  expect(body.tags).toBeUndefined();
+  expect(body.environment).toBeUndefined();
+  expect(body.stats).toBeUndefined();
 });
 
 test('throws when create test result API returns a non-2xx status', async () => {
@@ -286,4 +323,58 @@ test('leaves path-based attachments unchanged', async () => {
 
   // Only 1 asset call: just report.json (no upload for path-based attachments)
   expect(assetCallCount).toBe(1);
+});
+
+test('uploadTestResult rejects when timeout is exceeded', async () => {
+  const slowFetch: typeof fetch = (_url, init) => {
+    const signal = (init as RequestInit | undefined)?.signal as AbortSignal | undefined;
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(signal.reason); return; }
+      const timer = setTimeout(() => resolve(new Response('{}', { status: 200 })), 500);
+      signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal!.reason); });
+    });
+  };
+
+  await expect(
+    uploadTestResult({
+      apiKey: 'key',
+      report: {},
+      userAgent: 'test/1.0',
+      timeout: 50,
+      _fetchFn: slowFetch,
+    }),
+  ).rejects.toThrow();
+});
+
+test('extractGitInfoFromReport returns undefined when report has no gitCommit metadata', () => {
+  expect(extractGitInfoFromReport({})).toBeUndefined();
+  expect(extractGitInfoFromReport({ config: {} })).toBeUndefined();
+  expect(extractGitInfoFromReport({ config: { metadata: {} } })).toBeUndefined();
+});
+
+test('extractGitInfoFromReport maps Playwright gitCommit fields to GitInfo fields', () => {
+  const report = {
+    config: {
+      metadata: {
+        gitCommit: {
+          hash: 'abc123def456',
+          subject: 'feat: add git support',
+          author: { name: 'Alice', email: 'alice@example.com', time: 1700000000 },
+          branch: 'main',
+        },
+      },
+    },
+  };
+
+  const result = extractGitInfoFromReport(report);
+
+  expect(result?.commitSha).toBe('abc123def456');
+  expect(result?.commitMessage).toBe('feat: add git support');
+  expect(result?.authorName).toBe('Alice');
+  expect(result?.branch).toBe('main');
+});
+
+test('extractGitInfoFromReport returns undefined when gitCommit has no recognizable fields', () => {
+  const report = { config: { metadata: { gitCommit: {} } } };
+  expect(extractGitInfoFromReport(report)).toBeUndefined();
 });

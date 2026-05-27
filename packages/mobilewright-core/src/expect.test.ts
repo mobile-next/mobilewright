@@ -743,3 +743,26 @@ test.describe('expect', () => {
     });
   });
 });
+
+test('toBeVisible uses expectTimeout from locator options as default', async () => {
+  const driver = createMockDriver([node({ type: 'Button', label: 'Submit', isVisible: false })]);
+  const locator = Locator.root(driver, { expectTimeout: 100 }).getByLabel('Submit');
+
+  const start = Date.now();
+  await expect(mwExpect(locator).toBeVisible()).rejects.toThrow();
+  const elapsed = Date.now() - start;
+
+  expect(elapsed).toBeGreaterThanOrEqual(90);
+  expect(elapsed).toBeLessThan(1_000);
+});
+
+test('per-call timeout overrides expectTimeout from locator options', async () => {
+  const driver = createMockDriver([node({ type: 'Button', label: 'Submit', isVisible: false })]);
+  const locator = Locator.root(driver, { expectTimeout: 5_000 }).getByLabel('Submit');
+
+  const start = Date.now();
+  await expect(mwExpect(locator).toBeVisible({ timeout: 100 })).rejects.toThrow();
+  const elapsed = Date.now() - start;
+
+  expect(elapsed).toBeLessThan(1_000);
+});

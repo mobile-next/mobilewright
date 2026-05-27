@@ -1,6 +1,33 @@
 import { randomUUID } from 'node:crypto';
 import createDebug from 'debug';
-import type { GitInfo } from './git-info.js';
+
+export interface GitInfo {
+  repoUrl?: string;
+  branch?: string;
+  commitSha?: string;
+  authorName?: string;
+  commitMessage?: string;
+}
+
+export function extractGitInfoFromReport(report: Record<string, unknown>): GitInfo | undefined {
+  const config = report['config'] as Record<string, unknown> | undefined;
+  const metadata = config?.['metadata'] as Record<string, unknown> | undefined;
+  const gitCommit = metadata?.['gitCommit'] as Record<string, unknown> | undefined;
+  if (!gitCommit) {
+    return undefined;
+  }
+
+  const author = gitCommit['author'] as Record<string, unknown> | undefined;
+  const result: GitInfo = {
+    commitSha: gitCommit['hash'] as string | undefined,
+    commitMessage: gitCommit['subject'] as string | undefined,
+    authorName: author?.['name'] as string | undefined,
+    branch: gitCommit['branch'] as string | undefined,
+  };
+
+  const hasAnyField = Object.values(result).some(v => v !== undefined);
+  return hasAnyField ? result : undefined;
+}
 
 const debug = createDebug('mw:reporter:upload');
 
@@ -15,6 +42,8 @@ export interface UploadTestResultParams {
   name?: string;
   tags?: string[];
   environment?: string;
+  /** Timeout for the entire upload operation in ms. */
+  timeout?: number;
   _fetchFn?: typeof fetch;
 }
 
@@ -33,6 +62,15 @@ interface AssetResponse {
   createdAt: string;
 }
 
+interface PlaywrightStats {
+  startTime: string;
+  duration: number;
+  expected: number;
+  skipped: number;
+  unexpected: number;
+  flaky: number;
+}
+
 const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -44,7 +82,7 @@ function extensionForContentType(contentType: string): string {
   return CONTENT_TYPE_EXTENSIONS[contentType] ?? 'bin';
 }
 
-function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: typeof fetch) {
+function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: typeof fetch, signal?: AbortSignal) {
   async function uploadAndReplace(obj: unknown): Promise<void> {
     if (!obj || typeof obj !== 'object') { return; }
     if (Array.isArray(obj)) {
@@ -72,6 +110,7 @@ function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: t
             method: 'POST',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             body: form,
+            ...(signal && { signal }),
           });
 
           if (!res.ok) {
@@ -94,7 +133,10 @@ function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: t
 
 export async function uploadTestResult(params: UploadTestResultParams): Promise<{ url: string }> {
   const fetchFn = params._fetchFn ?? fetch;
+  const signal = params.timeout ? AbortSignal.timeout(params.timeout) : undefined;
   const hasGitInfo = params.gitInfo !== undefined && Object.values(params.gitInfo).some(v => v !== undefined);
+
+  const stats = params.report['stats'] as PlaywrightStats | undefined;
 
   debug('creating test result name=%s userAgent=%s', params.name ?? 'Test Run', params.userAgent);
   const createRes = await fetchFn(`${BASE_URL}/api/v1/test-results`, {
@@ -107,7 +149,11 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
       name: params.name ?? 'Test Run',
       userAgent: params.userAgent,
       ...(hasGitInfo ? { git: params.gitInfo } : {}),
+      ...(params.tags?.length ? { tags: params.tags } : {}),
+      ...(params.environment ? { environment: params.environment } : {}),
+      ...(stats !== undefined ? { stats } : {}),
     }),
+    ...(signal && { signal }),
   });
 
   if (!createRes.ok) {
@@ -119,7 +165,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
 
   // Deep-clone so attachment body replacement does not mutate the caller's object
   const report = JSON.parse(JSON.stringify(params.report)) as Record<string, unknown>;
-  const uploadAndReplace = makeAttachmentUploader(testResult.id, params.apiKey, fetchFn);
+  const uploadAndReplace = makeAttachmentUploader(testResult.id, params.apiKey, fetchFn, signal);
   await uploadAndReplace(report);
 
   const modifiedJson = JSON.stringify(report);
@@ -139,6 +185,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
     method: 'POST',
     headers: { 'Authorization': `Bearer ${params.apiKey}` },
     body: form,
+    ...(signal && { signal }),
   }).finally(() => clearInterval(progressTimer));
 
   if (!uploadRes.ok) {
