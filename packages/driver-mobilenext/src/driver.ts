@@ -92,6 +92,8 @@ interface MobileNextDevicesResponse {
 export interface MobileNextDriverOptions {
   region?: string;
   apiKey?: string;
+  /** Timeout waiting for cloud device allocation in ms. Default: 300000 (5 min). */
+  allocationTimeout?: number;
 }
 
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
@@ -261,7 +263,7 @@ export class MobileNextDriver implements MobilewrightDriver {
     let type: DeviceType | undefined;
     if (result?.state === 'allocating' && result.sessionId) {
       debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
-      const device = await this.waitForAllocation(rpc, result.sessionId, config.timeout);
+      const device = await this.waitForAllocation(rpc, result.sessionId);
       debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
       deviceId = device.id;
       model = device.model;
@@ -284,8 +286,8 @@ export class MobileNextDriver implements MobilewrightDriver {
   private async waitForAllocation(
     rpc: RpcClient,
     sessionId: string,
-    timeout = 300_000,
   ): Promise<DevicesListDevice> {
+    const timeout = this.options.allocationTimeout ?? 300_000;
     const pollInterval = 5_000;
     const deadline = Date.now() + timeout;
 
