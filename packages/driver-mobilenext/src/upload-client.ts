@@ -114,7 +114,9 @@ function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: t
           });
 
           if (!res.ok) {
-            throw new Error(`Failed to upload attachment "${att['name'] as string}": ${res.status}`);
+            const body = await res.text().catch(() => '');
+            debug('upload attachment failed status=%d body=%s', res.status, body);
+            throw new Error(`Failed to upload attachment "${att['name'] as string}": ${res.status}${body ? ` — ${body}` : ''}`);
           }
 
           const asset = await res.json() as AssetResponse;
@@ -157,7 +159,9 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   });
 
   if (!createRes.ok) {
-    throw new Error(`Failed to create test result: ${createRes.status}`);
+    const body = await createRes.text().catch(() => '');
+    debug('create test result failed status=%d body=%s', createRes.status, body);
+    throw new Error(`Failed to create test result: ${createRes.status}${body ? ` — ${body}` : ''}`);
   }
 
   const testResult = await createRes.json() as TestResultResponse;
@@ -189,7 +193,9 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
   }).finally(() => clearInterval(progressTimer));
 
   if (!uploadRes.ok) {
-    throw new Error(`Failed to upload report.json: ${uploadRes.status}`);
+    const body = await uploadRes.text().catch(() => '');
+    debug('upload report.json failed status=%d body=%s', uploadRes.status, body);
+    throw new Error(`Failed to upload report.json: ${uploadRes.status}${body ? ` — ${body}` : ''}`);
   }
 
   debug('upload complete url=%s', `${DASHBOARD_BASE_URL}/dashboard/test-results/${testResult.id}`);
