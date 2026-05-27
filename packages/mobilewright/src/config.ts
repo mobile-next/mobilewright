@@ -18,6 +18,17 @@ export interface MobilewrightUseOptions {
   bundleId?: string;
   /** App paths (APK/IPA) to install for this project. Overrides top-level installApps. */
   installApps?: string | string[];
+  /** Default timeout for locator actions (tap, fill, etc.) in ms. Default: 5000. */
+  actionTimeout?: number;
+  /** Timeout waiting for the app to reach foreground after launch, in ms. Default: 20000. */
+  appLaunchTimeout?: number;
+  /** Timeout for app installation (installApps) in ms. Default: none. */
+  installTimeout?: number;
+}
+
+export interface MobilewrightExpectConfig {
+  /** Default timeout for assertions (toBeVisible, toHaveText, etc.) in ms. Default: 5000. */
+  timeout?: number;
 }
 
 export interface MobilewrightProjectConfig {
@@ -63,6 +74,10 @@ export interface DriverConfigMobileNext {
   region?: string;
   apiKey?: string;
   testResult?: MobileNextTestResultConfig;
+  /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 300000 (5 min). */
+  allocationTimeout?: number;
+  /** Timeout for uploading test results to mobilenext.ai, in ms. Default: none. */
+  uploadTimeout?: number;
 }
 
 export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext;
@@ -101,10 +116,14 @@ export interface MobilewrightConfig {
   testIgnore?: string | RegExp | Array<string | RegExp>;
   /** Output directory for test artifacts. Default: test-results. */
   outputDir?: string;
-  /** Global timeout for tests (ms). */
+  /** Per-test timeout in ms. */
   timeout?: number;
-  /** Global timeout for locators (ms). */
-  actionTimeout?: number;
+  /** Hard cap on the entire test suite run in ms. */
+  globalTimeout?: number;
+  /** Per-action defaults (timeouts, etc.) applied to all tests. */
+  use?: MobilewrightUseOptions;
+  /** Default options for expect() assertions. */
+  expect?: MobilewrightExpectConfig;
   /** Maximum retry count for flaky tests. */
   retries?: number;
   /** Number of concurrent workers. */
@@ -169,6 +188,7 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
         apiKey: mobileNextDriver.apiKey ?? '',
         jsonResultsPath,
         testResult: mobileNextDriver.testResult,
+        uploadTimeout: mobileNextDriver.uploadTimeout,
       }],
     ],
   };

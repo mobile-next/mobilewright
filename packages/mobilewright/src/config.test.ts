@@ -146,6 +146,68 @@ test('defineConfig normalizes string reporter to array form before injecting', (
   expect(names.some((n) => String(n).includes('mobilenext-upload'))).toBe(true);
 });
 
+test('defineConfig preserves use.actionTimeout', () => {
+  const config = defineConfig({ use: { actionTimeout: 10_000 } });
+  expect(config.use?.actionTimeout).toBe(10_000);
+});
+
+test('defineConfig preserves use.appLaunchTimeout', () => {
+  const config = defineConfig({ use: { appLaunchTimeout: 45_000 } });
+  expect(config.use?.appLaunchTimeout).toBe(45_000);
+});
+
+test('defineConfig preserves use.installTimeout', () => {
+  const config = defineConfig({ use: { installTimeout: 60_000 } });
+  expect(config.use?.installTimeout).toBe(60_000);
+});
+
+test('defineConfig preserves expect.timeout', () => {
+  const config = defineConfig({ expect: { timeout: 8_000 } });
+  expect(config.expect?.timeout).toBe(8_000);
+});
+
+test('defineConfig preserves globalTimeout', () => {
+  const config = defineConfig({ globalTimeout: 3_600_000 });
+  expect(config.globalTimeout).toBe(3_600_000);
+});
+
+test('defineConfig preserves driver.mobilenext.allocationTimeout', () => {
+  const config = defineConfig({
+    driver: { type: 'mobilenext', apiKey: 'key', allocationTimeout: 900_000 },
+  });
+  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
+  expect(driver.allocationTimeout).toBe(900_000);
+});
+
+test('defineConfig preserves driver.mobilenext.uploadTimeout', () => {
+  const config = defineConfig({
+    driver: {
+      type: 'mobilenext',
+      apiKey: 'key',
+      testResult: { uploadReport: 'on' },
+      uploadTimeout: 120_000,
+    },
+  });
+  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
+  expect(driver.uploadTimeout).toBe(120_000);
+});
+
+test('defineConfig passes uploadTimeout to upload reporter options', () => {
+  const config = defineConfig({
+    driver: {
+      type: 'mobilenext',
+      apiKey: 'key',
+      testResult: { uploadReport: 'on' },
+      uploadTimeout: 90_000,
+    },
+  });
+  const reporters = config.reporter as Array<[string, unknown]>;
+  const uploadEntry = reporters.find(([path]) => String(path).includes('mobilenext-upload'));
+  expect(uploadEntry).toBeDefined();
+  const opts = uploadEntry![1] as { uploadTimeout: number };
+  expect(opts.uploadTimeout).toBe(90_000);
+});
+
 test('defineConfig accepts mobilenext driver with testResult config', () => {
   const config = defineConfig({
     driver: {
