@@ -19,6 +19,20 @@ const LAUNCH_APP_TIMEOUT = 20_000;
 
 export interface DeviceOptions {
   locatorDefaults?: LocatorOptions;
+  /** Timeout waiting for app to reach foreground after launch, in ms. Default: 20000. */
+  appLaunchTimeout?: number;
+  /** Timeout for app installation in ms. Default: none (no limit). */
+  installTimeout?: number;
+}
+
+function raceWithTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 export class Device {
@@ -87,12 +101,13 @@ export class Device {
     if (opts?.noWaitAfter) {
       return;
     }
+    const timeout = this.opts.appLaunchTimeout ?? LAUNCH_APP_TIMEOUT;
     debug('waiting for %s to reach foreground', bundleId);
     try {
       await retryUntil(
         () => this.getForegroundApp(),
         (app) => app.bundleId === bundleId,
-        LAUNCH_APP_TIMEOUT,
+        timeout,
         `launchApp: timed out waiting for "${bundleId}" to be in foreground`,
       );
       debug('%s is in foreground', bundleId);
@@ -122,7 +137,15 @@ export class Device {
   }
 
   async installApp(path: string): Promise<void> {
-    return this.driver.installApp(path);
+    const { installTimeout } = this.opts;
+    if (installTimeout === undefined) {
+      return this.driver.installApp(path);
+    }
+    return raceWithTimeout(
+      this.driver.installApp(path),
+      installTimeout,
+      `installApp timed out after ${installTimeout}ms`,
+    );
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
