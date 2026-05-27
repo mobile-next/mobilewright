@@ -12,6 +12,7 @@ interface MobileNextUploadReporterOptions {
   apiKey: string;
   jsonResultsPath: string;
   testResult: MobileNextTestResultConfig;
+  uploadTimeout?: number;
   _uploadFn?: UploadFn;
 }
 
@@ -63,6 +64,7 @@ export default class MobileNextUploadReporter implements Reporter {
         name: this.options.testResult.name,
         tags: this.options.testResult.tags,
         environment: this.options.testResult.environment,
+        timeout: this.options.uploadTimeout,
       });
       console.log(`\n  Report uploaded: ${uploadResult.url}`);
     } catch (err) {

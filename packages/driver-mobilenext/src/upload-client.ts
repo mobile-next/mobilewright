@@ -15,6 +15,8 @@ export interface UploadTestResultParams {
   name?: string;
   tags?: string[];
   environment?: string;
+  /** Timeout for the entire upload operation in ms. */
+  timeout?: number;
   _fetchFn?: typeof fetch;
 }
 
@@ -44,7 +46,7 @@ function extensionForContentType(contentType: string): string {
   return CONTENT_TYPE_EXTENSIONS[contentType] ?? 'bin';
 }
 
-function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: typeof fetch) {
+function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: typeof fetch, signal?: AbortSignal) {
   async function uploadAndReplace(obj: unknown): Promise<void> {
     if (!obj || typeof obj !== 'object') { return; }
     if (Array.isArray(obj)) {
@@ -72,6 +74,7 @@ function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: t
             method: 'POST',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             body: form,
+            ...(signal && { signal }),
           });
 
           if (!res.ok) {
@@ -94,6 +97,7 @@ function makeAttachmentUploader(testResultId: string, apiKey: string, fetchFn: t
 
 export async function uploadTestResult(params: UploadTestResultParams): Promise<{ url: string }> {
   const fetchFn = params._fetchFn ?? fetch;
+  const signal = params.timeout ? AbortSignal.timeout(params.timeout) : undefined;
   const hasGitInfo = params.gitInfo !== undefined && Object.values(params.gitInfo).some(v => v !== undefined);
 
   debug('creating test result name=%s userAgent=%s', params.name ?? 'Test Run', params.userAgent);
@@ -108,6 +112,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
       userAgent: params.userAgent,
       ...(hasGitInfo ? { git: params.gitInfo } : {}),
     }),
+    ...(signal && { signal }),
   });
 
   if (!createRes.ok) {
@@ -119,7 +124,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
 
   // Deep-clone so attachment body replacement does not mutate the caller's object
   const report = JSON.parse(JSON.stringify(params.report)) as Record<string, unknown>;
-  const uploadAndReplace = makeAttachmentUploader(testResult.id, params.apiKey, fetchFn);
+  const uploadAndReplace = makeAttachmentUploader(testResult.id, params.apiKey, fetchFn, signal);
   await uploadAndReplace(report);
 
   const modifiedJson = JSON.stringify(report);
@@ -139,6 +144,7 @@ export async function uploadTestResult(params: UploadTestResultParams): Promise<
     method: 'POST',
     headers: { 'Authorization': `Bearer ${params.apiKey}` },
     body: form,
+    ...(signal && { signal }),
   }).finally(() => clearInterval(progressTimer));
 
   if (!uploadRes.ok) {

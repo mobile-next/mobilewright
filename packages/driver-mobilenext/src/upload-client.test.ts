@@ -287,3 +287,24 @@ test('leaves path-based attachments unchanged', async () => {
   // Only 1 asset call: just report.json (no upload for path-based attachments)
   expect(assetCallCount).toBe(1);
 });
+
+test('uploadTestResult rejects when timeout is exceeded', async () => {
+  const slowFetch: typeof fetch = (_url, init) => {
+    const signal = (init as RequestInit | undefined)?.signal as AbortSignal | undefined;
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(signal.reason); return; }
+      const timer = setTimeout(() => resolve(new Response('{}', { status: 200 })), 500);
+      signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal!.reason); });
+    });
+  };
+
+  await expect(
+    uploadTestResult({
+      apiKey: 'key',
+      report: {},
+      userAgent: 'test/1.0',
+      timeout: 50,
+      _fetchFn: slowFetch,
+    }),
+  ).rejects.toThrow();
+});
