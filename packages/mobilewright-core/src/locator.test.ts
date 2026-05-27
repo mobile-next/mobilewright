@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import sharp from 'sharp';
 import type {
   MobilewrightDriver,
   ViewNode,
@@ -397,6 +398,241 @@ test.describe('Locator', () => {
 
       await locator.tap();
       expect(driver._tracker.tapCalls).toEqual([[195, 66]]);
+    });
+  });
+
+  test.describe('doubleTap', () => {
+    test('double-taps at the center of the matched element', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.doubleTap();
+
+      expect(driver._tracker.doubleTapCalls).toEqual([[120, 125]]);
+    });
+
+    test('throws LocatorError when element not found', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Nonexistent' }, { timeout: 100 });
+
+      await expect(locator.doubleTap()).rejects.toThrow(LocatorError);
+    });
+  });
+
+  test.describe('longPress', () => {
+    test('long-presses at the center of the matched element', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.longPress();
+
+      expect(driver._tracker.longPressCalls).toEqual([[120, 125, undefined]]);
+    });
+
+    test('passes duration through to the driver', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.longPress({ duration: 1500 });
+
+      expect(driver._tracker.longPressCalls).toEqual([[120, 125, 1500]]);
+    });
+  });
+
+  test.describe('exists', () => {
+    test('returns true when the element is present', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      expect(await locator.exists()).toBe(true);
+    });
+
+    test('returns false when the element is absent', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Nonexistent' });
+
+      expect(await locator.exists()).toBe(false);
+    });
+  });
+
+  test.describe('boolean state queries', () => {
+    test('isEnabled returns true for an enabled element', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      expect(await locator.isEnabled()).toBe(true);
+    });
+
+    test('isEnabled returns false for a disabled element', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Cancel' });
+
+      expect(await locator.isEnabled()).toBe(false);
+    });
+
+    test('isSelected returns true when the node has isSelected set', async () => {
+      const tree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Tab', label: 'Home', isSelected: true })] })];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Home' });
+
+      expect(await locator.isSelected()).toBe(true);
+    });
+
+    test('isSelected returns false when isSelected is not set', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      expect(await locator.isSelected()).toBe(false);
+    });
+
+    test('isFocused returns true when the node has isFocused set', async () => {
+      const tree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'TextField', label: 'Search', isFocused: true })] })];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Search' });
+
+      expect(await locator.isFocused()).toBe(true);
+    });
+
+    test('isChecked returns true when the node has isChecked set', async () => {
+      const tree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Checkbox', label: 'Agree', isChecked: true })] })];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Agree' });
+
+      expect(await locator.isChecked()).toBe(true);
+    });
+
+    test('isChecked returns false when isChecked is not set', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      expect(await locator.isChecked()).toBe(false);
+    });
+  });
+
+  test.describe('boundingBox', () => {
+    test('returns the x, y, width, height of the visible element', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      const box = await locator.boundingBox();
+
+      expect(box).toEqual({ x: 20, y: 100, width: 200, height: 50 });
+    });
+  });
+
+  test.describe('getValue', () => {
+    test('returns the value property of the element when present', async () => {
+      const tree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Slider', label: 'Volume', value: '75%' })] })];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Volume' });
+
+      expect(await locator.getValue()).toBe('75%');
+    });
+
+    test('returns an empty string when value is not set', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      expect(await locator.getValue()).toBe('');
+    });
+  });
+
+  test.describe('waitFor enabled and disabled states', () => {
+    test('resolves immediately when element is already enabled', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.waitFor({ state: 'enabled' });
+    });
+
+    test('resolves immediately when element is already disabled', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Cancel' });
+
+      await locator.waitFor({ state: 'disabled' });
+    });
+  });
+
+  test.describe('scrollIntoViewIfNeeded', () => {
+    test('returns immediately without swiping when element is already in the viewport', async () => {
+      const driver = createMockDriver(hierarchy);
+      // Submit button at x:20 y:100 w:200 h:50 — fully inside the 390×844 screen
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+
+      await locator.scrollIntoViewIfNeeded();
+
+      expect(driver._tracker.swipeCalls).toHaveLength(0);
+    });
+
+    test('swipes up when the element is below the visible viewport', async () => {
+      const belowBounds = { x: 0, y: 900, width: 390, height: 44 };
+      const inViewBounds = { x: 0, y: 400, width: 390, height: 44 };
+      const belowTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: belowBounds })] })];
+      const inViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: inViewBounds })] })];
+
+      const driver = createMockDriver(belowTree);
+      let callCount = 0;
+      driver.getViewHierarchy = async () => {
+        callCount++;
+        return callCount >= 2 ? inViewTree : belowTree;
+      };
+
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+      await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
+
+      // centerY of belowBounds = 900 + 22 = 922 > 844, so swipeDirectionToReveal returns 'up'
+      expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
+    });
+
+    test('swipes down when the element is above the visible viewport', async () => {
+      const aboveBounds = { x: 0, y: -200, width: 390, height: 44 };
+      const inViewBounds = { x: 0, y: 400, width: 390, height: 44 };
+      const aboveTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: aboveBounds })] })];
+      const inViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: inViewBounds })] })];
+
+      const driver = createMockDriver(aboveTree);
+      let callCount = 0;
+      driver.getViewHierarchy = async () => {
+        callCount++;
+        return callCount >= 2 ? inViewTree : aboveTree;
+      };
+
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+      await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
+
+      // centerY of aboveBounds = -200 + 22 = -178, not > 844, so swipeDirectionToReveal returns 'down'
+      expect(driver._tracker.swipeCalls[0]).toEqual(['down']);
+    });
+
+    test('throws LocatorError when element never enters the viewport within maxSwipes', async () => {
+      const outOfViewBounds = { x: 0, y: 900, width: 390, height: 44 };
+      const outOfViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: outOfViewBounds })] })];
+
+      const driver = createMockDriver(outOfViewTree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+
+      await expect(locator.scrollIntoViewIfNeeded({ maxSwipes: 1 })).rejects.toThrow(LocatorError);
+    });
+  });
+
+  test.describe('screenshot', () => {
+    test('returns a buffer cropped to the element bounds', async () => {
+      const screenWidth = 390;
+      const screenHeight = 844;
+      const fullImage = await sharp({
+        create: { width: screenWidth, height: screenHeight, channels: 3, background: { r: 100, g: 150, b: 200 } },
+      }).png().toBuffer();
+
+      const driver = createMockDriver(hierarchy);
+      driver.screenshot = async () => fullImage;
+
+      // Submit button: x:20, y:100, width:200, height:50
+      const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
+      const cropped = await locator.screenshot();
+
+      const meta = await sharp(cropped).metadata();
+      expect(meta.width).toBe(200);
+      expect(meta.height).toBe(50);
     });
   });
 });
