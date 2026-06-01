@@ -300,6 +300,8 @@ All options:
 | `deviceId` | `string` | Explicit device UDID (optional) |
 | `deviceName` | `RegExp` | RegExp to match device name (optional) |
 | `timeout` | `number` | Global locator timeout in ms (optional) |
+| `screenshot` | `'on' \| 'on-failure' \| 'off'` | Attach screenshots to the report (`'on-failure'` by default) |
+| `viewTree` | `'on' \| 'on-failure' \| 'off'` | Attach accessibility tree JSON to the report (`'off'` by default) |
 | `testDir` | `string` | Directory to search for test files (optional) |
 | `testMatch` | `string \| RegExp \| Array` | Glob patterns for test files (optional) |
 | `reporter` | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional) |
@@ -333,7 +335,7 @@ test('can sign in', async ({ device, screen, bundleId }) => {
 });
 ```
 
-The `device` fixture connects once per worker (reading from `mobilewright.config.ts`) and calls `device.close()` after all tests complete. The `screen` fixture provides `device.screen` to each test, with automatic screenshot-on-failure and optional video recording.
+The `device` fixture connects once per worker (reading from `mobilewright.config.ts`) and calls `device.close()` after all tests complete. The `screen` fixture provides `device.screen` to each test, with configurable screenshot and view-tree attachments plus optional video recording.
 
 ## CLI
 
