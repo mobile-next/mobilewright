@@ -29,7 +29,7 @@ jobs:
       - run: npm publish --access public --provenance
         working-directory: packages/driver-mobilecli
       - run: npm publish --access public --provenance
-        working-directory: packages/driver-mobile-use
+        working-directory: packages/driver-mobilenext
       - run: cp ../../README.md .
         working-directory: packages/mobilewright
       - run: npm publish --access public --provenance
@@ -38,10 +38,14 @@ jobs:
         working-directory: packages/test
       - run: npm publish --access public --provenance
         working-directory: packages/test
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/p; /^## \[/!p; }" CHANGELOG.md > release-notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+          if gh release view "$GITHUB_REF_NAME" &>/dev/null; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

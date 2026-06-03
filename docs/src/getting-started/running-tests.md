@@ -91,6 +91,7 @@ export default defineConfig({
   workers: 2,
   fullyParallel: true,
   reporter: 'html',
+  viewTree: 'on-failure', // attach the accessibility tree to the report on test failure
 });
 ```
 

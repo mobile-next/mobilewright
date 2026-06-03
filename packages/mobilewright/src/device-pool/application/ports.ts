@@ -1,4 +1,4 @@
-import type { Platform } from '@mobilewright/protocol';
+import type { DeviceType, Platform } from '@mobilewright/protocol';
 
 /**
  * Thrown by a DeviceAllocator when no device is currently available but one
@@ -23,6 +23,10 @@ export interface AllocationCriteria {
 export interface AllocateResult {
   deviceId: string;
   platform: Platform;
+  driver?: string;
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
 }
 
 /**
@@ -44,6 +48,10 @@ export interface AllocationHandle {
   allocationId: string;
   deviceId: string;
   platform: Platform;
+  driver?: string;
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
 }
 
 /**

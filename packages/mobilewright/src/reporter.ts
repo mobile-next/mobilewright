@@ -35,7 +35,7 @@ export function brandReport(reportPath: string): void {
   // 1. Replace title
   html = html.replace(
     '<title>Playwright Test Report</title>',
-    `<title>Mobilewright Test Report</title>`,
+    '<title>Mobilewright Test Report</title>',
   );
 
   // 2. Replace the JS-side document.title fallback

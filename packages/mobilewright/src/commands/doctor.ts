@@ -19,7 +19,7 @@
 
 import { spawnSync, SpawnSyncOptions } from 'node:child_process';
 import { accessSync, constants, readdirSync } from 'node:fs';
-import { arch, homedir, release } from 'node:os';
+import { arch, release } from 'node:os';
 import { join } from 'node:path';
 import { resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 
@@ -529,13 +529,6 @@ function checkJavaHome(): CheckResult {
 function checkAndroidHome(): CheckResult {
   const androidHome = process.env['ANDROID_HOME'] ?? process.env['ANDROID_SDK_ROOT'];
 
-  // Default SDK locations per platform
-  const defaultPath = isMac()
-    ? join(homedir(), 'Library', 'Android', 'sdk')
-    : isWin()
-      ? join(process.env['LOCALAPPDATA'] ?? join(homedir(), 'AppData', 'Local'), 'Android', 'Sdk')
-      : join(homedir(), 'Android', 'Sdk');
-
   if (!androidHome) {
     return check('android_home', 'ANDROID_HOME', 'android', 'error', {
       details: 'ANDROID_HOME is not set. Install Android Studio and configure it.',
@@ -552,9 +545,9 @@ function checkAndroidHome(): CheckResult {
           '# Or: choco install androidstudio',
           '# Open Android Studio and complete the setup wizard (downloads the SDK)',
           '# Then set ANDROID_HOME in System Environment Variables (admin PowerShell):',
-          `[System.Environment]::SetEnvironmentVariable("ANDROID_HOME", "$env:LOCALAPPDATA\\Android\\Sdk", "Machine")`,
-          `$path = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")`,
-          `[System.Environment]::SetEnvironmentVariable("PATH", "$path;$env:LOCALAPPDATA\\Android\\Sdk\\platform-tools;$env:LOCALAPPDATA\\Android\\Sdk\\emulator", "Machine")`,
+          '[System.Environment]::SetEnvironmentVariable("ANDROID_HOME", "$env:LOCALAPPDATA\\Android\\Sdk", "Machine")',
+          '$path = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")',
+          '[System.Environment]::SetEnvironmentVariable("PATH", "$path;$env:LOCALAPPDATA\\Android\\Sdk\\platform-tools;$env:LOCALAPPDATA\\Android\\Sdk\\emulator", "Machine")',
         ],
     });
   }
@@ -809,8 +802,8 @@ function checkWindowsDefenderExclusion(): CheckResult | null {
       details: 'Could not read Defender exclusions. Adding the Android SDK improves build performance.',
       fix: [
         '# Run in admin PowerShell:',
-        `Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\\Android\\Sdk"`,
-        `Add-MpPreference -ExclusionPath "$env:USERPROFILE\\.gradle"`,
+        'Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\\Android\\Sdk"',
+        'Add-MpPreference -ExclusionPath "$env:USERPROFILE\\.gradle"',
       ],
     });
   }
@@ -828,7 +821,7 @@ function checkWindowsDefenderExclusion(): CheckResult | null {
       ? [
         '# Run in admin PowerShell:',
         `Add-MpPreference -ExclusionPath "${androidHome}"`,
-        `Add-MpPreference -ExclusionPath "$env:USERPROFILE\\.gradle"`,
+        'Add-MpPreference -ExclusionPath "$env:USERPROFILE\\.gradle"',
       ]
       : null,
   });

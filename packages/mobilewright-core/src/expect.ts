@@ -1,8 +1,9 @@
-import type { Locator } from './locator.js';
+import type { Locator, StepFn } from './locator.js';
+import { LocatorError } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { retryUntil } from './poll.js';
-import { filterStack } from './stackTrace.js';
+import { filterStack, captureLocation } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -42,6 +43,8 @@ interface LocatorLike {
   getText(opts?: { timeout?: number }): Promise<string>;
   getValue(opts?: { timeout?: number }): Promise<string>;
   count(): Promise<number>;
+  expectTimeout?: number;
+  _stepFn?: StepFn | null;
 }
 
 class LocatorAssertions {
@@ -54,80 +57,161 @@ class LocatorAssertions {
     return new (this.constructor as any)(this.locator, !this.negated) as this;
   }
 
+  private assertionTimeout(opts?: ExpectOptions): number {
+    return opts?.timeout ?? this.locator.expectTimeout ?? DEFAULT_TIMEOUT;
+  }
+
+  protected _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
+    const stepFn = this.locator._stepFn;
+    const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
+    if (stepFn) {
+      const location = captureLocation();
+      return stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
+    }
+    return fn();
+  }
+
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('visible', () => this.locator.isVisible({ timeout: 0 }), opts);
+    return this._wrapAssertion('toBeVisible', async () => {
+      await this.assertBoolean('visible', () => this.locator.isVisible({ timeout: 0 }), opts);
+    });
   }
 
   async toBeHidden(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('hidden', async () => {
-      const visible = await this.locator.isVisible({ timeout: 0 });
-      return !visible;
-    }, opts);
+    return this._wrapAssertion('toBeHidden', async () => {
+      await this.assertBoolean('hidden', async () => {
+        const visible = await this.locator.isVisible({ timeout: 0 });
+        return !visible;
+      }, opts);
+    });
   }
 
   async toBeEnabled(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('enabled', () => this.locator.isEnabled({ timeout: 0 }), opts);
+    return this._wrapAssertion('toBeEnabled', async () => {
+      await this.assertBoolean('enabled', () => this.locator.isEnabled({ timeout: 0 }), opts);
+    });
   }
 
   async toBeDisabled(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('disabled', async () => {
-      const enabled = await this.locator.isEnabled({ timeout: 0 });
-      return !enabled;
-    }, opts);
+    return this._wrapAssertion('toBeDisabled', async () => {
+      await this.assertBoolean('disabled', async () => {
+        const enabled = await this.locator.isEnabled({ timeout: 0 });
+        return !enabled;
+      }, opts);
+    });
   }
 
   async toBeSelected(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('selected', () => this.locator.isSelected!({ timeout: 0 }), opts);
+    return this._wrapAssertion('toBeSelected', async () => {
+      await this.assertBoolean('selected', () => this.locator.isSelected!({ timeout: 0 }), opts);
+    });
   }
 
   async toBeFocused(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('focused', () => this.locator.isFocused!({ timeout: 0 }), opts);
+    return this._wrapAssertion('toBeFocused', async () => {
+      await this.assertBoolean('focused', () => this.locator.isFocused!({ timeout: 0 }), opts);
+    });
   }
 
   async toBeChecked(opts?: ExpectOptions): Promise<void> {
-    await this.assertBoolean('checked', () => this.locator.isChecked({ timeout: 0 }), opts);
+    return this._wrapAssertion('toBeChecked', async () => {
+      await this.assertBoolean('checked', () => this.locator.isChecked({ timeout: 0 }), opts);
+    });
   }
 
   async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    await this.assertText(
-      (text) => expected instanceof RegExp ? expected.test(text) : text === expected,
-      expected, opts,
-    );
+    return this._wrapAssertion('toHaveText', async () => {
+      await this.assertText(
+        (text) => expected instanceof RegExp ? expected.test(text) : text === expected,
+        expected, opts,
+      );
+    });
   }
 
   async toContainText(expected: string, opts?: ExpectOptions): Promise<void> {
-    await this.assertText(
-      (text) => text.includes(expected),
-      expected, opts,
-    );
-  }
-
-  async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    let lastValue = '';
-    await this.retryAssertion(
-      async () => {
-        try { lastValue = await this.locator.getValue({ timeout: 0 }); } catch { lastValue = ''; }
-        return lastValue;
-      },
-      (value) => {
-        const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
-        return this.negated ? !matches : matches;
-      },
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      () => this.negated
-        ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
-        : `Expected element to have value "${expected}", but got "${lastValue}"`,
-    );
+    return this._wrapAssertion('toContainText', async () => {
+      await this.assertText(
+        (text) => text.includes(expected),
+        expected, opts,
+      );
+    });
   }
 
   async toHaveCount(expected: number, opts?: ExpectOptions): Promise<void> {
-    let last = 0;
-    await this.retryAssertion(
-      async () => { try { last = await this.locator.count(); } catch { last = 0; } return last; },
-      (n) => this.negated ? n !== expected : n === expected,
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      () => `Expected ${expected} element(s), but found ${last}`,
-    );
+    return this._wrapAssertion('toHaveCount', async () => {
+      let lastCount = 0;
+      await this.retryAssertion(
+        async () => { lastCount = await this.locator.count(); return lastCount; },
+        (count) => {
+          const matches = count === expected;
+          return this.negated ? !matches : matches;
+        },
+        this.assertionTimeout(opts),
+        () => this.negated
+          ? `Expected element count NOT to be ${expected}, but got ${lastCount}`
+          : `Expected element count to be ${expected}, but got ${lastCount}`,
+      );
+    });
+  }
+
+  async toBeEmpty(opts?: ExpectOptions): Promise<void> {
+    return this._wrapAssertion('toBeEmpty', async () => {
+      let lastValue = '';
+      await this.retryAssertion(
+        async (): Promise<string | null> => {
+          try {
+            lastValue = await this.locator.getValue({ timeout: 0 });
+            return lastValue;
+          } catch (e) {
+            if (!(e instanceof LocatorError)) {
+              throw e;
+            }
+            return null;
+          }
+        },
+        (value) => {
+          if (value === null) {
+            return false;
+          }
+          const isEmpty = value === '';
+          return this.negated ? !isEmpty : isEmpty;
+        },
+        this.assertionTimeout(opts),
+        () => this.negated
+          ? 'Expected element NOT to be empty, but it was'
+          : `Expected element to be empty, but got "${lastValue}"`,
+      );
+    });
+  }
+
+  async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this._wrapAssertion('toHaveValue', async () => {
+      let lastValue = '';
+      await this.retryAssertion(
+        async (): Promise<string | null> => {
+          try {
+            lastValue = await this.locator.getValue({ timeout: 0 });
+            return lastValue;
+          } catch (e) {
+            if (!(e instanceof LocatorError)) {
+              throw e;
+            }
+            return null;
+          }
+        },
+        (value) => {
+          if (value === null) {
+            return false;
+          }
+          const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
+          return this.negated ? !matches : matches;
+        },
+        this.assertionTimeout(opts),
+        () => this.negated
+          ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
+          : `Expected element to have value "${expected}", but got "${lastValue}"`,
+      );
+    });
   }
 
   protected async assertBoolean(
@@ -138,7 +222,7 @@ class LocatorAssertions {
     await this.retryAssertion(
       poll,
       (result) => (this.negated ? !result : result),
-      opts?.timeout ?? DEFAULT_TIMEOUT,
+      this.assertionTimeout(opts),
       this.negated
         ? `Expected element to NOT be ${name}, but it was`
         : `Expected element to be ${name}, but it was not`,
@@ -152,15 +236,25 @@ class LocatorAssertions {
   ): Promise<void> {
     let lastText = '';
     await this.retryAssertion(
-      async () => {
-        try { lastText = await this.locator.getText({ timeout: 0 }); } catch { lastText = ''; }
-        return lastText;
+      async (): Promise<string | null> => {
+        try {
+          lastText = await this.locator.getText({ timeout: 0 });
+          return lastText;
+        } catch (e) {
+          if (!(e instanceof LocatorError)) {
+            throw e;
+          }
+          return null;
+        }
       },
       (text) => {
+        if (text === null) {
+          return false;
+        }
         const matches = predicate(text);
         return this.negated ? !matches : matches;
       },
-      opts?.timeout ?? DEFAULT_TIMEOUT,
+      this.assertionTimeout(opts),
       () => this.negated
         ? `Expected element NOT to have text "${expected}", but got "${lastText}"`
         : `Expected element to have text "${expected}", but got "${lastText}"`,
@@ -251,7 +345,7 @@ class ValueAssertions<T> {
   }
 
   toBeDefined(): void {
-    this.assert(this.actual !== undefined, `Expected defined, but received undefined`);
+    this.assert(this.actual !== undefined, 'Expected defined, but received undefined');
   }
 
   toBeGreaterThanOrEqual(expected: number): void {
@@ -311,7 +405,7 @@ class ValueAssertions<T> {
       error = e;
     }
     if (expected === undefined) {
-      this.assert(threw, `Expected function to throw`);
+      this.assert(threw, 'Expected function to throw');
     } else {
       const message = threw && error instanceof Error ? error.message : String(error);
       const matches = typeof expected === 'string' ? message.includes(expected) : expected.test(message);
@@ -339,24 +433,38 @@ class PageAssertions {
     return new PageAssertions(this.page, !this.negated);
   }
 
+  private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
+    const stepFn = this.page._stepFn;
+    const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
+    if (stepFn) {
+      const location = captureLocation();
+      return stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
+    }
+    return fn();
+  }
+
   async toHaveURL(url: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    let last = '';
-    await this.retryAssertion(
-      async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
-      (current) => url instanceof RegExp ? url.test(current) : current === url,
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
-    );
+    return this._wrapAssertion('toHaveURL', async () => {
+      let last = '';
+      await this.retryAssertion(
+        async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
+        (current) => url instanceof RegExp ? url.test(current) : current === url,
+        opts?.timeout ?? DEFAULT_TIMEOUT,
+        () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
+      );
+    });
   }
 
   async toHaveTitle(title: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    let last = '';
-    await this.retryAssertion(
-      async () => { try { last = await this.page.title(); } catch { last = ''; } return last; },
-      (current) => title instanceof RegExp ? title.test(current) : current === title,
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      () => `Expected page title to ${this.negated ? 'not ' : ''}match "${title}", but got "${last}"`,
-    );
+    return this._wrapAssertion('toHaveTitle', async () => {
+      let last = '';
+      await this.retryAssertion(
+        async () => { try { last = await this.page.title(); } catch { last = ''; } return last; },
+        (current) => title instanceof RegExp ? title.test(current) : current === title,
+        opts?.timeout ?? DEFAULT_TIMEOUT,
+        () => `Expected page title to ${this.negated ? 'not ' : ''}match "${title}", but got "${last}"`,
+      );
+    });
   }
 
   private async retryAssertion<T>(
@@ -383,19 +491,21 @@ class WebLocatorAssertions extends LocatorAssertions {
   }
 
   async toHaveAttribute(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    let last: string | null = null;
-    await this.retryAssertion(
-      async () => {
-        try { last = await this.webLocator.getAttribute(name, { timeout: 0 }); } catch { last = null; }
-        return last;
-      },
-      (value) => {
-        if (value === null) { return false; }
-        return expected instanceof RegExp ? expected.test(value) : value === expected;
-      },
-      opts?.timeout ?? DEFAULT_TIMEOUT,
-      () => `Expected element to ${this.negated ? 'not ' : ''}have attribute "${name}" = "${expected}", but got "${last}"`,
-    );
+    return this._wrapAssertion('toHaveAttribute', async () => {
+      let last: string | null = null;
+      await this.retryAssertion(
+        async () => {
+          try { last = await this.webLocator.getAttribute(name, { timeout: 0 }); } catch { last = null; }
+          return last;
+        },
+        (value) => {
+          if (value === null) { return false; }
+          return expected instanceof RegExp ? expected.test(value) : value === expected;
+        },
+        opts?.timeout ?? DEFAULT_TIMEOUT,
+        () => `Expected element to ${this.negated ? 'not ' : ''}have attribute "${name}" = "${expected}", but got "${last}"`,
+      );
+    });
   }
 }
 

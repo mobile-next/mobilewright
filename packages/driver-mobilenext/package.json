@@ -1,7 +1,7 @@
 {
-  "name": "@mobilewright/driver-mobile-use",
+  "name": "@mobilewright/driver-mobilenext",
   "version": "0.0.1",
-  "description": "mobile-use.com driver for Mobilewright",
+  "description": "MobileNext driver for Mobilewright",
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
@@ -23,7 +23,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mobile-next/mobilewright.git",
-    "directory": "packages/driver-mobile-use"
+    "directory": "packages/driver-mobilenext"
   },
   "files": [
     "dist"

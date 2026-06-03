@@ -1,7 +1,18 @@
 import { test, expect as playwrightExpect } from '@playwright/test';
 import type { WebViewSession } from '@mobilewright/protocol';
+import type { StepFn } from './locator.js';
 import { WebLocator } from './web-locator.js';
 import { expect } from './expect.js';
+
+// A step function that records the title of every step it wraps, then runs the body.
+function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
+  const titles: string[] = [];
+  const stepFn: StepFn = (title, body) => {
+    titles.push(title);
+    return body();
+  };
+  return { stepFn, titles };
+}
 
 // ─── Mock helpers ─────────────────────────────────────────────
 
@@ -110,7 +121,7 @@ test.describe('buildFindAll — strategy to JS', () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
     const loc = new WebLocator(session, { kind: 'placeholder', text: 'Enter email' });
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain("'placeholder'");
+    playwrightExpect(evaluateCalls[0]).toContain('\'placeholder\'');
     playwrightExpect(evaluateCalls[0]).toContain('"Enter email"');
   });
 
@@ -118,14 +129,14 @@ test.describe('buildFindAll — strategy to JS', () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
     const loc = new WebLocator(session, { kind: 'altText', text: 'logo' });
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain("'alt'");
+    playwrightExpect(evaluateCalls[0]).toContain('\'alt\'');
   });
 
   test('title strategy calls window.__mw.findByAttr with title', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
     const loc = new WebLocator(session, { kind: 'title', text: 'Close' });
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain("'title'");
+    playwrightExpect(evaluateCalls[0]).toContain('\'title\'');
   });
 });
 
@@ -465,5 +476,71 @@ test.describe('expect(webLocator).toHaveCount()', () => {
     const { session } = sessionAlwaysReturning(2);
     const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
     await expect(loc).not.toHaveCount(5);
+  });
+});
+
+// ─── Step instrumentation ────────────────────────────────────
+
+test.describe('WebLocator step instrumentation', () => {
+  test('actions emit a named step matching the method call', async () => {
+    const { session } = sessionAlwaysReturning(true);
+    const { stepFn, titles } = recordingStepFn();
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    loc._stepFn = stepFn;
+
+    await loc.click();
+    await loc.fill('hello');
+    await loc.type('world');
+    await loc.press('Enter');
+    await loc.focus();
+    await loc.hover();
+    await loc.scrollIntoViewIfNeeded();
+
+    playwrightExpect(titles).toEqual([
+      'locator.click()',
+      'locator.fill("hello")',
+      'locator.type("world")',
+      'locator.press("Enter")',
+      'locator.focus()',
+      'locator.hover()',
+      'locator.scrollIntoViewIfNeeded()',
+    ]);
+  });
+
+  test('chaining propagates the step function to descendants', async () => {
+    const { session } = sessionAlwaysReturning(true);
+    const { stepFn } = recordingStepFn();
+    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    loc._stepFn = stepFn;
+
+    playwrightExpect(loc.locator('.field')._stepFn).toBe(stepFn);
+    playwrightExpect(loc.getByRole('button')._stepFn).toBe(stepFn);
+    playwrightExpect(loc.nth(2)._stepFn).toBe(stepFn);
+    playwrightExpect(loc.first()._stepFn).toBe(stepFn);
+  });
+
+  test('actions run normally when no step function is set', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await loc.click();
+    playwrightExpect(evaluateCalls.some(c => c.includes('.click()'))).toBe(true);
+  });
+
+  test('value queries are NOT wrapped as steps', async () => {
+    const { session } = sessionReturning(true, 'Sign In');
+    const { stepFn, titles } = recordingStepFn();
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    loc._stepFn = stepFn;
+    await loc.textContent();
+    playwrightExpect(titles).toEqual([]);
+  });
+
+  test('assertions on a web locator emit expect steps', async () => {
+    const { session } = sessionAlwaysReturning(true);
+    const { stepFn, titles } = recordingStepFn();
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    loc._stepFn = stepFn;
+    await expect(loc).toBeVisible();
+    playwrightExpect(titles).toContain('expect.toBeVisible()');
   });
 });

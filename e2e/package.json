@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli npx mobilewright test",
-    "test:mobile-use": "MOBILEWRIGHT_DRIVER=mobile-use npx mobilewright test"
+    "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext npx mobilewright test"
   },
   "dependencies": {
     "mobilewright": "^0.0.1",

@@ -2,11 +2,16 @@ import sharp from 'sharp';
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy } from './query-engine.js';
 import { sleep } from './sleep.js';
+import { captureLocation, type StepLocation } from './stackTrace.js';
+
+export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
 
 export interface LocatorOptions {
   timeout?: number;
   pollInterval?: number;
   stabilityDelay?: number;
+  /** Default timeout for expect() assertions on this locator, in ms. */
+  expectTimeout?: number;
 }
 
 export interface ScrollIntoViewOptions {
@@ -26,11 +31,25 @@ export class Locator {
     return new Locator(driver, { kind: 'root' }, options);
   }
 
+  _stepFn: StepFn | null = null;
+
   constructor(
     protected readonly driver: MobilewrightDriver,
     protected readonly strategy: LocatorStrategy,
     protected readonly options: LocatorOptions = {},
   ) {}
+
+  get expectTimeout(): number | undefined {
+    return this.options.expectTimeout;
+  }
+
+  protected async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
+    if (this._stepFn) {
+      const location = captureLocation();
+      return this._stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
+    }
+    return fn();
+  }
 
   // ─── Chaining ────────────────────────────────────────────────
 
@@ -59,11 +78,13 @@ export class Locator {
   }
 
   protected child(childStrategy: LocatorStrategy): Locator {
-    return new Locator(
+    const loc = new Locator(
       this.driver,
       { kind: 'chain', parent: this.strategy, child: childStrategy },
       this.options,
     );
+    loc._stepFn = this._stepFn;
+    return loc;
   }
 
   // ─── Collection ──────────────────────────────────────────────
@@ -77,11 +98,13 @@ export class Locator {
   }
 
   nth(index: number): Locator {
-    return new Locator(
+    const loc = new Locator(
       this.driver,
       { kind: 'nth', parent: this.strategy, index },
       this.options,
     );
+    loc._stepFn = this._stepFn;
+    return loc;
   }
 
   async count(): Promise<number> {
@@ -92,87 +115,110 @@ export class Locator {
   async all(): Promise<Locator[]> {
     const roots = await this.driver.getViewHierarchy();
     const matches = queryAll(roots, this.strategy);
-    return matches.map((_, i) =>
-      new Locator(
+    return matches.map((_, i) => {
+      const loc = new Locator(
         this.driver,
         { kind: 'nth', parent: this.strategy, index: i },
         this.options,
-      ),
-    );
+      );
+      loc._stepFn = this._stepFn;
+      return loc;
+    });
   }
 
   // ─── Actions ─────────────────────────────────────────────────
 
   async tap(opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.tap(x, y);
+    return this._step('locator.tap()', async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.tap(x, y);
+    });
   }
 
   async doubleTap(opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.doubleTap(x, y);
+    return this._step('locator.doubleTap()', async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.doubleTap(x, y);
+    });
   }
 
   async longPress(opts?: { timeout?: number; duration?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.longPress(x, y, opts?.duration);
+    return this._step('locator.longPress()', async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.longPress(x, y, opts?.duration);
+    });
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts?.timeout);
-    const { x, y } = centerOf(node.bounds);
-    // Tap to focus, then type
-    await this.driver.tap(x, y);
-    await this.driver.typeText(text);
+    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
+      const node = await this.resolveActionable(opts?.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.tap(x, y);
+      await this.driver.typeText(text);
+    });
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
-    const node = await this.resolveVisible(opts?.timeout);
-    const fullScreenshot = await this.driver.screenshot();
-    return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+    return this._step('locator.screenshot()', async () => {
+      const node = await this.resolveVisible(opts?.timeout);
+      const fullScreenshot = await this.driver.screenshot();
+      return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+    });
   }
 
   async swipe(opts: { direction: SwipeDirection; timeout?: number }): Promise<void> {
-    const node = await this.resolveActionable(opts.timeout);
-    const { x, y } = centerOf(node.bounds);
-    await this.driver.swipe(opts.direction, { startX: x, startY: y });
+    return this._step(`locator.swipe(${opts.direction})`, async () => {
+      const node = await this.resolveActionable(opts.timeout);
+      const { x, y } = centerOf(node.bounds);
+      await this.driver.swipe(opts.direction, { startX: x, startY: y });
+    });
   }
 
   async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
-    const maxSwipes = opts?.maxSwipes ?? 10;
-    const direction: SwipeDirection = opts?.direction ?? 'up';
-    const screenSize = await this.driver.getScreenSize();
-    const POST_SWIPE_SETTLE = 200;
+    return this._step('locator.scrollIntoViewIfNeeded()', async () => {
+      const maxSwipes = opts?.maxSwipes ?? 10;
+      const direction: SwipeDirection = opts?.direction ?? 'up';
+      const screenSize = await this.driver.getScreenSize();
+      const POST_SWIPE_SETTLE = 200;
 
-    for (let i = 0; i < maxSwipes; i++) {
-      const roots = await this.driver.getViewHierarchy();
-      const node = queryAll(roots, this.strategy)[0] ?? null;
+      for (let i = 0; i < maxSwipes; i++) {
+        const roots = await this.driver.getViewHierarchy();
+        const node = queryAll(roots, this.strategy)[0] ?? null;
 
-      if (node && isWithinViewport(node.bounds, screenSize)) {
-        return;
+        if (node && isWithinViewport(node.bounds, screenSize)) {
+          return;
+        }
+
+        const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
+        await this.driver.swipe(swipeDirection);
+        await sleep(POST_SWIPE_SETTLE);
       }
 
-      const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
-      await this.driver.swipe(swipeDirection);
-      await sleep(POST_SWIPE_SETTLE);
-    }
-
-    throw new LocatorError(
-      `Element not scrolled into view after ${maxSwipes} swipes`,
-      this.strategy,
-    );
+      throw new LocatorError(
+        `Element not scrolled into view after ${maxSwipes} swipes`,
+        this.strategy,
+      );
+    });
   }
 
   // ─── Queries (with auto-wait for visibility) ─────────────────
+
+  async exists(): Promise<boolean> {
+    const node = await this.resolve(0);
+    return node !== null;
+  }
 
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
       return true;
-    } catch {
+    } catch (error) {
+      if (!(error instanceof LocatorError)) {
+        throw error;
+      }
       return false;
     }
   }
@@ -286,7 +332,9 @@ export class Locator {
           return node;
         }
         previousBounds = { ...node.bounds };
-        if (Date.now() >= deadline) return node; // accept without stability
+        if (Date.now() >= deadline) {
+          return node; // accept without stability
+        }
         await sleep(stabilityDelay);
         continue;
       }
@@ -310,8 +358,12 @@ export class Locator {
     do {
       const roots = await this.driver.getViewHierarchy();
       const matches = queryAll(roots, this.strategy);
-      if (matches.length > 0) return matches[0];
-      if (timeout <= 0) return null;
+      if (matches.length > 0) {
+        return matches[0];
+      }
+      if (timeout <= 0) {
+        return null;
+      }
       await sleep(pollInterval);
     } while (Date.now() < deadline);
 

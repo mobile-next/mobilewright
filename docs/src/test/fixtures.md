@@ -50,6 +50,7 @@ You can override the following settings per-test or per-project, in addition to 
 | `bundleId` | `string` | App bundle identifier |
 | `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching |
 | `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
+| `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility view tree as JSON to the report when a test fails. Default: `'off'` |
 
 ```typescript
 import { test } from '@mobilewright/test';

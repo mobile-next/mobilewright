@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs';
+import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import createDebug from 'debug';
@@ -26,11 +26,11 @@ import type {
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 
-export const DEFAULT_URL = 'wss://api.mobilenexthq.com/ws';
+export const DEFAULT_URL = 'wss://api.mobilenext.ai/ws';
 
 // ─── RPC response types ───────────────────────────────────────
 
-interface MobileUseElement {
+interface MobileNextElement {
   type: string;
   text?: string;
   label?: string;
@@ -39,19 +39,19 @@ interface MobileUseElement {
   identifier?: string;
   placeholder?: string;
   rect?: { x: number; y: number; width: number; height: number };
-  children?: MobileUseElement[];
+  children?: MobileNextElement[];
   visible?: boolean;
   enabled?: boolean;
 }
 
-interface MobileUseAppEntry {
+interface MobileNextAppEntry {
   packageName?: string;
   bundleId?: string;
   appName?: string;
   version?: string;
 }
 
-interface MobileUseDeviceInfoResponse {
+interface MobileNextDeviceInfoResponse {
   device: {
     platform: string;
     screenSize?: { width: number; height: number; scale: number };
@@ -61,7 +61,7 @@ interface MobileUseDeviceInfoResponse {
   };
 }
 
-interface MobileUseDeviceEntry {
+interface MobileNextDeviceEntry {
   id?: string;
   udid?: string;
   name: string;
@@ -72,26 +72,28 @@ interface MobileUseDeviceEntry {
   version?: string;
 }
 
-interface MobileUseScreenshotResponse {
+interface MobileNextScreenshotResponse {
   data: string;
 }
 
-interface MobileUseOrientationResponse {
+interface MobileNextOrientationResponse {
   orientation: string;
 }
 
-interface MobileUseUIDumpResponse {
-  elements: MobileUseElement[];
+interface MobileNextUIDumpResponse {
+  elements: MobileNextElement[];
 }
 
-interface MobileUseDevicesResponse {
+interface MobileNextDevicesResponse {
   status: string;
-  data: { devices: MobileUseDeviceEntry[] };
+  data: { devices: MobileNextDeviceEntry[] };
 }
 
-export interface MobileUseDriverOptions {
+export interface MobileNextDriverOptions {
   region?: string;
   apiKey?: string;
+  /** Timeout waiting for cloud device allocation in ms. Default: 300000 (5 min). */
+  allocationTimeout?: number;
 }
 
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
@@ -110,7 +112,7 @@ function toDeviceState(value: string): DeviceState {
   return VALID_DEVICE_STATES.has(value) ? value as DeviceState : 'offline';
 }
 
-function elementToViewNode(el: MobileUseElement): ViewNode {
+function elementToViewNode(el: MobileNextElement): ViewNode {
   const bounds = el.rect ?? { x: 0, y: 0, width: 0, height: 0 };
   return {
     type: el.type ?? 'Unknown',
@@ -132,6 +134,21 @@ function appendQueryParam(url: string, key: string, value: string): string {
   return `${url}${separator}${key}=${encodeURIComponent(value)}`;
 }
 
+const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+
+function assertValidZipFile(path: string): void {
+  const buf = Buffer.alloc(4);
+  const fd = openSync(path, 'r');
+  try {
+    readSync(fd, buf, { offset: 0, length: 4, position: 0 });
+  } finally {
+    closeSync(fd);
+  }
+  if (!buf.equals(ZIP_MAGIC)) {
+    throw new Error(`"${path}" is not a valid ZIP file`);
+  }
+}
+
 function sanitizeFilename(name: string): string {
   return name.replace(/[^0-9a-zA-Z_.]/g, '_');
 }
@@ -146,6 +163,8 @@ interface FleetAllocateResponse {
     platform: string;
     state: string;
     model: string;
+    type: string;
+    version: string;
   };
 }
 
@@ -155,6 +174,8 @@ interface DevicesListDevice {
   platform: string;
   state: string;
   model: string;
+  type: string;
+  version: string;
   provider?: { type: string; sessionId?: string };
 }
 
@@ -167,20 +188,42 @@ interface UploadCreateResponse {
   uploadUrl: string;
 }
 
+interface ActiveSession {
+  deviceId: string;
+  platform: Platform;
+  rpc: RpcClient;
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
+}
+
+export interface MobileNextDeviceInfo {
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
+}
+
 type DeviceFilter =
   | { attribute: 'platform'; operator: 'EQUALS'; value: 'ios' | 'android' }
   | { attribute: 'type'; operator: 'EQUALS'; value: 'real' }
   | { attribute: 'name'; operator: 'EQUALS' | 'STARTS_WITH' | 'CONTAINS'; value: string }
   | { attribute: 'version'; operator: 'EQUALS' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUALS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUALS'; value: string };
 
-const debug = createDebug('mw:driver-mobile-use');
+const debug = createDebug('mw:driver-mobilenext');
 
-export class MobileUseDriver implements MobilewrightDriver {
-  private session: { deviceId: string; platform: Platform; rpc: RpcClient } | null = null;
-  private readonly options: MobileUseDriverOptions;
+export class MobileNextDriver implements MobilewrightDriver {
+  private session: ActiveSession | null = null;
+  private readonly options: MobileNextDriverOptions;
   private ownsLease = false;
 
-  constructor(options: MobileUseDriverOptions = {}) {
+  get deviceInfo(): MobileNextDeviceInfo | null {
+    if (!this.session) {
+      return null;
+    }
+    return { model: this.session.model, osVersion: this.session.osVersion, type: this.session.type };
+  }
+
+  constructor(options: MobileNextDriverOptions = {}) {
     this.options = options;
   }
 
@@ -215,27 +258,36 @@ export class MobileUseDriver implements MobilewrightDriver {
     const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
 
     let deviceId: string;
+    let model: string | undefined;
+    let osVersion: string | undefined;
+    let type: DeviceType | undefined;
     if (result?.state === 'allocating' && result.sessionId) {
       debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
-      const device = await this.waitForAllocation(rpc, result.sessionId, config.timeout);
+      const device = await this.waitForAllocation(rpc, result.sessionId);
       debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
       deviceId = device.id;
+      model = device.model;
+      osVersion = device.version;
+      type = toDeviceType(device.type);
     } else if (result?.device?.id) {
       debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
       deviceId = result.device.id;
+      model = result.device.model;
+      osVersion = result.device.version;
+      type = toDeviceType(result.device.type);
     } else {
       throw new Error(`Device allocation failed: ${JSON.stringify(result)}`);
     }
 
-    this.session = { deviceId, platform, rpc };
+    this.session = { deviceId, platform, rpc, model, osVersion, type };
     return { deviceId, platform };
   }
 
   private async waitForAllocation(
     rpc: RpcClient,
     sessionId: string,
-    timeout = 300_000,
   ): Promise<DevicesListDevice> {
+    const timeout = this.options.allocationTimeout ?? 300_000;
     const pollInterval = 5_000;
     const deadline = Date.now() + timeout;
 
@@ -291,7 +343,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── UI hierarchy ───────────────────────────────────────────
 
   async getViewHierarchy(): Promise<ViewNode[]> {
-    const result = await this.call<MobileUseUIDumpResponse>('device.dump.ui');
+    const result = await this.call<MobileNextUIDumpResponse>('device.dump.ui');
     return result.elements.map(elementToViewNode);
   }
 
@@ -355,7 +407,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── Screen ─────────────────────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
-    const result = await this.call<MobileUseScreenshotResponse>('device.screenshot', {
+    const result = await this.call<MobileNextScreenshotResponse>('device.screenshot', {
       ...(opts?.format && { format: opts.format }),
       ...(opts?.quality !== undefined && { quality: opts.quality }),
     });
@@ -368,13 +420,13 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async getScreenSize(): Promise<ScreenSize> {
-    const result = await this.call<MobileUseDeviceInfoResponse>('device.info');
+    const result = await this.call<MobileNextDeviceInfoResponse>('device.info');
     const info = result.device;
     return info.screenSize ?? { width: info.screenWidth ?? 0, height: info.screenHeight ?? 0, scale: 1 };
   }
 
   async getOrientation(): Promise<Orientation> {
-    const result = await this.call<MobileUseOrientationResponse>('device.io.orientation.get');
+    const result = await this.call<MobileNextOrientationResponse>('device.io.orientation.get');
     return result.orientation === 'landscape' ? 'landscape' : 'portrait';
   }
 
@@ -414,7 +466,7 @@ export class MobileUseDriver implements MobilewrightDriver {
 
   async listApps(): Promise<AppInfo[]> {
     // iOS returns a flat array, Android returns { apps: [...] }.
-    const result = await this.call<MobileUseAppEntry[] | { apps: MobileUseAppEntry[] }>('device.apps.list');
+    const result = await this.call<MobileNextAppEntry[] | { apps: MobileNextAppEntry[] }>('device.apps.list');
     const apps = Array.isArray(result) ? result : result.apps;
     return apps.map((app) => ({
       bundleId: app.bundleId ?? app.packageName ?? '',
@@ -424,7 +476,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async getForegroundApp(): Promise<AppInfo> {
-    const result = await this.call<MobileUseAppEntry>('device.apps.foreground');
+    const result = await this.call<MobileNextAppEntry>('device.apps.foreground');
     return {
       bundleId: result.bundleId ?? result.packageName ?? '',
       name: result.appName,
@@ -433,6 +485,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   }
 
   async installApp(filePath: string): Promise<void> {
+    assertValidZipFile(filePath);
     const fileInfo = await stat(filePath);
     const filename = sanitizeFilename(basename(filePath));
 
@@ -469,7 +522,7 @@ export class MobileUseDriver implements MobilewrightDriver {
   // ─── Device ─────────────────────────────────────────────────
 
   async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
-    const result = await this.call<MobileUseDevicesResponse>('device.list');
+    const result = await this.call<MobileNextDevicesResponse>('device.list');
     let devices = result.data.devices;
 
     if (opts?.platform) {

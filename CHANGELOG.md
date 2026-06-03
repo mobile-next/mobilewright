@@ -1,3 +1,44 @@
+## [0.0.41] (2026-05-26)
+* Refactor: rename `mobile-use` driver to `mobilenext` ([#146](https://github.com/mobile-next/mobilewright/pull/146))
+* Chore(driver-mobilecli): update mobilecli to fix websocket 1006 errors ([#150](https://github.com/mobile-next/mobilewright/pull/150))
+
+## [0.0.39] (2026-05-21)
+* Feat: add test step instrumentation for HTML reporter ([#144](https://github.com/mobile-next/mobilewright/pull/144))
+* Feat: add Dockerfile for mobilewright image, multi-arch for arm64 and amd64 ([#143](https://github.com/mobile-next/mobilewright/pull/143))
+* Fix(locator): `isVisible()` no longer swallows driver/session errors — only returns `false` for element-not-found failures, rethrows all other errors ([#138](https://github.com/mobile-next/mobilewright/pull/138)), thanks to [@JustasMonkev](https://github.com/JustasMonkev)
+
+## [0.0.38] (2026-05-17)
+* Fix(ios): call `getForegroundApp()` before `launchApp()` in mobilecli driver to ensure DeviceKit is running first, preventing a race where its startup minimizes the newly-launched app ([#89](https://github.com/mobile-next/mobilewright/issues/89))
+* Fix(android): using instruments to get view tree, solves bug when constant UI change would fail "uiautomator dump" (fix is in mobilecli 0.3.74)
+* General: skip redundant `mobilecli devices` shell-outs in `connect()` and `installApp()` when device type is already known, reducing test startup time by ~4s
+* General: break early if installApps points to non-zip containers, before allocating devices
+* General: added plenty of verbose logs when `DEBUG=mw:*`
+
+## [0.0.37] (2026-05-16)
+* Feat: add installApps to per-project overrides ([#133](https://github.com/mobile-next/mobilewright/pull/133))
+* Feat: export HardwareButton from @mobilewright/core and add LOCK button ([#132](https://github.com/mobile-next/mobilewright/pull/132))
+* Fix: use Number.NaN and String.raw in tests ([#93](https://github.com/mobile-next/mobilewright/pull/93)), thanks to [@khanhdodang](https://github.com/khanhdodang)
+
+## [0.0.36] (2026-05-16)
+* Feat: add toHaveCount and toBeEmpty assertions ([#122](https://github.com/mobile-next/mobilewright/pull/122)), thanks to [@alexC2K](https://github.com/alexC2K)
+* Feat: add device info annotations to test report ([#125](https://github.com/mobile-next/mobilewright/pull/125))
+* Feat(test): attach accessibility tree on test failure via saveTreeOnFailure ([#111](https://github.com/mobile-next/mobilewright/pull/111)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+* Feat: add eslint with @typescript-eslint and @stylistic rules ([#127](https://github.com/mobile-next/mobilewright/pull/127))
+* Fix(driver): reject .ipa installs on iOS simulators with a clear error ([#74](https://github.com/mobile-next/mobilewright/pull/74)), thanks to [@krismuhi](https://github.com/krismuhi)
+* Fix: only catch LocatorError in expect assertions, rethrow unexpected errors ([#126](https://github.com/mobile-next/mobilewright/pull/126))
+* Fix: respect autoAppLaunch config option in test fixture ([#110](https://github.com/mobile-next/mobilewright/pull/110)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+
+## [0.0.35] (2026-05-12)
+* Fix(android): updated mobilecli to 0.3.73 to fix missing elements that had non-null resource-id ([#120](https://github.com/mobile-next/mobilewright/pull/120))
+
+## [0.0.34] (2026-05-12)
+* Feat(locator): `locator.exists()` is now available — returns `true` if the element is present in the view tree
+* Fix: `--config` flag is now correctly honored in fixtures and device-pool setup ([#109](https://github.com/mobile-next/mobilewright/pull/109))
+* Fix(android): moved away from monkey to run apps, fixes apks compiled with 'test' flag
+
+## [0.0.33] (2026-05-07)
+* Fix(android): warn and continue when foreground app check fails on launch instead of throwing error, thanks [@farhanlabib](https://github.com/farhanlabib) ([#102](https://github.com/mobile-next/mobilewright/pull/102))
+
 ## [0.0.32] (2026-05-05)
 * Fix: updated mobilecli to fix 'SYS_KEYS has no physical keys but with factor 2.0%' error on certain Android devices
 

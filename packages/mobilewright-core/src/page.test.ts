@@ -1,8 +1,19 @@
 import { test, expect as playwrightExpect } from '@playwright/test';
 import type { WebViewSession } from '@mobilewright/protocol';
+import type { StepFn } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { expect } from './expect.js';
+
+// A step function that records the title of every step it wraps, then runs the body.
+function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
+  const titles: string[] = [];
+  const stepFn: StepFn = (title, body) => {
+    titles.push(title);
+    return body();
+  };
+  return { stepFn, titles };
+}
 
 // ─── Mock helpers ────────────────────────────────────────────
 
@@ -259,5 +270,54 @@ test.describe('expect(page).toHaveTitle()', () => {
     (session as any).title = async () => 'My Dashboard';
     const page = await Page.attach(session);
     await expect(page).toHaveTitle(/Dashboard/);
+  });
+});
+
+// ─── Step instrumentation ────────────────────────────────────
+
+test.describe('Page step instrumentation', () => {
+  test('navigation actions emit named steps', async () => {
+    const { session } = sessionWithResponses();
+    const { stepFn, titles } = recordingStepFn();
+    const page = await Page.attach(session);
+    page._stepFn = stepFn;
+
+    await page.goto('https://example.com/login');
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+
+    playwrightExpect(titles).toEqual([
+      'page.goto("https://example.com/login")',
+      'page.reload()',
+      'page.waitForLoadState(domcontentloaded)',
+    ]);
+  });
+
+  test('locator factories propagate the step function to web locators', async () => {
+    const { session } = sessionWithResponses();
+    const { stepFn } = recordingStepFn();
+    const page = await Page.attach(session);
+    page._stepFn = stepFn;
+
+    playwrightExpect(page.locator('.btn')._stepFn).toBe(stepFn);
+    playwrightExpect(page.getByRole('button')._stepFn).toBe(stepFn);
+    playwrightExpect(page.getByTestId('submit')._stepFn).toBe(stepFn);
+  });
+
+  test('page assertions emit expect steps', async () => {
+    const { session } = sessionWithUrl('https://example.com/dashboard');
+    const { stepFn, titles } = recordingStepFn();
+    const page = await Page.attach(session);
+    page._stepFn = stepFn;
+
+    await expect(page).toHaveURL('https://example.com/dashboard');
+    playwrightExpect(titles).toContain('expect.toHaveURL()');
+  });
+
+  test('actions run normally when no step function is set', async () => {
+    const { session, gotoCalls } = sessionWithResponses();
+    const page = await Page.attach(session);
+    await page.goto('https://example.com/login');
+    playwrightExpect(gotoCalls).toEqual(['https://example.com/login']);
   });
 });

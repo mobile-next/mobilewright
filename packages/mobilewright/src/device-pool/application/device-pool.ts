@@ -139,6 +139,10 @@ export class DevicePool {
       allocationId: allocation.allocationId,
       deviceId: allocation.deviceId,
       platform: allocation.platform,
+      driver: slot.driver,
+      model: slot.model,
+      osVersion: slot.osVersion,
+      type: slot.type,
     });
   }
 
@@ -193,7 +197,7 @@ export class DevicePool {
       this.allocator.release(result.deviceId).catch(() => {});
       return;
     }
-    slot.markAvailable(result.deviceId, result.platform);
+    slot.markAvailable(result.deviceId, result.platform, result.driver, result.model, result.osVersion, result.type);
     this.waiters.unshift(waiter);
     this.pump();
   }

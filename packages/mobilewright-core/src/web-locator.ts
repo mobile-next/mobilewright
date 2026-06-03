@@ -1,5 +1,7 @@
 import type { WebViewSession } from '@mobilewright/protocol';
+import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
+import { captureLocation } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -60,43 +62,60 @@ function buildFindAll(strategy: WebLocatorStrategy): string {
 }
 
 export class WebLocator {
+  _stepFn: StepFn | null = null;
+
   constructor(
     protected readonly session: WebViewSession,
     protected readonly strategy: WebLocatorStrategy,
   ) {}
 
+  // Build a child WebLocator, carrying step instrumentation forward.
+  private child(strategy: WebLocatorStrategy): WebLocator {
+    const loc = new WebLocator(this.session, strategy);
+    loc._stepFn = this._stepFn;
+    return loc;
+  }
+
+  private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
+    if (this._stepFn) {
+      const location = captureLocation();
+      return this._stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
+    }
+    return fn();
+  }
+
   // ─── Chaining ────────────────────────────────────────────────
 
   locator(selector: string): WebLocator {
-    return new WebLocator(this.session, { kind: 'css', selector });
+    return this.child({ kind: 'css', selector });
   }
 
   getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): WebLocator {
-    return new WebLocator(this.session, { kind: 'role', role, name: opts?.name, exact: opts?.exact });
+    return this.child({ kind: 'role', role, name: opts?.name, exact: opts?.exact });
   }
 
   getByText(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return new WebLocator(this.session, { kind: 'text', text, exact: opts?.exact });
+    return this.child({ kind: 'text', text, exact: opts?.exact });
   }
 
   getByLabel(label: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return new WebLocator(this.session, { kind: 'label', label, exact: opts?.exact });
+    return this.child({ kind: 'label', label, exact: opts?.exact });
   }
 
   getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return new WebLocator(this.session, { kind: 'placeholder', text, exact: opts?.exact });
+    return this.child({ kind: 'placeholder', text, exact: opts?.exact });
   }
 
   getByTestId(testId: string): WebLocator {
-    return new WebLocator(this.session, { kind: 'testId', testId });
+    return this.child({ kind: 'testId', testId });
   }
 
   getByAltText(text: string | RegExp): WebLocator {
-    return new WebLocator(this.session, { kind: 'altText', text });
+    return this.child({ kind: 'altText', text });
   }
 
   getByTitle(text: string | RegExp): WebLocator {
-    return new WebLocator(this.session, { kind: 'title', text });
+    return this.child({ kind: 'title', text });
   }
 
   // ─── Collection ──────────────────────────────────────────────
@@ -110,7 +129,7 @@ export class WebLocator {
   }
 
   nth(index: number): WebLocator {
-    return new WebLocator(this.session, { kind: 'nth', parent: this.strategy, index });
+    return this.child({ kind: 'nth', parent: this.strategy, index });
   }
 
   async count(): Promise<number> {
@@ -259,35 +278,49 @@ export class WebLocator {
   // ─── Actions (step 5) ────────────────────────────────────────
 
   async click(opts?: { timeout?: number }): Promise<void> {
-    await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-    await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.click()`);
+    return this._step('locator.click()', async () => {
+      await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
+      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.click()`);
+    });
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-    await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
+    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
+      await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
+      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
+    });
   }
 
   async type(text: string): Promise<void> {
-    await this.pollUntilVisible(DEFAULT_TIMEOUT);
-    await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); } })()`);
+    return this._step(`locator.type(${JSON.stringify(text)})`, async () => {
+      await this.pollUntilVisible(DEFAULT_TIMEOUT);
+      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); } })()`);
+    });
   }
 
   async press(key: string): Promise<void> {
-    const el = `(${buildFindAll(this.strategy)})[0]`;
-    await this.session.evaluate(`(() => { const el = ${el}; if (el) { ['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true }))); } })()`);
+    return this._step(`locator.press(${JSON.stringify(key)})`, async () => {
+      const el = `(${buildFindAll(this.strategy)})[0]`;
+      await this.session.evaluate(`(() => { const el = ${el}; if (el) { ['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true }))); } })()`);
+    });
   }
 
   async focus(): Promise<void> {
-    await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.focus()`);
+    return this._step('locator.focus()', async () => {
+      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.focus()`);
+    });
   }
 
   async hover(): Promise<void> {
-    await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); } })()`);
+    return this._step('locator.hover()', async () => {
+      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); } })()`);
+    });
   }
 
   async scrollIntoViewIfNeeded(): Promise<void> {
-    await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.scrollIntoView({ block: 'nearest' })`);
+    return this._step('locator.scrollIntoViewIfNeeded()', async () => {
+      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.scrollIntoView({ block: 'nearest' })`);
+    });
   }
 
   // ─── Private helpers ─────────────────────────────────────────

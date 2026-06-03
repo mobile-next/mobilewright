@@ -8,7 +8,7 @@ import type {
   SwipeOptions,
   ViewNode,
 } from '@mobilewright/protocol';
-import { Locator, type LocatorOptions } from './locator.js';
+import { Locator, type LocatorOptions, type StepFn } from './locator.js';
 import { WebViewLocator } from './webview-locator.js';
 
 export class Screen {
@@ -19,6 +19,10 @@ export class Screen {
     private readonly locatorDefaults: LocatorOptions = {},
   ) {
     this.root = Locator.root(driver, locatorDefaults);
+  }
+
+  setStepFn(fn: StepFn): void {
+    this.root._stepFn = fn;
   }
 
   // ─── Locator factories (delegated to root locator) ─────────
@@ -48,11 +52,13 @@ export class Screen {
   }
 
   getByWebView(): WebViewLocator {
-    return new WebViewLocator(
+    const loc = new WebViewLocator(
       this.driver,
       { kind: 'chain', parent: { kind: 'root' }, child: { kind: 'webview' } },
       this.locatorDefaults,
     );
+    loc._stepFn = this.root._stepFn;
+    return loc;
   }
 
   // ─── Direct screen actions ──────────────────────────────────

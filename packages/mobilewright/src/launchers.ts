@@ -1,7 +1,7 @@
-import type { Platform, DeviceInfo, MobilewrightDriver } from '@mobilewright/protocol';
+import type { Platform, DeviceInfo, DeviceType, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
-import { MobileUseDriver } from '@mobilewright/driver-mobile-use';
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 import { ensureMobilecliReachable } from './server.js';
 import { toArray } from './config.js';
 import type { DriverConfig } from './config.js';
@@ -16,6 +16,10 @@ export interface LaunchOptions {
   timeout?: number;
   autoStart?: boolean;
   driver?: DriverConfig;
+  actionTimeout?: number;
+  expectTimeout?: number;
+  appLaunchTimeout?: number;
+  installTimeout?: number;
 }
 
 interface PlatformLauncher {
@@ -26,9 +30,14 @@ interface PlatformLauncher {
 export interface ConnectDeviceParams {
   platform: Platform;
   deviceId: string;
+  deviceType?: DeviceType;
   driverConfig?: DriverConfig;
   url?: string;
   timeout?: number;
+  actionTimeout?: number;
+  expectTimeout?: number;
+  appLaunchTimeout?: number;
+  installTimeout?: number;
 }
 
 export interface FindDeviceParams {
@@ -40,10 +49,11 @@ export interface FindDeviceParams {
 }
 
 export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
-  if (driverConfig?.type === 'mobile-use') {
-    return new MobileUseDriver({
+  if (driverConfig?.type === 'mobilenext' || driverConfig?.type === 'mobile-use') {
+    return new MobileNextDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
+      allocationTimeout: driverConfig.allocationTimeout,
     });
   }
   return new MobilecliDriver({ url });
@@ -51,13 +61,21 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
 
 export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
   // URL is baked into the driver at construction time; don't override it here.
-  // Passing mobilecli's default URL into MobileUseDriver.connect() would send
+  // Passing mobilecli's default URL into MobileNextDriver.connect() would send
   // requests to the wrong server.
   const driver = createDriver(params.driverConfig, params.url);
-  const device = new Device(driver);
+  const device = new Device(driver, {
+    locatorDefaults: {
+      ...(params.actionTimeout !== undefined && { timeout: params.actionTimeout }),
+      ...(params.expectTimeout !== undefined && { expectTimeout: params.expectTimeout }),
+    },
+    appLaunchTimeout: params.appLaunchTimeout,
+    installTimeout: params.installTimeout,
+  });
   await device.connect({
     platform: params.platform,
     deviceId: params.deviceId,
+    deviceType: params.deviceType,
     timeout: params.timeout,
   });
   return device;
@@ -116,6 +134,10 @@ function createLauncher(platform: Platform): PlatformLauncher {
         driverConfig,
         url,
         timeout: opts.timeout,
+        actionTimeout: opts.actionTimeout,
+        expectTimeout: opts.expectTimeout,
+        appLaunchTimeout: opts.appLaunchTimeout,
+        installTimeout: opts.installTimeout,
       });
 
       if (serverProcess) {

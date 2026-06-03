@@ -1,6 +1,5 @@
-import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy } from './query-engine.js';
-import { Locator, type LocatorOptions } from './locator.js';
+import { Locator } from './locator.js';
 import { Page } from './page.js';
 
 export class WebViewLocator extends Locator {
@@ -20,23 +19,31 @@ export class WebViewLocator extends Locator {
   }
 
   private nthWebView(index: number): WebViewLocator {
-    return new WebViewLocator(
+    const loc = new WebViewLocator(
       this.driver,
       { kind: 'nth', parent: this.strategy, index },
       this.options,
     );
+    loc._stepFn = this._stepFn;
+    return loc;
   }
 
   // Chaining into DOM locators returns a plain Locator, not WebViewLocator
   protected override child(childStrategy: LocatorStrategy): Locator {
-    return new Locator(
+    const loc = new Locator(
       this.driver,
       { kind: 'chain', parent: this.strategy, child: childStrategy },
       this.options,
     );
+    loc._stepFn = this._stepFn;
+    return loc;
   }
 
   async page(): Promise<Page> {
+    return this._step('getByWebView().page()', () => this._resolvePage());
+  }
+
+  private async _resolvePage(): Promise<Page> {
     if (this._page) return this._page;
 
     const bridge = this.driver.webViewBridge;
@@ -63,6 +70,7 @@ export class WebViewLocator extends Locator {
 
     const session = await bridge.attachWebView(target.id);
     this._page = await Page.attach(session);
+    this._page._stepFn = this._stepFn;
     return this._page;
   }
 }

@@ -7,3 +7,4 @@ export { WebLocator, type WebLocatorStrategy } from './web-locator.js';
 export { expect, ExpectError, type ExpectOptions } from './expect.js';
 export { queryAll, type LocatorStrategy } from './query-engine.js';
 export { sleep } from './sleep.js';
+export type { HardwareButton } from '@mobilewright/protocol';
