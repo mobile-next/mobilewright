@@ -362,8 +362,8 @@ test.describe('webview strategy', () => {
         node({ type: 'Button', label: 'Open', identifier: 'openBtn' }),
         webviewNode('WKWebView', 'webview1'),
         webviewNode('WKWebView', 'webview2'),
-      ]}),
-    ]}),
+      ] }),
+    ] }),
   ];
 
   test('finds WKWebView by webview strategy', () => {
@@ -403,10 +403,10 @@ test.describe('webview strategy', () => {
     const tree: ViewNode[] = [
       node({ type: 'View', identifier: 'tab1', bounds: { x: 0, y: 0, width: 390, height: 800 }, children: [
         webviewNode('WKWebView', 'wv-in-tab1'),
-      ]}),
+      ] }),
       node({ type: 'View', identifier: 'tab2', bounds: { x: 390, y: 0, width: 390, height: 800 }, children: [
         webviewNode('WKWebView', 'wv-in-tab2'),
-      ]}),
+      ] }),
     ];
     const strategy: LocatorStrategy = {
       kind: 'chain',

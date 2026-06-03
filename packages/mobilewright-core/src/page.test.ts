@@ -39,6 +39,8 @@ function sessionWithResponses(...evaluateResponses: unknown[]): MockSession {
     getAttribute: async () => null,
     getText: async () => '',
     goto: async (url: string) => { gotoCalls.push(url); },
+    goBack: async () => {},
+    goForward: async () => {},
     url: async () => 'https://example.com/home',
     title: async () => 'Home',
     reload: async () => {},
@@ -64,6 +66,8 @@ function sessionWithUrl(currentUrl: string): MockSession & { session: WebViewSes
     getAttribute: async () => null,
     getText: async () => '',
     goto: async (url: string) => { gotoCalls.push(url); },
+    goBack: async () => {},
+    goForward: async () => {},
     url: async () => currentUrl,
     title: async () => 'Page Title',
     reload: async () => {},
@@ -284,11 +288,15 @@ test.describe('Page step instrumentation', () => {
 
     await page.goto('https://example.com/login');
     await page.reload();
+    await page.goBack();
+    await page.goForward();
     await page.waitForLoadState('domcontentloaded');
 
     playwrightExpect(titles).toEqual([
       'page.goto("https://example.com/login")',
       'page.reload()',
+      'page.goBack()',
+      'page.goForward()',
       'page.waitForLoadState(domcontentloaded)',
     ]);
   });

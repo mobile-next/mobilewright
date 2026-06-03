@@ -35,6 +35,8 @@ function sessionReturning(...evaluateResponses: unknown[]): {
     getAttribute: async () => null,
     getText: async () => '',
     goto: async () => {},
+    goBack: async () => {},
+    goForward: async () => {},
     url: async () => 'https://example.com',
     title: async () => 'Example',
     reload: async () => {},
@@ -56,6 +58,7 @@ function sessionAlwaysReturning(value: unknown) {
     querySelectorAll: async () => [],
     click: async () => {}, type: async () => {}, getAttribute: async () => null,
     getText: async () => '', goto: async () => {}, url: async () => '',
+    goBack: async () => {}, goForward: async () => {},
     title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
     close: async () => {},
   };
@@ -209,6 +212,7 @@ test.describe('WebLocator.isVisible()', () => {
       querySelectorAll: async () => [],
       click: async () => {}, type: async () => {}, getAttribute: async () => null,
       getText: async () => '', goto: async () => {}, url: async () => '',
+      goBack: async () => {}, goForward: async () => {},
       title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
       close: async () => {},
     };

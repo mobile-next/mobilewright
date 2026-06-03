@@ -53,20 +53,26 @@ export class WebViewLocator extends Locator {
       );
     }
 
-    const roots = await this.driver.getViewHierarchy();
-    const selected = queryAll(roots, this.strategy);
-    if (selected.length === 0) {
-      throw new Error('getByWebView().page(): no webview element found in the view hierarchy');
+    const bridgeWebviews = await bridge.listWebViews();
+    if (bridgeWebviews.length === 0) {
+      throw new Error('getByWebView().page(): no webviews available on the device');
     }
 
-    // Match native webview index to bridge webview list
+    // Map this locator to a specific webview by its position among native
+    // webview nodes. Platforms like iOS flatten webview content into the
+    // accessibility tree without a dedicated webview node, so fall back to the
+    // first webview when the hierarchy exposes none.
+    const roots = await this.driver.getViewHierarchy();
     const allNativeWebviews = queryAll(roots, { kind: 'webview' });
-    const index = allNativeWebviews.indexOf(selected[0]);
-    const bridgeWebviews = await bridge.listWebViews();
-    const target = bridgeWebviews[Math.max(0, index)];
-    if (!target) {
-      throw new Error('getByWebView().page(): bridge returned no webviews');
+    let index = 0;
+    if (allNativeWebviews.length > 0) {
+      const selected = queryAll(roots, this.strategy);
+      const matched = selected.length > 0 ? allNativeWebviews.indexOf(selected[0]) : -1;
+      if (matched >= 0) {
+        index = matched;
+      }
     }
+    const target = bridgeWebviews[Math.min(index, bridgeWebviews.length - 1)];
 
     const session = await bridge.attachWebView(target.id);
     this._page = await Page.attach(session);

@@ -22,6 +22,9 @@ import type {
   SwipeDirection,
   SwipeOptions,
   ViewNode,
+  WebViewBridge,
+  WebViewInfo,
+  WebViewSession,
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
@@ -99,6 +102,20 @@ interface MobilecliAgentStatusResponse {
   };
 }
 
+/** A single embedded webview as returned by device.webview.list */
+interface MobilecliWebViewEntry {
+  id: string;
+  url: string;
+  title: string;
+  bundleId?: string;
+  processName?: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+  isVisible?: boolean;
+}
+
+/** RPC caller bound to a device, used by the webview session. */
+type WebViewRpcCall = <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>;
+
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
 const VALID_DEVICE_TYPES = new Set<string>(['real', 'simulator', 'emulator']);
 const VALID_DEVICE_STATES = new Set<string>(['online', 'offline']);
@@ -148,6 +165,85 @@ function assertValidZipFile(path: string): void {
 }
 
 const debug = createDebug('mw:driver-mobilecli');
+
+/**
+ * A WebViewSession backed by mobilecli's device.webview.* RPC methods.
+ * Bound to a single webview `id`; the deviceId is injected by the caller.
+ *
+ * The node-handle methods (querySelectorAll/click/type/getAttribute/getText)
+ * have no mobilecli equivalent — the core's WebLocator drives the page through
+ * evaluate() and the injected DOM selector engine instead — so they throw.
+ */
+class MobilecliWebViewSession implements WebViewSession {
+  constructor(
+    private readonly call: WebViewRpcCall,
+    private readonly id: string,
+  ) {}
+
+  async evaluate<T = unknown>(expr: string): Promise<T> {
+    // mobilecli evaluates the expression and returns the value directly
+    // (not wrapped in a { result } envelope).
+    return this.call<T>('device.webview.evaluate', {
+      id: this.id,
+      expression: expr,
+    });
+  }
+
+  async goto(url: string): Promise<void> {
+    await this.call('device.webview.goto', { id: this.id, url });
+  }
+
+  async goBack(): Promise<void> {
+    await this.call('device.webview.goBack', { id: this.id });
+  }
+
+  async goForward(): Promise<void> {
+    await this.call('device.webview.goForward', { id: this.id });
+  }
+
+  async reload(): Promise<void> {
+    await this.call('device.webview.reload', { id: this.id });
+  }
+
+  async url(): Promise<string> {
+    return this.call<string>('device.webview.url', { id: this.id });
+  }
+
+  async title(): Promise<string> {
+    return this.call<string>('device.webview.title', { id: this.id });
+  }
+
+  async waitForLoadState(state?: 'load' | 'domcontentloaded'): Promise<void> {
+    await this.call('device.webview.waitForLoadState', {
+      id: this.id,
+      ...(state !== undefined && { state }),
+    });
+  }
+
+  async querySelectorAll(): Promise<string[]> {
+    throw new Error('querySelectorAll is not supported by the mobilecli driver; use evaluate-based locators');
+  }
+
+  async click(): Promise<void> {
+    throw new Error('click(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
+  }
+
+  async type(): Promise<void> {
+    throw new Error('type(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
+  }
+
+  async getAttribute(): Promise<string | null> {
+    throw new Error('getAttribute(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
+  }
+
+  async getText(): Promise<string> {
+    throw new Error('getText(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
+  }
+
+  async close(): Promise<void> {
+    // mobilecli has no webview-close RPC; webviews are owned by the host app.
+  }
+}
 
 export class MobilecliDriver implements MobilewrightDriver {
   private session: { deviceId: string; deviceName: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
@@ -489,6 +585,26 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async openUrl(url: string): Promise<void> {
     await this.call('device.url', { url });
+  }
+
+  // ─── WebView ─────────────────────────────────────────────────
+
+  get webViewBridge(): WebViewBridge {
+    const call: WebViewRpcCall = (method, params) => this.call(method, params);
+    return {
+      listWebViews: async (): Promise<WebViewInfo[]> => {
+        const entries = await this.call<MobilecliWebViewEntry[]>('device.webview.list');
+        return entries.map((e) => ({
+          id: e.id,
+          url: e.url,
+          title: e.title,
+          ...(e.bounds && { nativeBounds: e.bounds }),
+        }));
+      },
+      attachWebView: async (id: string): Promise<WebViewSession> => {
+        return new MobilecliWebViewSession(call, id);
+      },
+    };
   }
 
   // ─── Helpers ─────────────────────────────────────────────────

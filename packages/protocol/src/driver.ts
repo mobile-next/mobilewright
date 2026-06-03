@@ -26,6 +26,8 @@ export interface WebViewSession {
   getAttribute(nodeId: string, name: string): Promise<string | null>;
   getText(nodeId: string): Promise<string>;
   goto(url: string): Promise<void>;
+  goBack(): Promise<void>;
+  goForward(): Promise<void>;
   url(): Promise<string>;
   title(): Promise<string>;
   reload(): Promise<void>;

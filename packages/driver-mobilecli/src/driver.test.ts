@@ -72,6 +72,25 @@ function allowRpc(driver: MobilecliDriver): void {
   (driver as any).session.rpc.call = async () => ({});
 }
 
+interface RecordedCall {
+  method: string;
+  params: Record<string, unknown>;
+}
+
+// Replace the session's RPC transport with a recorder that returns canned
+// responses keyed by method name, capturing every (method, params) pair.
+function recordRpc(
+  driver: MobilecliDriver,
+  responses: Record<string, unknown>,
+): RecordedCall[] {
+  const calls: RecordedCall[] = [];
+  (driver as any).session.rpc.call = async (method: string, params: Record<string, unknown>) => {
+    calls.push({ method, params });
+    return responses[method];
+  };
+  return calls;
+}
+
 test.describe('MobilecliDriver.installApp()', () => {
   test.describe('iOS simulator', () => {
     test('accepts a .zip file', async () => {
@@ -197,5 +216,88 @@ test.describe('MobilecliDriver.installApp()', () => {
       allowRpc(driver);
       await expect(driver.installApp(createValidZipFile('app.APK'))).resolves.toBeUndefined();
     });
+  });
+});
+
+test.describe('MobilecliDriver.webViewBridge', () => {
+  test('listWebViews maps device.webview.list entries to WebViewInfo', async () => {
+    const driver = createDriverWithSession();
+    recordRpc(driver, {
+      'device.webview.list': [
+        {
+          id: 'wv-1',
+          url: 'https://example.com/',
+          title: 'Example',
+          bundleId: 'com.example.app',
+          bounds: { x: 0, y: 100, width: 390, height: 700 },
+          isVisible: true,
+        },
+      ],
+    });
+
+    const webviews = await driver.webViewBridge.listWebViews();
+    expect(webviews).toEqual([
+      {
+        id: 'wv-1',
+        url: 'https://example.com/',
+        title: 'Example',
+        nativeBounds: { x: 0, y: 100, width: 390, height: 700 },
+      },
+    ]);
+  });
+
+  test('navigation methods call the matching RPC with the device and webview ids', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, {});
+    const session = await driver.webViewBridge.attachWebView('wv-1');
+
+    await session.goto('https://example.com/');
+    await session.goBack();
+    await session.goForward();
+    await session.reload();
+
+    expect(calls.map((c) => c.method)).toEqual([
+      'device.webview.goto',
+      'device.webview.goBack',
+      'device.webview.goForward',
+      'device.webview.reload',
+    ]);
+    // deviceId is injected by the driver, id by the session.
+    expect(calls[0].params).toEqual({ deviceId: SIMULATOR_DEVICE_ID, id: 'wv-1', url: 'https://example.com/' });
+    expect(calls[1].params).toEqual({ deviceId: SIMULATOR_DEVICE_ID, id: 'wv-1' });
+  });
+
+  test('evaluate forwards the expression and returns the value directly', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, { 'device.webview.evaluate': 42 });
+    const session = await driver.webViewBridge.attachWebView('wv-1');
+
+    const value = await session.evaluate<number>('6 * 7');
+    expect(value).toBe(42);
+    expect(calls[0]).toEqual({
+      method: 'device.webview.evaluate',
+      params: { deviceId: SIMULATOR_DEVICE_ID, id: 'wv-1', expression: '6 * 7' },
+    });
+  });
+
+  test('url and title return the raw RPC string results', async () => {
+    const driver = createDriverWithSession();
+    recordRpc(driver, {
+      'device.webview.url': 'https://example.com/page',
+      'device.webview.title': 'Page Title',
+    });
+    const session = await driver.webViewBridge.attachWebView('wv-1');
+
+    expect(await session.url()).toBe('https://example.com/page');
+    expect(await session.title()).toBe('Page Title');
+  });
+
+  test('node-handle methods throw, pointing to the evaluate-based path', async () => {
+    const driver = createDriverWithSession();
+    recordRpc(driver, {});
+    const session = await driver.webViewBridge.attachWebView('wv-1');
+
+    await expect(session.querySelectorAll('.btn')).rejects.toThrow('not supported');
+    await expect(session.getText('node-1')).rejects.toThrow('not supported');
   });
 });

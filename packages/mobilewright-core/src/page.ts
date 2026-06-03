@@ -88,6 +88,18 @@ export class Page {
     });
   }
 
+  async goBack(): Promise<void> {
+    return this._step('page.goBack()', async () => {
+      await this.session.goBack();
+    });
+  }
+
+  async goForward(): Promise<void> {
+    return this._step('page.goForward()', async () => {
+      await this.session.goForward();
+    });
+  }
+
   async evaluate<T>(fn: string | (() => T)): Promise<T> {
     const expr = typeof fn === 'function' ? `(${fn.toString()})()` : fn;
     return this.session.evaluate<T>(expr);
