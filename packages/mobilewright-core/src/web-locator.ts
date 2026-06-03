@@ -1,7 +1,7 @@
 import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
-import { captureLocation } from './stackTrace.js';
+import { runStep } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -77,11 +77,48 @@ export class WebLocator {
   }
 
   private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
-    if (this._stepFn) {
-      const location = captureLocation();
-      return this._stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
+    return runStep(this._stepFn, title, fn);
+  }
+
+  // Evaluate a boolean predicate against the first matched element, retrying
+  // until it is true or the timeout elapses. A timeout of 0 checks once.
+  // Any evaluation error is treated as false.
+  private async pollBoolean(js: string, timeout: number, what: string): Promise<boolean> {
+    const read = async (): Promise<boolean> => {
+      try {
+        return await this.session.evaluate<boolean>(js);
+      } catch {
+        return false;
+      }
+    };
+    if (timeout === 0) {
+      return read();
     }
-    return fn();
+    try {
+      let result = false;
+      await retryUntil(
+        async () => { result = await read(); return result; },
+        (v) => v,
+        timeout,
+        `WebLocator: timed out waiting for element to be ${what}`,
+      );
+      return result;
+    } catch {
+      return false;
+    }
+  }
+
+  // Wait for the element to be visible, then return a value read from it.
+  // `valueExpr` is a JS expression evaluated with `el` bound to the first match.
+  private async readFromFirst<T>(valueExpr: string, opts?: { timeout?: number }): Promise<T> {
+    await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
+    return this.session.evaluate<T>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return ${valueExpr}; })()`);
+  }
+
+  // Read a string property (textContent/innerText/...) from the first match,
+  // defaulting to '' when the element or property is absent.
+  private async readStringProp(prop: string, opts?: { timeout?: number }): Promise<string> {
+    return this.readFromFirst<string>(`el?.${prop} ?? ''`, opts);
   }
 
   // ─── Chaining ────────────────────────────────────────────────
@@ -153,21 +190,8 @@ export class WebLocator {
   // ─── State queries ───────────────────────────────────────────
 
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
     const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; if (!el) return false; const s = window.getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; })()`;
-    if (timeout === 0) {
-      try { return await this.session.evaluate<boolean>(js); } catch { return false; }
-    }
-    try {
-      let result = false;
-      await retryUntil(
-        async () => { try { result = await this.session.evaluate<boolean>(js); } catch { result = false; } return result; },
-        (v) => v,
-        timeout,
-        'WebLocator: timed out waiting for element to be visible',
-      );
-      return result;
-    } catch { return false; }
+    return this.pollBoolean(js, opts?.timeout ?? DEFAULT_TIMEOUT, 'visible');
   }
 
   async isHidden(opts?: { timeout?: number }): Promise<boolean> {
@@ -176,21 +200,8 @@ export class WebLocator {
   }
 
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
-    const timeout = opts?.timeout ?? 0;
     const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; return !!el && !el.disabled; })()`;
-    if (timeout === 0) {
-      try { return await this.session.evaluate<boolean>(js); } catch { return false; }
-    }
-    try {
-      let result = false;
-      await retryUntil(
-        async () => { try { result = await this.session.evaluate<boolean>(js); } catch { result = false; } return result; },
-        (v) => v,
-        timeout,
-        'WebLocator: timed out waiting for element to be enabled',
-      );
-      return result;
-    } catch { return false; }
+    return this.pollBoolean(js, opts?.timeout ?? 0, 'enabled');
   }
 
   async isDisabled(opts?: { timeout?: number }): Promise<boolean> {
@@ -198,53 +209,30 @@ export class WebLocator {
   }
 
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
-    const timeout = opts?.timeout ?? 0;
     const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; return !!el && (el.checked === true || el.getAttribute('aria-checked') === 'true'); })()`;
-    if (timeout === 0) {
-      try { return await this.session.evaluate<boolean>(js); } catch { return false; }
-    }
-    try {
-      let result = false;
-      await retryUntil(
-        async () => { try { result = await this.session.evaluate<boolean>(js); } catch { result = false; } return result; },
-        (v) => v,
-        timeout,
-        'WebLocator: timed out waiting for element to be checked',
-      );
-      return result;
-    } catch { return false; }
+    return this.pollBoolean(js, opts?.timeout ?? 0, 'checked');
   }
 
   // ─── Value queries ───────────────────────────────────────────
 
   async textContent(opts?: { timeout?: number }): Promise<string> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
-    await this.pollUntilVisible(timeout);
-    return this.session.evaluate<string>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return el?.textContent ?? ''; })()`);
+    return this.readStringProp('textContent', opts);
   }
 
   async innerText(opts?: { timeout?: number }): Promise<string> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
-    await this.pollUntilVisible(timeout);
-    return this.session.evaluate<string>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return el?.innerText ?? ''; })()`);
+    return this.readStringProp('innerText', opts);
   }
 
   async innerHTML(opts?: { timeout?: number }): Promise<string> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
-    await this.pollUntilVisible(timeout);
-    return this.session.evaluate<string>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return el?.innerHTML ?? ''; })()`);
+    return this.readStringProp('innerHTML', opts);
   }
 
   async inputValue(opts?: { timeout?: number }): Promise<string> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
-    await this.pollUntilVisible(timeout);
-    return this.session.evaluate<string>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return el?.value ?? ''; })()`);
+    return this.readStringProp('value', opts);
   }
 
   async getAttribute(name: string, opts?: { timeout?: number }): Promise<string | null> {
-    const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
-    await this.pollUntilVisible(timeout);
-    return this.session.evaluate<string | null>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return el ? el.getAttribute(${JSON.stringify(name)}) : null; })()`);
+    return this.readFromFirst<string | null>(`el ? el.getAttribute(${JSON.stringify(name)}) : null`, opts);
   }
 
   async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number } | null> {
@@ -275,7 +263,7 @@ export class WebLocator {
     );
   }
 
-  // ─── Actions (step 5) ────────────────────────────────────────
+  // ─── Actions ─────────────────────────────────────────────────
 
   async click(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.click()', async () => {

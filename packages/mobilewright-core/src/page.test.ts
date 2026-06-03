@@ -33,11 +33,6 @@ function sessionWithResponses(...evaluateResponses: unknown[]): MockSession {
       evaluateCalls.push(expr);
       return (evaluateResponses[callIndex++] ?? undefined) as any;
     },
-    querySelectorAll: async () => [],
-    click: async () => {},
-    type: async () => {},
-    getAttribute: async () => null,
-    getText: async () => '',
     goto: async (url: string) => { gotoCalls.push(url); },
     goBack: async () => {},
     goForward: async () => {},
@@ -60,11 +55,6 @@ function sessionWithUrl(currentUrl: string): MockSession & { session: WebViewSes
       evaluateCalls.push(expr);
       return undefined as any;
     },
-    querySelectorAll: async () => [],
-    click: async () => {},
-    type: async () => {},
-    getAttribute: async () => null,
-    getText: async () => '',
     goto: async (url: string) => { gotoCalls.push(url); },
     goBack: async () => {},
     goForward: async () => {},

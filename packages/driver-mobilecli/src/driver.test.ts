@@ -291,13 +291,4 @@ test.describe('MobilecliDriver.webViewBridge', () => {
     expect(await session.url()).toBe('https://example.com/page');
     expect(await session.title()).toBe('Page Title');
   });
-
-  test('node-handle methods throw, pointing to the evaluate-based path', async () => {
-    const driver = createDriverWithSession();
-    recordRpc(driver, {});
-    const session = await driver.webViewBridge.attachWebView('wv-1');
-
-    await expect(session.querySelectorAll('.btn')).rejects.toThrow('not supported');
-    await expect(session.getText('node-1')).rejects.toThrow('not supported');
-  });
 });

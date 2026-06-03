@@ -20,11 +20,6 @@ import type {
 
 export interface WebViewSession {
   evaluate<T = unknown>(expr: string): Promise<T>;
-  querySelectorAll(selector: string): Promise<string[]>;
-  click(nodeId: string): Promise<void>;
-  type(nodeId: string, text: string): Promise<void>;
-  getAttribute(nodeId: string, name: string): Promise<string | null>;
-  getText(nodeId: string): Promise<string>;
   goto(url: string): Promise<void>;
   goBack(): Promise<void>;
   goForward(): Promise<void>;

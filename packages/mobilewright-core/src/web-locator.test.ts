@@ -29,11 +29,6 @@ function sessionReturning(...evaluateResponses: unknown[]): {
       const idx = callIndex++;
       return (idx < evaluateResponses.length ? evaluateResponses[idx] : undefined) as any;
     },
-    querySelectorAll: async () => [],
-    click: async () => {},
-    type: async () => {},
-    getAttribute: async () => null,
-    getText: async () => '',
     goto: async () => {},
     goBack: async () => {},
     goForward: async () => {},
@@ -55,9 +50,7 @@ function sessionAlwaysReturning(value: unknown) {
       evaluateCalls.push(expr);
       return value as any;
     },
-    querySelectorAll: async () => [],
-    click: async () => {}, type: async () => {}, getAttribute: async () => null,
-    getText: async () => '', goto: async () => {}, url: async () => '',
+    goto: async () => {}, url: async () => '',
     goBack: async () => {}, goForward: async () => {},
     title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
     close: async () => {},
@@ -209,9 +202,7 @@ test.describe('WebLocator.isVisible()', () => {
   test('returns false without throwing when evaluate rejects', async () => {
     const session: WebViewSession = {
       evaluate: async () => { throw new Error('evaluate failed'); },
-      querySelectorAll: async () => [],
-      click: async () => {}, type: async () => {}, getAttribute: async () => null,
-      getText: async () => '', goto: async () => {}, url: async () => '',
+      goto: async () => {}, url: async () => '',
       goBack: async () => {}, goForward: async () => {},
       title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
       close: async () => {},

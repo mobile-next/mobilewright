@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy } from './query-engine.js';
 import { sleep } from './sleep.js';
-import { captureLocation, type StepLocation } from './stackTrace.js';
+import { runStep, type StepLocation } from './stackTrace.js';
 
 export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
 
@@ -44,11 +44,7 @@ export class Locator {
   }
 
   protected async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
-    if (this._stepFn) {
-      const location = captureLocation();
-      return this._stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
-    }
-    return fn();
+    return runStep(this._stepFn, title, fn);
   }
 
   // ─── Chaining ────────────────────────────────────────────────

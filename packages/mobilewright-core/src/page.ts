@@ -1,7 +1,7 @@
 import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
-import { captureLocation } from './stackTrace.js';
+import { runStep } from './stackTrace.js';
 import { WebLocator, type WebLocatorStrategy } from './web-locator.js';
 import { DOM_SELECTOR_ENGINE } from './dom-selector-engine.js';
 
@@ -25,11 +25,7 @@ export class Page {
   }
 
   private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
-    if (this._stepFn) {
-      const location = captureLocation();
-      return this._stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
-    }
-    return fn();
+    return runStep(this._stepFn, title, fn);
   }
 
   // ─── Locator factories ───────────────────────────────────────

@@ -169,10 +169,8 @@ const debug = createDebug('mw:driver-mobilecli');
 /**
  * A WebViewSession backed by mobilecli's device.webview.* RPC methods.
  * Bound to a single webview `id`; the deviceId is injected by the caller.
- *
- * The node-handle methods (querySelectorAll/click/type/getAttribute/getText)
- * have no mobilecli equivalent — the core's WebLocator drives the page through
- * evaluate() and the injected DOM selector engine instead — so they throw.
+ * The core's WebLocator drives the page through evaluate() and the injected
+ * DOM selector engine.
  */
 class MobilecliWebViewSession implements WebViewSession {
   constructor(
@@ -218,26 +216,6 @@ class MobilecliWebViewSession implements WebViewSession {
       id: this.id,
       ...(state !== undefined && { state }),
     });
-  }
-
-  async querySelectorAll(): Promise<string[]> {
-    throw new Error('querySelectorAll is not supported by the mobilecli driver; use evaluate-based locators');
-  }
-
-  async click(): Promise<void> {
-    throw new Error('click(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
-  }
-
-  async type(): Promise<void> {
-    throw new Error('type(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
-  }
-
-  async getAttribute(): Promise<string | null> {
-    throw new Error('getAttribute(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
-  }
-
-  async getText(): Promise<string> {
-    throw new Error('getText(nodeId) is not supported by the mobilecli driver; use evaluate-based locators');
   }
 
   async close(): Promise<void> {

@@ -3,7 +3,7 @@ import { LocatorError } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { retryUntil } from './poll.js';
-import { filterStack, captureLocation } from './stackTrace.js';
+import { filterStack, runStep } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -53,8 +53,11 @@ class LocatorAssertions {
     protected readonly negated: boolean,
   ) {}
 
+  // Subclasses (e.g. WebLocatorAssertions) inherit this; it reconstructs the
+  // concrete type via its constructor, which must keep the (locator, negated)
+  // signature this relies on.
   get not(): this {
-    return new (this.constructor as any)(this.locator, !this.negated) as this;
+    return new (this.constructor as new (locator: LocatorLike, negated: boolean) => this)(this.locator, !this.negated);
   }
 
   private assertionTimeout(opts?: ExpectOptions): number {
@@ -62,13 +65,8 @@ class LocatorAssertions {
   }
 
   protected _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    const stepFn = this.locator._stepFn;
     const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
-    if (stepFn) {
-      const location = captureLocation();
-      return stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
-    }
-    return fn();
+    return runStep(this.locator._stepFn, title, fn);
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
@@ -103,13 +101,21 @@ class LocatorAssertions {
 
   async toBeSelected(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeSelected', async () => {
-      await this.assertBoolean('selected', () => this.locator.isSelected!({ timeout: 0 }), opts);
+      const isSelected = this.locator.isSelected?.bind(this.locator);
+      if (!isSelected) {
+        throw new ExpectError('toBeSelected() is not supported for this locator');
+      }
+      await this.assertBoolean('selected', () => isSelected({ timeout: 0 }), opts);
     });
   }
 
   async toBeFocused(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeFocused', async () => {
-      await this.assertBoolean('focused', () => this.locator.isFocused!({ timeout: 0 }), opts);
+      const isFocused = this.locator.isFocused?.bind(this.locator);
+      if (!isFocused) {
+        throw new ExpectError('toBeFocused() is not supported for this locator');
+      }
+      await this.assertBoolean('focused', () => isFocused({ timeout: 0 }), opts);
     });
   }
 
@@ -434,13 +440,8 @@ class PageAssertions {
   }
 
   private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    const stepFn = this.page._stepFn;
     const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
-    if (stepFn) {
-      const location = captureLocation();
-      return stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
-    }
-    return fn();
+    return runStep(this.page._stepFn, title, fn);
   }
 
   async toHaveURL(url: string | RegExp, opts?: ExpectOptions): Promise<void> {
