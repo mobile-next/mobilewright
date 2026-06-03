@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { ViewNode } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy } from './query-engine.js';
+import { queryAll, WEBVIEW_TYPES, type LocatorStrategy } from './query-engine.js';
 
 function node(
   overrides: Partial<ViewNode> & { type: string },
@@ -396,7 +396,7 @@ test.describe('webview strategy', () => {
   test('does not match non-webview types', () => {
     const results = queryAll(treeWithWebViews, { kind: 'webview' });
     const types = results.map((n) => n.type);
-    expect(types.every((t) => WEBVIEW_TYPES_FOR_TEST.has(t))).toBe(true);
+    expect(types.every((t) => WEBVIEW_TYPES.has(t))).toBe(true);
   });
 
   test('chained parent getByWebView finds webview inside a container', () => {
@@ -423,10 +423,6 @@ test.describe('webview strategy', () => {
     expect(results).toHaveLength(0);
   });
 });
-
-const WEBVIEW_TYPES_FOR_TEST = new Set([
-  'WKWebView', 'XCUIElementTypeWebView', 'android.webkit.WebView', 'RCTWebView', 'RNCWebView',
-]);
 
 test.describe('testId with resourceId', () => {
   const tree: ViewNode[] = [

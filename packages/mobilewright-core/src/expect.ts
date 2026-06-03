@@ -47,17 +47,41 @@ interface LocatorLike {
   _stepFn?: StepFn | null;
 }
 
+// Wrap an assertion body as a reporter step titled after the matcher, shared by
+// all assertion classes so the title/negation convention lives in one place.
+function wrapAssertion<T>(
+  stepFn: StepFn | null | undefined,
+  negated: boolean,
+  method: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const title = negated ? `expect.not.${method}()` : `expect.${method}()`;
+  return runStep(stepFn, title, fn);
+}
+
+// Poll until `predicate` holds (or the timeout elapses), re-raising any failure
+// as an ExpectError. The predicate must already account for negation.
+async function retryAssertion<T>(
+  poll: () => Promise<T>,
+  predicate: (value: T) => boolean,
+  timeout: number,
+  failMessage: string | (() => string),
+): Promise<void> {
+  try {
+    await retryUntil(poll, predicate, timeout, failMessage);
+  } catch (e) {
+    throw new ExpectError(e instanceof Error ? e.message : String(e));
+  }
+}
+
 class LocatorAssertions {
   constructor(
     protected readonly locator: LocatorLike,
     protected readonly negated: boolean,
   ) {}
 
-  // Subclasses (e.g. WebLocatorAssertions) inherit this; it reconstructs the
-  // concrete type via its constructor, which must keep the (locator, negated)
-  // signature this relies on.
-  get not(): this {
-    return new (this.constructor as new (locator: LocatorLike, negated: boolean) => this)(this.locator, !this.negated);
+  get not(): LocatorAssertions {
+    return new LocatorAssertions(this.locator, !this.negated);
   }
 
   private assertionTimeout(opts?: ExpectOptions): number {
@@ -65,8 +89,7 @@ class LocatorAssertions {
   }
 
   protected _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
-    return runStep(this.locator._stepFn, title, fn);
+    return wrapAssertion(this.locator._stepFn, this.negated, method, fn);
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
@@ -267,17 +290,13 @@ class LocatorAssertions {
     );
   }
 
-  protected async retryAssertion<T>(
+  protected retryAssertion<T>(
     poll: () => Promise<T>,
     predicate: (value: T) => boolean,
     timeout: number,
     failMessage: string | (() => string),
   ): Promise<void> {
-    try {
-      await retryUntil(poll, predicate, timeout, failMessage);
-    } catch (e) {
-      throw new ExpectError(e instanceof Error ? e.message : String(e));
-    }
+    return retryAssertion(poll, predicate, timeout, failMessage);
   }
 }
 
@@ -440,16 +459,20 @@ class PageAssertions {
   }
 
   private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    const title = this.negated ? `expect.not.${method}()` : `expect.${method}()`;
-    return runStep(this.page._stepFn, title, fn);
+    return wrapAssertion(this.page._stepFn, this.negated, method, fn);
+  }
+
+  // Applies negation so callers pass the plain "does it match?" predicate.
+  private matches(pass: boolean): boolean {
+    return this.negated ? !pass : pass;
   }
 
   async toHaveURL(url: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveURL', async () => {
       let last = '';
-      await this.retryAssertion(
+      await retryAssertion(
         async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
-        (current) => url instanceof RegExp ? url.test(current) : current === url,
+        (current) => this.matches(url instanceof RegExp ? url.test(current) : current === url),
         opts?.timeout ?? DEFAULT_TIMEOUT,
         () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
       );
@@ -459,26 +482,13 @@ class PageAssertions {
   async toHaveTitle(title: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveTitle', async () => {
       let last = '';
-      await this.retryAssertion(
+      await retryAssertion(
         async () => { try { last = await this.page.title(); } catch { last = ''; } return last; },
-        (current) => title instanceof RegExp ? title.test(current) : current === title,
+        (current) => this.matches(title instanceof RegExp ? title.test(current) : current === title),
         opts?.timeout ?? DEFAULT_TIMEOUT,
         () => `Expected page title to ${this.negated ? 'not ' : ''}match "${title}", but got "${last}"`,
       );
     });
-  }
-
-  private async retryAssertion<T>(
-    poll: () => Promise<T>,
-    predicate: (value: T) => boolean,
-    timeout: number,
-    failMessage: string | (() => string),
-  ): Promise<void> {
-    try {
-      await retryUntil(poll, (v) => this.negated ? !predicate(v) : predicate(v), timeout, failMessage);
-    } catch (e) {
-      throw new ExpectError(e instanceof Error ? e.message : String(e));
-    }
   }
 }
 
@@ -489,6 +499,10 @@ class PageAssertions {
 class WebLocatorAssertions extends LocatorAssertions {
   constructor(private readonly webLocator: WebLocator, negated: boolean) {
     super(webLocator, negated);
+  }
+
+  override get not(): WebLocatorAssertions {
+    return new WebLocatorAssertions(this.webLocator, !this.negated);
   }
 
   async toHaveAttribute(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {

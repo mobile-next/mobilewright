@@ -1,9 +1,9 @@
 import { test, expect as playwrightExpect } from '@playwright/test';
-import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { expect } from './expect.js';
+import { fakeWebViewSession } from './fake-webview-session.js';
 
 // A step function that records the title of every step it wraps, then runs the body.
 function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
@@ -17,55 +17,12 @@ function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
 
 // ─── Mock helpers ────────────────────────────────────────────
 
-type MockSession = {
-  session: WebViewSession;
-  evaluateCalls: string[];
-  gotoCalls: string[];
-};
-
-function sessionWithResponses(...evaluateResponses: unknown[]): MockSession {
-  const evaluateCalls: string[] = [];
-  const gotoCalls: string[] = [];
-  let callIndex = 0;
-
-  const session: WebViewSession = {
-    evaluate: async (expr: string) => {
-      evaluateCalls.push(expr);
-      return (evaluateResponses[callIndex++] ?? undefined) as any;
-    },
-    goto: async (url: string) => { gotoCalls.push(url); },
-    goBack: async () => {},
-    goForward: async () => {},
-    url: async () => 'https://example.com/home',
-    title: async () => 'Home',
-    reload: async () => {},
-    waitForLoadState: async () => {},
-    close: async () => {},
-  };
-
-  return { session, evaluateCalls, gotoCalls };
+function sessionWithResponses(...evaluateResponses: unknown[]) {
+  return fakeWebViewSession({ evaluateResponses, url: 'https://example.com/home', title: 'Home' });
 }
 
-function sessionWithUrl(currentUrl: string): MockSession & { session: WebViewSession } {
-  const evaluateCalls: string[] = [];
-  const gotoCalls: string[] = [];
-
-  const session: WebViewSession = {
-    evaluate: async (expr: string) => {
-      evaluateCalls.push(expr);
-      return undefined as any;
-    },
-    goto: async (url: string) => { gotoCalls.push(url); },
-    goBack: async () => {},
-    goForward: async () => {},
-    url: async () => currentUrl,
-    title: async () => 'Page Title',
-    reload: async () => {},
-    waitForLoadState: async () => {},
-    close: async () => {},
-  };
-
-  return { session, evaluateCalls, gotoCalls };
+function sessionWithUrl(currentUrl: string) {
+  return fakeWebViewSession({ url: currentUrl, title: 'Page Title' });
 }
 
 // ─── Page.attach ─────────────────────────────────────────────

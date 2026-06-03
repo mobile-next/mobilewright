@@ -7,20 +7,22 @@ export const DOM_SELECTOR_ENGINE = `
 (function () {
   // ─── Text helpers ────────────────────────────────────────────
 
-  function normalizeWhiteSpace(s) {
-    return s.replace(/[\\u200b\\u00ad]/g, '').replace(/\\s+/g, ' ').trim();
+  function normalizeWhiteSpace(value) {
+    return value.replace(/[\\u200b\\u00ad]/g, '').replace(/\\s+/g, ' ').trim();
   }
 
   function shouldSkipForTextMatching(el) {
-    const n = el.nodeName;
-    return n === 'SCRIPT' || n === 'NOSCRIPT' || n === 'STYLE' || n === 'TEMPLATE' ||
+    const nodeName = el.nodeName;
+    return nodeName === 'SCRIPT' || nodeName === 'NOSCRIPT' || nodeName === 'STYLE' || nodeName === 'TEMPLATE' ||
       (el.ownerDocument.head && el.ownerDocument.head.contains(el));
   }
 
   // Returns the full text content of an element, recursing into children but
   // skipping script/style nodes. Matches Playwright's elementText().full.
   function elementFullText(el) {
-    if (shouldSkipForTextMatching(el)) return '';
+    if (shouldSkipForTextMatching(el)) {
+      return '';
+    }
     if ((el.nodeName === 'INPUT') && (el.type === 'submit' || el.type === 'button')) {
       return el.value;
     }
@@ -43,11 +45,16 @@ export const DOM_SELECTOR_ENGINE = `
   // text matches AND whether a child also matches (to find the innermost match).
   // Returns 'none' | 'self' | 'selfAndChildren'.
   function elementMatchesText(el, matcher) {
-    if (shouldSkipForTextMatching(el)) return 'none';
-    if (!matcher(elementNormalizedText(el))) return 'none';
+    if (shouldSkipForTextMatching(el)) {
+      return 'none';
+    }
+    if (!matcher(elementNormalizedText(el))) {
+      return 'none';
+    }
     for (let child = el.firstChild; child; child = child.nextSibling) {
-      if (child.nodeType === 1 && matcher(elementNormalizedText(child)))
+      if (child.nodeType === 1 && matcher(elementNormalizedText(child))) {
         return 'selfAndChildren';
+      }
     }
     return 'self';
   }
@@ -61,17 +68,23 @@ export const DOM_SELECTOR_ENGINE = `
     const all = root.querySelectorAll('*');
     for (const el of all) {
       const match = elementMatchesText(el, matcher);
-      if (match === 'self') result.push(el);
+      if (match === 'self') {
+        result.push(el);
+      }
       // 'selfAndChildren' → skip the parent, child will be pushed when visited
     }
     return result;
   }
 
   function buildTextMatcher(textOrRegex, exact) {
-    if (textOrRegex instanceof RegExp) return s => textOrRegex.test(s);
-    if (exact) return s => s === textOrRegex;
+    if (textOrRegex instanceof RegExp) {
+      return text => textOrRegex.test(text);
+    }
+    if (exact) {
+      return text => text === textOrRegex;
+    }
     // Playwright default: case-sensitive substring on normalised text
-    return s => s.includes(textOrRegex);
+    return text => text.includes(textOrRegex);
   }
 
   // ─── Attribute helpers ───────────────────────────────────────
@@ -81,10 +94,14 @@ export const DOM_SELECTOR_ENGINE = `
   function findByAttr(root, attrName, textOrRegex, exact) {
     const elements = Array.from(root.querySelectorAll('[' + attrName + ']'));
     return elements.filter(el => {
-      const val = el.getAttribute(attrName) || '';
-      if (textOrRegex instanceof RegExp) return textOrRegex.test(val);
-      if (exact) return val === textOrRegex;
-      return val.toLowerCase().includes(textOrRegex.toLowerCase());
+      const value = el.getAttribute(attrName) || '';
+      if (textOrRegex instanceof RegExp) {
+        return textOrRegex.test(value);
+      }
+      if (exact) {
+        return value === textOrRegex;
+      }
+      return value.toLowerCase().includes(textOrRegex.toLowerCase());
     });
   }
 
@@ -127,12 +144,20 @@ export const DOM_SELECTOR_ENGINE = `
     HTML:       () => 'document',
     IMG:        el => (el.getAttribute('alt') === '' && !el.getAttribute('title') && !el.hasAttribute('tabindex')) ? 'presentation' : 'img',
     INPUT:      el => {
-      const t = (el.type || '').toLowerCase();
-      if (t === 'search') return el.hasAttribute('list') ? 'combobox' : 'searchbox';
-      if (['email','tel','text','url',''].includes(t)) return el.hasAttribute('list') ? 'combobox' : 'textbox';
-      if (t === 'hidden') return null;
-      if (t === 'file')   return 'button';
-      return kInputTypeToRole[t] || 'textbox';
+      const type = (el.type || '').toLowerCase();
+      if (type === 'search') {
+        return el.hasAttribute('list') ? 'combobox' : 'searchbox';
+      }
+      if (['email','tel','text','url',''].includes(type)) {
+        return el.hasAttribute('list') ? 'combobox' : 'textbox';
+      }
+      if (type === 'hidden') {
+        return null;
+      }
+      if (type === 'file') {
+        return 'button';
+      }
+      return kInputTypeToRole[type] || 'textbox';
     },
     INS:        () => 'insertion',
     LI:         () => 'listitem',
@@ -157,10 +182,17 @@ export const DOM_SELECTOR_ENGINE = `
     SVG:        () => 'img',
     TABLE:      () => 'table',
     TBODY:      () => 'rowgroup',
-    TD:         el => { const t = el.closest('table'); const r = t ? getExplicitRole(t) : null; return (r === 'grid' || r === 'treegrid') ? 'gridcell' : 'cell'; },
+    TD:         el => {
+      const tableEl = el.closest('table');
+      const tableRole = tableEl ? getExplicitRole(tableEl) : null;
+      return (tableRole === 'grid' || tableRole === 'treegrid') ? 'gridcell' : 'cell';
+    },
     TEXTAREA:   () => 'textbox',
     TFOOT:      () => 'rowgroup',
-    TH:         el => { const s = el.getAttribute('scope'); return (s === 'row' || s === 'rowgroup') ? 'rowheader' : 'columnheader'; },
+    TH:         el => {
+      const scope = el.getAttribute('scope');
+      return (scope === 'row' || scope === 'rowgroup') ? 'rowheader' : 'columnheader';
+    },
     THEAD:      () => 'rowgroup',
     TIME:       () => 'time',
     TR:         () => 'row',
@@ -170,8 +202,8 @@ export const DOM_SELECTOR_ENGINE = `
   const kValidRoles = new Set(['alert','alertdialog','application','article','banner','blockquote','button','caption','cell','checkbox','code','columnheader','combobox','complementary','contentinfo','definition','deletion','dialog','directory','document','emphasis','feed','figure','form','generic','grid','gridcell','group','heading','img','insertion','link','list','listbox','listitem','log','main','mark','marquee','math','meter','menu','menubar','menuitem','menuitemcheckbox','menuitemradio','navigation','none','note','option','paragraph','presentation','progressbar','radio','radiogroup','region','row','rowgroup','rowheader','scrollbar','search','searchbox','separator','slider','spinbutton','status','strong','subscript','superscript','switch','tab','table','tablist','tabpanel','term','textbox','time','timer','toolbar','tooltip','tree','treegrid','treeitem']);
 
   function getExplicitRole(el) {
-    const tokens = (el.getAttribute('role') || '').split(/\\s+/).map(r => r.trim());
-    return tokens.find(r => kValidRoles.has(r)) || null;
+    const tokens = (el.getAttribute('role') || '').split(/\\s+/).map(role => role.trim());
+    return tokens.find(role => kValidRoles.has(role)) || null;
   }
 
   function getImplicitRole(el) {
@@ -180,16 +212,24 @@ export const DOM_SELECTOR_ENGINE = `
   }
 
   function isNativelyFocusable(el) {
-    const t = el.tagName;
-    if (['BUTTON','DETAILS','SELECT','TEXTAREA'].includes(t)) return true;
-    if (t === 'A' || t === 'AREA') return el.hasAttribute('href');
-    if (t === 'INPUT') return (el.type || '').toLowerCase() !== 'hidden';
+    const tag = el.tagName;
+    if (['BUTTON','DETAILS','SELECT','TEXTAREA'].includes(tag)) {
+      return true;
+    }
+    if (tag === 'A' || tag === 'AREA') {
+      return el.hasAttribute('href');
+    }
+    if (tag === 'INPUT') {
+      return (el.type || '').toLowerCase() !== 'hidden';
+    }
     return false;
   }
 
   function getAriaRole(el) {
     const explicit = getExplicitRole(el);
-    if (!explicit) return getImplicitRole(el);
+    if (!explicit) {
+      return getImplicitRole(el);
+    }
     // Presentation conflict resolution: explicit none/presentation is overridden
     // when element is focusable or has global ARIA attributes.
     if (explicit === 'none' || explicit === 'presentation') {
@@ -204,30 +244,41 @@ export const DOM_SELECTOR_ENGINE = `
   // ─── Accessible name (W3C accName, simplified) ───────────────
 
   function getIdRefs(el, attrValue) {
-    if (!attrValue) return [];
+    if (!attrValue) {
+      return [];
+    }
     const root = el.getRootNode() || document;
     return attrValue.split(/\\s+/).filter(Boolean).flatMap(id => {
       try {
         const found = (root.querySelector ? root : document).querySelector('#' + CSS.escape(id));
         return found ? [found] : [];
-      } catch (e) { return []; }
+      } catch (e) {
+        return [];
+      }
     });
   }
 
   // Priority: aria-labelledby > aria-label > native label/alt/placeholder/title > content
   function getAccessibleName(el, visited) {
-    if (!visited) visited = new Set();
-    if (visited.has(el)) return '';
+    if (!visited) {
+      visited = new Set();
+    }
+    if (visited.has(el)) {
+      return '';
+    }
     visited.add(el);
 
     // 1. aria-labelledby
     const labelledByRefs = getIdRefs(el, el.getAttribute('aria-labelledby'));
-    if (labelledByRefs.length)
-      return normalizeWhiteSpace(labelledByRefs.map(r => getAccessibleName(r, visited)).join(' '));
+    if (labelledByRefs.length) {
+      return normalizeWhiteSpace(labelledByRefs.map(ref => getAccessibleName(ref, visited)).join(' '));
+    }
 
     // 2. aria-label
     const ariaLabel = (el.getAttribute('aria-label') || '').trim();
-    if (ariaLabel) return ariaLabel;
+    if (ariaLabel) {
+      return ariaLabel;
+    }
 
     const tag = el.tagName;
 
@@ -236,9 +287,15 @@ export const DOM_SELECTOR_ENGINE = `
       const type = (el.type || '').toLowerCase();
       if (['button','submit','reset'].includes(type)) {
         const val = (el.value || '').trim();
-        if (val) return val;
-        if (type === 'submit') return 'Submit';
-        if (type === 'reset')  return 'Reset';
+        if (val) {
+          return val;
+        }
+        if (type === 'submit') {
+          return 'Submit';
+        }
+        if (type === 'reset') {
+          return 'Reset';
+        }
         return el.getAttribute('title') || '';
       }
       if (type === 'image') {
@@ -250,8 +307,9 @@ export const DOM_SELECTOR_ENGINE = `
     // 4. Associated <label> elements (INPUT, SELECT, TEXTAREA, BUTTON, METER, OUTPUT, PROGRESS)
     if (['INPUT','TEXTAREA','SELECT','BUTTON','METER','OUTPUT','PROGRESS'].includes(tag)) {
       const labels = el.labels;
-      if (labels && labels.length)
-        return normalizeWhiteSpace(Array.from(labels).map(l => elementFullText(l)).join(' '));
+      if (labels && labels.length) {
+        return normalizeWhiteSpace(Array.from(labels).map(label => elementFullText(label)).join(' '));
+      }
     }
 
     // 5. img / area alt
@@ -263,35 +321,44 @@ export const DOM_SELECTOR_ENGINE = `
     // 6. SVG: first <title> child
     if (tag === 'SVG' || el.ownerSVGElement) {
       const title = el.querySelector(':scope > title');
-      if (title) return normalizeWhiteSpace(elementFullText(title));
+      if (title) {
+        return normalizeWhiteSpace(elementFullText(title));
+      }
     }
 
     // 7. table -> caption
     if (tag === 'TABLE') {
       const caption = el.querySelector(':scope > caption');
-      if (caption) return normalizeWhiteSpace(elementFullText(caption));
+      if (caption) {
+        return normalizeWhiteSpace(elementFullText(caption));
+      }
       return el.getAttribute('summary') || el.getAttribute('title') || '';
     }
 
     // 8. fieldset -> legend
     if (tag === 'FIELDSET') {
       const legend = el.querySelector(':scope > legend');
-      if (legend) return normalizeWhiteSpace(elementFullText(legend));
+      if (legend) {
+        return normalizeWhiteSpace(elementFullText(legend));
+      }
       return el.getAttribute('title') || '';
     }
 
     // 9. figure -> figcaption
     if (tag === 'FIGURE') {
       const cap = el.querySelector(':scope > figcaption');
-      if (cap) return normalizeWhiteSpace(elementFullText(cap));
+      if (cap) {
+        return normalizeWhiteSpace(elementFullText(cap));
+      }
       return el.getAttribute('title') || '';
     }
 
     // 10. Roles that allow name-from-content
     const kNameFromContentRoles = new Set(['button','cell','checkbox','columnheader','gridcell','heading','link','menuitem','menuitemcheckbox','menuitemradio','option','radio','row','rowheader','switch','tab','tooltip','treeitem']);
     const role = getAriaRole(el);
-    if (role && kNameFromContentRoles.has(role))
+    if (role && kNameFromContentRoles.has(role)) {
       return normalizeWhiteSpace(elementFullText(el));
+    }
 
     // 11. placeholder fallback for inputs
     if (tag === 'INPUT' || tag === 'TEXTAREA') {
@@ -308,18 +375,23 @@ export const DOM_SELECTOR_ENGINE = `
   function getElementLabels(el) {
     // aria-labelledby
     const refs = getIdRefs(el, el.getAttribute('aria-labelledby'));
-    if (refs.length) return refs.map(r => normalizeWhiteSpace(elementFullText(r)));
+    if (refs.length) {
+      return refs.map(ref => normalizeWhiteSpace(elementFullText(ref)));
+    }
 
     // aria-label
     const ariaLabel = (el.getAttribute('aria-label') || '').trim();
-    if (ariaLabel) return [ariaLabel];
+    if (ariaLabel) {
+      return [ariaLabel];
+    }
 
     // HTML label elements (INPUT[not hidden], BUTTON, METER, OUTPUT, PROGRESS, SELECT, TEXTAREA)
     const tag = el.tagName;
     const isLabelable = (tag === 'INPUT' && (el.type || '').toLowerCase() !== 'hidden') ||
                         ['BUTTON','METER','OUTPUT','PROGRESS','SELECT','TEXTAREA'].includes(tag);
-    if (isLabelable && el.labels && el.labels.length)
-      return Array.from(el.labels).map(l => normalizeWhiteSpace(elementFullText(l))).filter(Boolean);
+    if (isLabelable && el.labels && el.labels.length) {
+      return Array.from(el.labels).map(label => normalizeWhiteSpace(elementFullText(label))).filter(Boolean);
+    }
 
     return [];
   }
@@ -330,17 +402,25 @@ export const DOM_SELECTOR_ENGINE = `
   function findByRole(root, role, name, exact) {
     const result = [];
     for (const el of root.querySelectorAll('*')) {
-      if (getAriaRole(el) !== role) continue;
+      if (getAriaRole(el) !== role) {
+        continue;
+      }
       if (name !== undefined) {
         const accessibleName = normalizeWhiteSpace(getAccessibleName(el));
-        let nameNorm = name instanceof RegExp ? name : normalizeWhiteSpace(String(name));
+        const nameNorm = name instanceof RegExp ? name : normalizeWhiteSpace(String(name));
         if (name instanceof RegExp) {
-          if (!name.test(accessibleName)) continue;
+          if (!name.test(accessibleName)) {
+            continue;
+          }
         } else if (exact) {
-          if (accessibleName !== nameNorm) continue;
+          if (accessibleName !== nameNorm) {
+            continue;
+          }
         } else {
           // Internal mode default: substring match
-          if (!accessibleName.includes(nameNorm)) continue;
+          if (!accessibleName.includes(nameNorm)) {
+            continue;
+          }
         }
       }
       result.push(el);
@@ -355,7 +435,9 @@ export const DOM_SELECTOR_ENGINE = `
     const result = [];
     for (const el of root.querySelectorAll('*')) {
       const labels = getElementLabels(el);
-      if (labels.some(l => matcher(l))) result.push(el);
+      if (labels.some(label => matcher(label))) {
+        result.push(el);
+      }
     }
     return result;
   }

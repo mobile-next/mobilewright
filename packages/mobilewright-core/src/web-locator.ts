@@ -1,9 +1,12 @@
-import type { WebViewSession } from '@mobilewright/protocol';
+import createDebug from 'debug';
+import type { Bounds, WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
 import { runStep } from './stackTrace.js';
 
 const DEFAULT_TIMEOUT = 5_000;
+
+const debug = createDebug('mw:web-locator');
 
 export type WebLocatorStrategy =
   | { kind: 'css'; selector: string }
@@ -80,14 +83,32 @@ export class WebLocator {
     return runStep(this._stepFn, title, fn);
   }
 
+  // JS expression evaluating to the first matched element (or undefined).
+  private firstEl(): string {
+    return `(${buildFindAll(this.strategy)})[0]`;
+  }
+
+  // Wrap a statement list in an IIFE with `el` bound to the first match.
+  // Use a `return` inside `body` to produce a value.
+  private firstElExpr(body: string): string {
+    return `(() => { const el = ${this.firstEl()}; ${body} })()`;
+  }
+
+  // Evaluate `firstElExpr(body)` in the page and return its result.
+  private evalOnFirst<T = void>(body: string): Promise<T> {
+    return this.session.evaluate<T>(this.firstElExpr(body));
+  }
+
   // Evaluate a boolean predicate against the first matched element, retrying
   // until it is true or the timeout elapses. A timeout of 0 checks once.
-  // Any evaluation error is treated as false.
+  // An evaluation error is treated as false (the element is absent or the page
+  // is mid-navigation) but logged via debug so genuine failures stay diagnosable.
   private async pollBoolean(js: string, timeout: number, what: string): Promise<boolean> {
     const read = async (): Promise<boolean> => {
       try {
         return await this.session.evaluate<boolean>(js);
-      } catch {
+      } catch (e) {
+        debug('"%s" check evaluation failed, treating as false: %s', what, e instanceof Error ? e.message : e);
         return false;
       }
     };
@@ -112,7 +133,7 @@ export class WebLocator {
   // `valueExpr` is a JS expression evaluated with `el` bound to the first match.
   private async readFromFirst<T>(valueExpr: string, opts?: { timeout?: number }): Promise<T> {
     await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-    return this.session.evaluate<T>(`(() => { const el = (${buildFindAll(this.strategy)})[0]; return ${valueExpr}; })()`);
+    return this.evalOnFirst<T>(`return ${valueExpr};`);
   }
 
   // Read a string property (textContent/innerText/...) from the first match,
@@ -190,7 +211,7 @@ export class WebLocator {
   // ─── State queries ───────────────────────────────────────────
 
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
-    const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; if (!el) return false; const s = window.getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; })()`;
+    const js = this.firstElExpr('if (!el) return false; const s = window.getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden";');
     return this.pollBoolean(js, opts?.timeout ?? DEFAULT_TIMEOUT, 'visible');
   }
 
@@ -200,7 +221,7 @@ export class WebLocator {
   }
 
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
-    const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; return !!el && !el.disabled; })()`;
+    const js = this.firstElExpr('return !!el && !el.disabled;');
     return this.pollBoolean(js, opts?.timeout ?? 0, 'enabled');
   }
 
@@ -209,7 +230,7 @@ export class WebLocator {
   }
 
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
-    const js = `(() => { const el = (${buildFindAll(this.strategy)})[0]; return !!el && (el.checked === true || el.getAttribute('aria-checked') === 'true'); })()`;
+    const js = this.firstElExpr('return !!el && (el.checked === true || el.getAttribute("aria-checked") === "true");');
     return this.pollBoolean(js, opts?.timeout ?? 0, 'checked');
   }
 
@@ -235,11 +256,11 @@ export class WebLocator {
     return this.readFromFirst<string | null>(`el ? el.getAttribute(${JSON.stringify(name)}) : null`, opts);
   }
 
-  async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number } | null> {
+  async boundingBox(opts?: { timeout?: number }): Promise<Bounds | null> {
     const timeout = opts?.timeout ?? DEFAULT_TIMEOUT;
     await this.pollUntilVisible(timeout);
-    return this.session.evaluate<{ x: number; y: number; width: number; height: number } | null>(
-      `(() => { const el = (${buildFindAll(this.strategy)})[0]; if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; })()`,
+    return this.evalOnFirst<Bounds | null>(
+      'if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height };',
     );
   }
 
@@ -268,46 +289,45 @@ export class WebLocator {
   async click(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.click()', async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.click()`);
+      await this.session.evaluate(`${this.firstEl()}?.click()`);
     });
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
+      await this.evalOnFirst(`if (el) { el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }`);
     });
   }
 
   async type(text: string): Promise<void> {
     return this._step(`locator.type(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(DEFAULT_TIMEOUT);
-      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); } })()`);
+      await this.evalOnFirst(`if (el) { el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); }`);
     });
   }
 
   async press(key: string): Promise<void> {
     return this._step(`locator.press(${JSON.stringify(key)})`, async () => {
-      const el = `(${buildFindAll(this.strategy)})[0]`;
-      await this.session.evaluate(`(() => { const el = ${el}; if (el) { ['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true }))); } })()`);
+      await this.evalOnFirst(`if (el) { ['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true }))); }`);
     });
   }
 
   async focus(): Promise<void> {
     return this._step('locator.focus()', async () => {
-      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.focus()`);
+      await this.session.evaluate(`${this.firstEl()}?.focus()`);
     });
   }
 
   async hover(): Promise<void> {
     return this._step('locator.hover()', async () => {
-      await this.session.evaluate(`(() => { const el = (${buildFindAll(this.strategy)})[0]; if (el) { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); } })()`);
+      await this.evalOnFirst('if (el) { el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); el.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true })); }');
     });
   }
 
   async scrollIntoViewIfNeeded(): Promise<void> {
     return this._step('locator.scrollIntoViewIfNeeded()', async () => {
-      await this.session.evaluate(`(${buildFindAll(this.strategy)})[0]?.scrollIntoView({ block: 'nearest' })`);
+      await this.session.evaluate(`${this.firstEl()}?.scrollIntoView({ block: 'nearest' })`);
     });
   }
 

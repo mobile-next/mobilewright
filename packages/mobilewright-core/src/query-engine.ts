@@ -132,7 +132,7 @@ function matchesStrategy(
   }
 }
 
-const WEBVIEW_TYPES = new Set([
+export const WEBVIEW_TYPES = new Set([
   'WKWebView',
   'XCUIElementTypeWebView',
   'android.webkit.WebView',

@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { openSync, readSync, closeSync } from 'node:fs';
 import type {
   AppInfo,
+  Bounds,
   ConnectionConfig,
   DeviceInfo,
   DeviceState,
@@ -109,7 +110,7 @@ interface MobilecliWebViewEntry {
   title: string;
   bundleId?: string;
   processName?: string;
-  bounds?: { x: number; y: number; width: number; height: number };
+  bounds?: Bounds;
   isVisible?: boolean;
 }
 

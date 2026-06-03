@@ -3,6 +3,7 @@ import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { WebLocator } from './web-locator.js';
 import { expect } from './expect.js';
+import { fakeWebViewSession } from './fake-webview-session.js';
 
 // A step function that records the title of every step it wraps, then runs the body.
 function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
@@ -16,46 +17,14 @@ function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
 
 // ─── Mock helpers ─────────────────────────────────────────────
 
-function sessionReturning(...evaluateResponses: unknown[]): {
-  session: WebViewSession;
-  evaluateCalls: string[];
-} {
-  const evaluateCalls: string[] = [];
-  let callIndex = 0;
-
-  const session: WebViewSession = {
-    evaluate: async (expr: string) => {
-      evaluateCalls.push(expr);
-      const idx = callIndex++;
-      return (idx < evaluateResponses.length ? evaluateResponses[idx] : undefined) as any;
-    },
-    goto: async () => {},
-    goBack: async () => {},
-    goForward: async () => {},
-    url: async () => 'https://example.com',
-    title: async () => 'Example',
-    reload: async () => {},
-    waitForLoadState: async () => {},
-    close: async () => {},
-  };
-
-  return { session, evaluateCalls };
+// A session whose evaluate() returns the given values in call order.
+function sessionReturning(...evaluateResponses: unknown[]) {
+  return fakeWebViewSession({ evaluateResponses });
 }
 
-// Returns a session where evaluate always returns the same value, no matter how many times called
+// A session whose evaluate() always returns the same value, no matter how many times called.
 function sessionAlwaysReturning(value: unknown) {
-  const evaluateCalls: string[] = [];
-  const session: WebViewSession = {
-    evaluate: async (expr: string) => {
-      evaluateCalls.push(expr);
-      return value as any;
-    },
-    goto: async () => {}, url: async () => '',
-    goBack: async () => {}, goForward: async () => {},
-    title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
-    close: async () => {},
-  };
-  return { session, evaluateCalls };
+  return fakeWebViewSession({ evaluateAlways: value, url: '', title: '' });
 }
 
 // ─── Strategy → JS generation ────────────────────────────────
