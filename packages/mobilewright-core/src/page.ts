@@ -108,7 +108,13 @@ export class Page {
     return this._step(`page.waitForURL(${url})`, async () => {
       await retryUntil(
         () => this.session.url(),
-        (current) => url instanceof RegExp ? url.test(current) : current === url,
+        (current) => {
+          if (url instanceof RegExp) {
+            url.lastIndex = 0;
+            return url.test(current);
+          }
+          return current === url;
+        },
         opts?.timeout ?? DEFAULT_TIMEOUT,
         () => `waitForURL: timed out waiting for URL to match "${url}"`,
       );

@@ -17,7 +17,8 @@ export type WebLocatorStrategy =
   | { kind: 'testId'; testId: string }
   | { kind: 'altText'; text: string | RegExp; exact?: boolean }
   | { kind: 'title'; text: string | RegExp; exact?: boolean }
-  | { kind: 'nth'; parent: WebLocatorStrategy; index: number };
+  | { kind: 'nth'; parent: WebLocatorStrategy; index: number }
+  | { kind: 'chain'; parent: WebLocatorStrategy; child: WebLocatorStrategy };
 
 // Serialise a string-or-RegExp value to a JS expression fragment.
 // RegExps become their literal form (/pat/flags); strings become JSON.
@@ -26,40 +27,49 @@ function serializeTextArg(value: string | RegExp): string {
 }
 
 // Builds a JS expression (usable in session.evaluate) that evaluates to an
-// array of DOM elements matching the strategy. Delegates to window.__mw.*
-// helpers injected by DOM_SELECTOR_ENGINE.
-function buildFindAll(strategy: WebLocatorStrategy): string {
+// array of DOM elements matching the strategy, searched within `root` (a JS
+// expression for the scope, defaulting to the whole document). Delegates to
+// window.__mw.* helpers injected by DOM_SELECTOR_ENGINE.
+function buildFindAll(strategy: WebLocatorStrategy, root: string = 'document'): string {
   switch (strategy.kind) {
     case 'css':
-      return `Array.from(document.querySelectorAll(${JSON.stringify(strategy.selector)}))`;
+      return `Array.from(${root}.querySelectorAll(${JSON.stringify(strategy.selector)}))`;
 
     case 'testId':
-      return `Array.from(document.querySelectorAll('[data-testid=${JSON.stringify(strategy.testId)}]'))`;
+      return `Array.from(${root}.querySelectorAll('[data-testid=${JSON.stringify(strategy.testId)}]'))`;
 
     case 'role': {
       const nameArg = strategy.name === undefined ? 'undefined' : serializeTextArg(strategy.name);
       const exactArg = strategy.exact === true ? 'true' : 'false';
-      return `window.__mw.findByRole(document, ${JSON.stringify(strategy.role)}, ${nameArg}, ${exactArg})`;
+      return `window.__mw.findByRole(${root}, ${JSON.stringify(strategy.role)}, ${nameArg}, ${exactArg})`;
     }
 
     case 'text':
-      return `window.__mw.findByText(document, ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
+      return `window.__mw.findByText(${root}, ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
 
     case 'label':
-      return `window.__mw.findByLabel(document, ${serializeTextArg(strategy.label)}, ${strategy.exact === true})`;
+      return `window.__mw.findByLabel(${root}, ${serializeTextArg(strategy.label)}, ${strategy.exact === true})`;
 
     case 'placeholder':
-      return `window.__mw.findByAttr(document, 'placeholder', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
+      return `window.__mw.findByAttr(${root}, 'placeholder', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
 
     case 'altText':
-      return `window.__mw.findByAttr(document, 'alt', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
+      return `window.__mw.findByAttr(${root}, 'alt', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
 
     case 'title':
-      return `window.__mw.findByAttr(document, 'title', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
+      return `window.__mw.findByAttr(${root}, 'title', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
 
     case 'nth': {
-      const all = buildFindAll(strategy.parent);
+      const all = buildFindAll(strategy.parent, root);
       return `(arr => { const i = ${strategy.index} < 0 ? arr.length + ${strategy.index} : ${strategy.index}; return i >= 0 && i < arr.length ? [arr[i]] : []; })(${all})`;
+    }
+
+    case 'chain': {
+      // Scope the child query within each parent match, then flatten and
+      // de-duplicate (a node nested under two matched parents appears once).
+      const parents = buildFindAll(strategy.parent, root);
+      const childOf = buildFindAll(strategy.child, 'p');
+      return `[...new Set((${parents}).flatMap(p => ${childOf}))]`;
     }
   }
 }
@@ -72,11 +82,17 @@ export class WebLocator {
     protected readonly strategy: WebLocatorStrategy,
   ) {}
 
-  // Build a child WebLocator, carrying step instrumentation forward.
-  private child(strategy: WebLocatorStrategy): WebLocator {
+  // Build a WebLocator from a strategy, carrying step instrumentation forward.
+  private derive(strategy: WebLocatorStrategy): WebLocator {
     const loc = new WebLocator(this.session, strategy);
     loc._stepFn = this._stepFn;
     return loc;
+  }
+
+  // Build a child WebLocator scoped within this locator's matches by composing
+  // the current strategy with the incoming one, so the query stays scoped.
+  private child(strategy: WebLocatorStrategy): WebLocator {
+    return this.derive({ kind: 'chain', parent: this.strategy, child: strategy });
   }
 
   private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
@@ -187,7 +203,9 @@ export class WebLocator {
   }
 
   nth(index: number): WebLocator {
-    return this.child({ kind: 'nth', parent: this.strategy, index });
+    // nth already references this.strategy as its parent, so derive directly
+    // rather than going through child() (which would re-wrap the parent).
+    return this.derive({ kind: 'nth', parent: this.strategy, index });
   }
 
   async count(): Promise<number> {

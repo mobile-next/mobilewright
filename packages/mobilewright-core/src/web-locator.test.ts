@@ -471,6 +471,17 @@ test.describe('WebLocator step instrumentation', () => {
     ]);
   });
 
+  test('chaining scopes the child query within the parent matches', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    await loc.getByText('Submit').count();
+    const js = evaluateCalls[0];
+    // Parent matches feed into the child query rather than being discarded.
+    playwrightExpect(js).toContain('querySelectorAll(".form")');
+    playwrightExpect(js).toContain('window.__mw.findByText');
+    playwrightExpect(js).toContain('flatMap');
+  });
+
   test('chaining propagates the step function to descendants', async () => {
     const { session } = sessionAlwaysReturning(true);
     const { stepFn } = recordingStepFn();
