@@ -151,6 +151,20 @@ test.describe('Page.waitForURL()', () => {
       page.waitForURL('https://example.com/other', { timeout: 200 }),
     ).rejects.toThrow();
   });
+
+  test('resets a stateful (global) regex so a leftover lastIndex does not cause a miss', async () => {
+    const { session } = sessionWithUrl('https://example.com/dashboard');
+    const page = await Page.attach(session);
+
+    // A /g regex keeps lastIndex between .test() calls. Simulate leftover state
+    // pointing past where "dashboard" appears (index 20).
+    const staleGlobalRegex = /dashboard/g;
+    staleGlobalRegex.lastIndex = 25;
+
+    // timeout 0 → the predicate runs exactly once, so waitForURL must reset
+    // lastIndex itself; otherwise the search starts at 25 and misses the match.
+    await page.waitForURL(staleGlobalRegex, { timeout: 0 });
+  });
 });
 
 // ─── Page locator factories ───────────────────────────────────

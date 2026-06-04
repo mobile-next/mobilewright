@@ -287,6 +287,15 @@ test.describe('WebLocator.click()', () => {
     await loc.click();
     playwrightExpect(evaluateCalls.some(c => c.includes('.click()'))).toBe(true);
   });
+
+  test('asserts the element exists, throwing in-page rather than silently no-op', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await loc.click();
+    const js = evaluateCalls.find(c => c.includes('.click()')) ?? '';
+    playwrightExpect(js).toContain('throw new Error');
+    playwrightExpect(js).toContain('element not found');
+  });
 });
 
 test.describe('WebLocator.fill()', () => {
@@ -417,6 +426,30 @@ test.describe('expect(webLocator).toHaveAttribute()', () => {
     const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
     await playwrightExpect(
       expect(loc).toHaveAttribute('data-missing', 'value', { timeout: 200 }),
+    ).rejects.toThrow();
+  });
+
+  test('not.toHaveAttribute passes when the attribute value differs', async () => {
+    const { session } = sessionAlwaysReturning('secondary');
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await expect(loc).not.toHaveAttribute('data-variant', 'primary');
+  });
+
+  test('not.toHaveAttribute rejects when the attribute value matches', async () => {
+    const { session } = sessionAlwaysReturning('primary');
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await playwrightExpect(
+      expect(loc).not.toHaveAttribute('data-variant', 'primary', { timeout: 200 }),
+    ).rejects.toThrow();
+  });
+
+  test('not.toHaveAttribute rejects when the attribute is absent (requires the element to exist)', async () => {
+    // A missing attribute is a non-match for both forms, so .not still requires
+    // the element to exist with a differing value rather than passing on absence.
+    const { session } = sessionAlwaysReturning(null);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await playwrightExpect(
+      expect(loc).not.toHaveAttribute('data-missing', 'value', { timeout: 200 }),
     ).rejects.toThrow();
   });
 });
