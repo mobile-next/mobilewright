@@ -5,8 +5,8 @@
   "description": "End-to-end tests for mobilewright drivers",
   "type": "module",
   "scripts": {
-    "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli npx mobilewright test",
-    "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext npx mobilewright test"
+    "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli node ../packages/mobilewright/dist/cli.js test",
+    "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext node ../packages/mobilewright/dist/cli.js test"
   },
   "dependencies": {
     "mobilewright": "^0.0.1",
