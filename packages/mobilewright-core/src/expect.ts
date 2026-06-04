@@ -515,7 +515,8 @@ class WebLocatorAssertions extends LocatorAssertions {
         },
         (value) => {
           if (value === null) { return false; }
-          return expected instanceof RegExp ? expected.test(value) : value === expected;
+          const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
+          return this.negated ? !matches : matches;
         },
         opts?.timeout ?? DEFAULT_TIMEOUT,
         () => `Expected element to ${this.negated ? 'not ' : ''}have attribute "${name}" = "${expected}", but got "${last}"`,

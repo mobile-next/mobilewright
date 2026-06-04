@@ -67,12 +67,32 @@ export class WebViewLocator extends Locator {
     let index = 0;
     if (allNativeWebviews.length > 0) {
       const selected = queryAll(roots, this.strategy);
-      const matched = selected.length > 0 ? allNativeWebviews.indexOf(selected[0]) : -1;
-      if (matched >= 0) {
-        index = matched;
+      if (selected.length !== 1) {
+        throw new Error(
+          'getByWebView().page(): locator did not resolve to a single webview ' +
+            `(matched ${selected.length} of ${allNativeWebviews.length}); ` +
+            'use .first(), .last(), or .nth(i) to choose one. ' +
+            `Strategy: ${JSON.stringify(this.strategy)}`,
+        );
       }
+      const matched = allNativeWebviews.indexOf(selected[0]);
+      if (matched === -1) {
+        throw new Error(
+          'getByWebView().page(): resolved node is not among the native webviews. ' +
+            `Strategy: ${JSON.stringify(this.strategy)}`,
+        );
+      }
+      index = matched;
     }
-    const target = bridgeWebviews[Math.min(index, bridgeWebviews.length - 1)];
+
+    if (index < 0 || index >= bridgeWebviews.length) {
+      throw new Error(
+        `getByWebView().page(): webview index ${index} is out of range ` +
+          `(${bridgeWebviews.length} webview(s) available from the bridge). ` +
+          `Strategy: ${JSON.stringify(this.strategy)}`,
+      );
+    }
+    const target = bridgeWebviews[index];
 
     const session = await bridge.attachWebView(target.id);
     this._page = await Page.attach(session);

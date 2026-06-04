@@ -78,7 +78,10 @@ export const DOM_SELECTOR_ENGINE = `
 
   function buildTextMatcher(textOrRegex, exact) {
     if (textOrRegex instanceof RegExp) {
-      return text => textOrRegex.test(text);
+      return text => {
+        textOrRegex.lastIndex = 0;
+        return textOrRegex.test(text);
+      };
     }
     if (exact) {
       return text => text === textOrRegex;
@@ -96,6 +99,7 @@ export const DOM_SELECTOR_ENGINE = `
     return elements.filter(el => {
       const value = el.getAttribute(attrName) || '';
       if (textOrRegex instanceof RegExp) {
+        textOrRegex.lastIndex = 0;
         return textOrRegex.test(value);
       }
       if (exact) {
@@ -409,6 +413,7 @@ export const DOM_SELECTOR_ENGINE = `
         const accessibleName = normalizeWhiteSpace(getAccessibleName(el));
         const nameNorm = name instanceof RegExp ? name : normalizeWhiteSpace(String(name));
         if (name instanceof RegExp) {
+          name.lastIndex = 0;
           if (!name.test(accessibleName)) {
             continue;
           }
