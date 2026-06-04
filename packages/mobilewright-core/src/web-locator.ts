@@ -115,6 +115,16 @@ export class WebLocator {
     return this.session.evaluate<T>(this.firstElExpr(body));
   }
 
+  // Run a mutating action against the first match. `action` is a JS statement
+  // list with `el` bound to the element. Throws in the page when the element is
+  // absent so the action rejects instead of silently no-op'ing on a stale match.
+  private actOnFirst(action: string, what: string): Promise<void> {
+    const notFound = JSON.stringify(`${what}: element not found`);
+    return this.session.evaluate<void>(
+      `(() => { const el = ${this.firstEl()}; if (!el) { throw new Error(${notFound}); } ${action} })()`,
+    );
+  }
+
   // Evaluate a boolean predicate against the first matched element, retrying
   // until it is true or the timeout elapses. A timeout of 0 checks once.
   // An evaluation error is treated as false (the element is absent or the page
@@ -307,45 +317,45 @@ export class WebLocator {
   async click(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.click()', async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-      await this.session.evaluate(`${this.firstEl()}?.click()`);
+      await this.actOnFirst('el.click();', 'locator.click()');
     });
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-      await this.evalOnFirst(`if (el) { el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }`);
+      await this.actOnFirst(`el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));`, 'locator.fill()');
     });
   }
 
   async type(text: string): Promise<void> {
     return this._step(`locator.type(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(DEFAULT_TIMEOUT);
-      await this.evalOnFirst(`if (el) { el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); }`);
+      await this.actOnFirst(`el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true }));`, 'locator.type()');
     });
   }
 
   async press(key: string): Promise<void> {
     return this._step(`locator.press(${JSON.stringify(key)})`, async () => {
-      await this.evalOnFirst(`if (el) { ['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true }))); }`);
+      await this.actOnFirst(`['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true })));`, 'locator.press()');
     });
   }
 
   async focus(): Promise<void> {
     return this._step('locator.focus()', async () => {
-      await this.session.evaluate(`${this.firstEl()}?.focus()`);
+      await this.actOnFirst('el.focus();', 'locator.focus()');
     });
   }
 
   async hover(): Promise<void> {
     return this._step('locator.hover()', async () => {
-      await this.evalOnFirst('if (el) { el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); el.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true })); }');
+      await this.actOnFirst('el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); el.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));', 'locator.hover()');
     });
   }
 
   async scrollIntoViewIfNeeded(): Promise<void> {
     return this._step('locator.scrollIntoViewIfNeeded()', async () => {
-      await this.session.evaluate(`${this.firstEl()}?.scrollIntoView({ block: 'nearest' })`);
+      await this.actOnFirst('el.scrollIntoView({ block: "nearest" });', 'locator.scrollIntoViewIfNeeded()');
     });
   }
 
