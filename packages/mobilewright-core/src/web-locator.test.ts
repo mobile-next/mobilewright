@@ -153,6 +153,61 @@ test.describe('WebLocator.first() / last() / nth()', () => {
   });
 });
 
+// ─── Chaining getters ─────────────────────────────────────────
+
+test.describe('WebLocator chaining getters', () => {
+  test('getByLabel scopes a findByLabel query within the parent', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    await loc.getByLabel('Email').count();
+    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
+    playwrightExpect(evaluateCalls[0]).toContain('window.__mw.findByLabel');
+    playwrightExpect(evaluateCalls[0]).toContain('"Email"');
+  });
+
+  test('getByPlaceholder scopes a findByAttr placeholder query within the parent', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    await loc.getByPlaceholder('Enter email').count();
+    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
+    playwrightExpect(evaluateCalls[0]).toContain('\'placeholder\'');
+    playwrightExpect(evaluateCalls[0]).toContain('"Enter email"');
+  });
+
+  test('getByTestId scopes a data-testid query within the parent', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    await loc.getByTestId('submit').count();
+    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
+    playwrightExpect(evaluateCalls[0]).toContain('data-testid="submit"');
+  });
+
+  test('getByAltText scopes a findByAttr alt query within the parent', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.gallery' });
+    await loc.getByAltText('logo').count();
+    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".gallery")');
+    playwrightExpect(evaluateCalls[0]).toContain('\'alt\'');
+    playwrightExpect(evaluateCalls[0]).toContain('"logo"');
+  });
+
+  test('getByTitle scopes a findByAttr title query within the parent', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.toolbar' });
+    await loc.getByTitle('Close').count();
+    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".toolbar")');
+    playwrightExpect(evaluateCalls[0]).toContain('\'title\'');
+    playwrightExpect(evaluateCalls[0]).toContain('"Close"');
+  });
+
+  test('last() builds an nth(-1) query', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(0);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await loc.last().count();
+    playwrightExpect(evaluateCalls[0]).toContain('-1');
+  });
+});
+
 // ─── State queries ────────────────────────────────────────────
 
 test.describe('WebLocator.isVisible()', () => {
@@ -178,6 +233,18 @@ test.describe('WebLocator.isVisible()', () => {
     };
     const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
     playwrightExpect(await loc.isVisible({ timeout: 0 })).toBe(false);
+  });
+
+  test('returns true when element is visible while polling with a non-zero timeout', async () => {
+    const { session } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    playwrightExpect(await loc.isVisible({ timeout: 200 })).toBe(true);
+  });
+
+  test('returns false when the element stays invisible until the polling timeout elapses', async () => {
+    const { session } = sessionAlwaysReturning(false);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    playwrightExpect(await loc.isVisible({ timeout: 200 })).toBe(false);
   });
 });
 
@@ -211,6 +278,20 @@ test.describe('WebLocator.isChecked()', () => {
   });
 });
 
+test.describe('WebLocator.isDisabled()', () => {
+  test('returns true when the element is not enabled', async () => {
+    const { session } = sessionReturning(false);
+    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    playwrightExpect(await loc.isDisabled({ timeout: 0 })).toBe(true);
+  });
+
+  test('returns false when the element is enabled', async () => {
+    const { session } = sessionReturning(true);
+    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    playwrightExpect(await loc.isDisabled({ timeout: 0 })).toBe(false);
+  });
+});
+
 // ─── Value queries ────────────────────────────────────────────
 
 test.describe('WebLocator.textContent()', () => {
@@ -222,11 +303,44 @@ test.describe('WebLocator.textContent()', () => {
   });
 });
 
+test.describe('WebLocator.innerText()', () => {
+  test('returns the rendered inner text after waiting for visibility', async () => {
+    const { session } = sessionReturning(true, 'Sign In');
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    playwrightExpect(await loc.innerText()).toBe('Sign In');
+  });
+});
+
+test.describe('WebLocator.innerHTML()', () => {
+  test('returns the inner HTML after waiting for visibility', async () => {
+    const { session } = sessionReturning(true, '<span>Sign In</span>');
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    playwrightExpect(await loc.innerHTML()).toBe('<span>Sign In</span>');
+  });
+});
+
 test.describe('WebLocator.inputValue()', () => {
   test('returns the input value after waiting for visibility', async () => {
     const { session } = sessionReturning(true, 'john@example.com');
     const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
     playwrightExpect(await loc.inputValue()).toBe('john@example.com');
+  });
+});
+
+test.describe('WebLocator.boundingBox()', () => {
+  test('returns a Bounds object with x, y, width, and height', async () => {
+    // isVisible → true, then the getBoundingClientRect expression → a rect.
+    const { session } = sessionReturning(true, { x: 10, y: 20, width: 100, height: 40 });
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const box = await loc.boundingBox();
+    // The Bounds contract clients depend on: all four numeric fields present.
+    playwrightExpect(box).toEqual({ x: 10, y: 20, width: 100, height: 40 });
+  });
+
+  test('returns null when the element is absent', async () => {
+    const { session } = sessionReturning(true, null);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.missing' });
+    playwrightExpect(await loc.boundingBox()).toBeNull();
   });
 });
 
@@ -304,6 +418,20 @@ test.describe('WebLocator.fill()', () => {
     const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
     await loc.fill('hello@example.com');
     playwrightExpect(evaluateCalls.some(c => c.includes('hello@example.com'))).toBe(true);
+  });
+});
+
+test.describe('WebLocator.hover()', () => {
+  test('waits for the element to be visible before dispatching the hover events', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    await loc.hover();
+    // Like click/fill/type, hover must first run the visibility check
+    // (getComputedStyle) before acting — otherwise it acts on a stale match.
+    const visibilityCheckIndex = evaluateCalls.findIndex(c => c.includes('getComputedStyle'));
+    const hoverIndex = evaluateCalls.findIndex(c => c.includes('mouseover'));
+    playwrightExpect(visibilityCheckIndex).toBeGreaterThanOrEqual(0);
+    playwrightExpect(hoverIndex).toBeGreaterThan(visibilityCheckIndex);
   });
 });
 

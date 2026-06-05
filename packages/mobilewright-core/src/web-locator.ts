@@ -349,6 +349,7 @@ export class WebLocator {
 
   async hover(): Promise<void> {
     return this._step('locator.hover()', async () => {
+      await this.pollUntilVisible(DEFAULT_TIMEOUT);
       await this.actOnFirst('el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); el.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));', 'locator.hover()');
     });
   }
