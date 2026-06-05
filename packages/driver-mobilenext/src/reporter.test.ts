@@ -3,8 +3,8 @@ import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { TestResult, FullResult, FullConfig, Suite } from '@playwright/test/reporter';
-import MobileNextUploadReporter from './mobilenext-upload.js';
-import type { UploadTestResultParams } from '@mobilewright/driver-mobilenext';
+import MobileNextUploadReporter from './reporter.js';
+import type { UploadTestResultParams } from './upload-client.js';
 
 function suiteWithTests(count: number): Suite {
   return { allTests: () => new Array(count).fill({}) } as unknown as Suite;
