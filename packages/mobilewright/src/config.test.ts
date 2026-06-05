@@ -64,7 +64,7 @@ test('defineConfig injects upload reporter by default when testResult is set wit
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('mobilenext-upload'))).toBe(true);
+  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
 });
 
 test('defineConfig injects upload reporter when mobilenext driver has uploadReport on', () => {
@@ -78,7 +78,7 @@ test('defineConfig injects upload reporter when mobilenext driver has uploadRepo
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('mobilenext-upload'))).toBe(true);
+  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
 });
 
 test('defineConfig injects json reporter alongside upload reporter', () => {
@@ -106,7 +106,7 @@ test('defineConfig does not inject upload reporter when uploadReport is off', ()
   });
   if (Array.isArray(config.reporter)) {
     const paths = config.reporter.map((r) => (Array.isArray(r) ? r[0] : r));
-    expect(paths.some((p) => String(p).includes('mobilenext-upload'))).toBe(false);
+    expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(false);
   } else {
     expect(config.reporter).toBeUndefined();
   }
@@ -131,7 +131,7 @@ test('defineConfig preserves existing array reporters when injecting', () => {
   const names = reporters.map((r) => r[0]);
   expect(names).toContain('html');
   expect(names).toContain('list');
-  expect(names.some((n) => String(n).includes('mobilenext-upload'))).toBe(true);
+  expect(names.some((n) => String(n).includes('driver-mobilenext'))).toBe(true);
 });
 
 test('defineConfig normalizes string reporter to array form before injecting', () => {
@@ -143,7 +143,7 @@ test('defineConfig normalizes string reporter to array form before injecting', (
   expect(Array.isArray(reporters)).toBe(true);
   const names = reporters.map((r) => r[0]);
   expect(names).toContain('html');
-  expect(names.some((n) => String(n).includes('mobilenext-upload'))).toBe(true);
+  expect(names.some((n) => String(n).includes('driver-mobilenext'))).toBe(true);
 });
 
 test('defineConfig preserves use.actionTimeout', () => {
@@ -202,7 +202,7 @@ test('defineConfig passes uploadTimeout to upload reporter options', () => {
     },
   });
   const reporters = config.reporter as Array<[string, unknown]>;
-  const uploadEntry = reporters.find(([path]) => String(path).includes('mobilenext-upload'));
+  const uploadEntry = reporters.find(([path]) => String(path).includes('driver-mobilenext'));
   expect(uploadEntry).toBeDefined();
   const opts = uploadEntry![1] as { uploadTimeout: number };
   expect(opts.uploadTimeout).toBe(90_000);
