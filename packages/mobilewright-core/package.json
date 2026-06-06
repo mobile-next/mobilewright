@@ -31,6 +31,7 @@
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
     "debug": "^4.4.3",
+    "playwright-core": "1.58.2",
     "sharp": "^0.34.5"
   }
 }
