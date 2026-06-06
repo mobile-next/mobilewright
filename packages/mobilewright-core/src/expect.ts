@@ -4,6 +4,7 @@ import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { retryUntil } from './poll.js';
 import { filterStack, runStep } from './stackTrace.js';
+import { textValue, type FrameExpectParams } from './web-expect-matcher.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -493,35 +494,131 @@ class PageAssertions {
 }
 
 // ─── WebLocatorAssertions ─────────────────────────────────────
-// Extends LocatorAssertions — only adds toHaveAttribute (web-only).
-// All other matchers (toBeVisible, toHaveText, toHaveCount, etc.) are inherited.
+// Standalone: every web matcher routes through Playwright's injected expect()
+// (window.__mwInjected.expect) for byte-exact matcher semantics. Native
+// LocatorAssertions and PageAssertions are unaffected.
 
-class WebLocatorAssertions extends LocatorAssertions {
-  constructor(private readonly webLocator: WebLocator, negated: boolean) {
-    super(webLocator, negated);
-  }
+class WebLocatorAssertions {
+  constructor(
+    private readonly webLocator: WebLocator,
+    private readonly negated: boolean,
+  ) {}
 
-  override get not(): WebLocatorAssertions {
+  get not(): WebLocatorAssertions {
     return new WebLocatorAssertions(this.webLocator, !this.negated);
   }
 
-  async toHaveAttribute(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    return this._wrapAssertion('toHaveAttribute', async () => {
-      let last: string | null = null;
-      await this.retryAssertion(
+  private assertionTimeout(opts?: ExpectOptions): number {
+    return opts?.timeout ?? this.webLocator.expectTimeout ?? DEFAULT_TIMEOUT;
+  }
+
+  // Poll the injected matcher until matches !== isNot, or throw ExpectError.
+  private runMatcher(
+    method: string,
+    params: Omit<FrameExpectParams, 'isNot' | 'timeout'>,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    return wrapAssertion(this.webLocator._stepFn, this.negated, method, async () => {
+      const isNot = this.negated;
+      let received: unknown;
+      let missingReceived = false;
+      await retryAssertion(
         async () => {
-          try { last = await this.webLocator.getAttribute(name, { timeout: 0 }); } catch { last = null; }
-          return last;
+          const result = await this.webLocator._runInjectedExpect({ ...params, isNot, timeout: 0 });
+          received = result.received;
+          missingReceived = result.missingReceived ?? false;
+          return result.matches;
         },
-        (value) => {
-          if (value === null) { return false; }
-          const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
-          return this.negated ? !matches : matches;
+        (matches) => matches !== isNot,
+        this.assertionTimeout(opts),
+        () => {
+          const got = missingReceived ? 'no element' : fmt(received);
+          return isNot
+            ? `Expected ${method} NOT to match, but it did (received ${got})`
+            : `Expected ${method} to match, but it did not (received ${got})`;
         },
-        opts?.timeout ?? DEFAULT_TIMEOUT,
-        () => `Expected element to ${this.negated ? 'not ' : ''}have attribute "${name}" = "${expected}", but got "${last}"`,
       );
     });
+  }
+
+  toBeVisible(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeVisible', { expression: 'to.be.visible' }, opts);
+  }
+
+  toBeHidden(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeHidden', { expression: 'to.be.hidden' }, opts);
+  }
+
+  toBeEnabled(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeEnabled', { expression: 'to.be.enabled' }, opts);
+  }
+
+  toBeDisabled(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeDisabled', { expression: 'to.be.disabled' }, opts);
+  }
+
+  toBeEditable(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeEditable', { expression: 'to.be.editable' }, opts);
+  }
+
+  toBeFocused(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeFocused', { expression: 'to.be.focused' }, opts);
+  }
+
+  toBeAttached(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeAttached', { expression: 'to.be.attached' }, opts);
+  }
+
+  toBeInViewport(opts?: ExpectOptions & { ratio?: number }): Promise<void> {
+    return this.runMatcher('toBeInViewport', { expression: 'to.be.in.viewport', expectedNumber: opts?.ratio }, opts);
+  }
+
+  toBeChecked(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeChecked', { expression: 'to.be.checked', expectedValue: { checked: true, indeterminate: false } }, opts);
+  }
+
+  toBeEmpty(opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toBeEmpty', { expression: 'to.be.empty' }, opts);
+  }
+
+  toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveText', { expression: 'to.have.text', expectedText: [textValue(expected, { normalizeWhiteSpace: true })] }, opts);
+  }
+
+  toContainText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toContainText', { expression: 'to.have.text', expectedText: [textValue(expected, { normalizeWhiteSpace: true, matchSubstring: true })] }, opts);
+  }
+
+  toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveValue', { expression: 'to.have.value', expectedText: [textValue(expected)] }, opts);
+  }
+
+  toHaveCount(expected: number, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveCount', { expression: 'to.have.count', expectedNumber: expected }, opts);
+  }
+
+  toHaveAttribute(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveAttribute', { expression: 'to.have.attribute.value', expressionArg: name, expectedText: [textValue(expected)] }, opts);
+  }
+
+  toHaveClass(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveClass', { expression: 'to.have.class', expectedText: [textValue(expected)] }, opts);
+  }
+
+  toContainClass(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toContainClass', { expression: 'to.contain.class', expectedText: [textValue(expected)] }, opts);
+  }
+
+  toHaveCSS(name: string, expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveCSS', { expression: 'to.have.css', expressionArg: name, expectedText: [textValue(expected)] }, opts);
+  }
+
+  toHaveId(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveId', { expression: 'to.have.id', expectedText: [textValue(expected)] }, opts);
+  }
+
+  toHaveJSProperty(name: string, expected: unknown, opts?: ExpectOptions): Promise<void> {
+    return this.runMatcher('toHaveJSProperty', { expression: 'to.have.property', expressionArg: name, expectedValue: expected }, opts);
   }
 }
 

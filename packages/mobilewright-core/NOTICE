@@ -1,0 +1,3 @@
+This package imports the injected script and selector utilities from
+Playwright (playwright-core), which is licensed under the Apache License 2.0.
+Copyright (c) Microsoft Corporation. https://github.com/microsoft/playwright

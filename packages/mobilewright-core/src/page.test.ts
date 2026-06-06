@@ -28,17 +28,27 @@ function sessionWithUrl(currentUrl: string) {
 // ─── Page.attach ─────────────────────────────────────────────
 
 test.describe('Page.attach()', () => {
-  test('injects the DOM selector engine on attach', async () => {
+  test('injects only the engine bootstrap on attach (no hand-rolled DOM engine)', async () => {
     const { session, evaluateCalls } = sessionWithResponses();
     await Page.attach(session);
-    playwrightExpect(evaluateCalls.length).toBeGreaterThan(0);
-    playwrightExpect(evaluateCalls[0]).toContain('window.__mw');
+    playwrightExpect(evaluateCalls).toHaveLength(1);
+    playwrightExpect(evaluateCalls[0]).toContain('window.__mwInjected = new (module.exports.InjectedScript())(globalThis,');
+    playwrightExpect(evaluateCalls.some(c => c.includes('window.__mw.findBy'))).toBe(false);
   });
 
   test('returns a Page instance', async () => {
     const { session } = sessionWithResponses();
     const page = await Page.attach(session);
     playwrightExpect(page).toBeInstanceOf(Page);
+  });
+
+  test('injects the Playwright engine bootstrap so window.__mwInjected exists', async () => {
+    const { session, evaluateCalls } = sessionWithResponses();
+    await Page.attach(session);
+    const injectedBootstrap = evaluateCalls.some((c) =>
+      c.includes('window.__mwInjected = new (module.exports.InjectedScript())(globalThis,'),
+    );
+    playwrightExpect(injectedBootstrap).toBe(true);
   });
 });
 
@@ -82,6 +92,8 @@ test.describe('Page.reload()', () => {
 
 test.describe('Page.evaluate()', () => {
   test('passes a string expression to the session', async () => {
+    // One leading placeholder: Page.attach() runs a single evaluate() injection
+    // (the engine bootstrap) before the real call.
     const { session, evaluateCalls } = sessionWithResponses(undefined, 42);
     const page = await Page.attach(session);
     const result = await page.evaluate<number>('1 + 1');
@@ -101,6 +113,7 @@ test.describe('Page.evaluate()', () => {
 test.describe('Page.content()', () => {
   test('evaluates document.documentElement.outerHTML', async () => {
     const html = '<html><body>hello</body></html>';
+    // One leading placeholder for Page.attach()'s single evaluate() injection.
     const { session, evaluateCalls } = sessionWithResponses(undefined, html);
     const page = await Page.attach(session);
     const content = await page.content();

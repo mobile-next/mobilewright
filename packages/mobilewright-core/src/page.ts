@@ -2,8 +2,18 @@ import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
 import { runStep } from './stackTrace.js';
-import { WebLocator, type WebLocatorStrategy } from './web-locator.js';
-import { DOM_SELECTOR_ENGINE } from './dom-selector-engine.js';
+import { WebLocator } from './web-locator.js';
+import {
+  bootstrapScript,
+  getByRoleSelector,
+  getByTextSelector,
+  getByLabelSelector,
+  getByPlaceholderSelector,
+  getByTestIdSelector,
+  getByAltTextSelector,
+  getByTitleSelector,
+  TEST_ID_ATTR,
+} from './playwright-engine.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
@@ -11,15 +21,15 @@ export class Page {
   _stepFn: StepFn | null = null;
 
   static async attach(session: WebViewSession): Promise<Page> {
-    await session.evaluate(DOM_SELECTOR_ENGINE);
+    await session.evaluate(bootstrapScript());
     return new Page(session);
   }
 
   constructor(readonly session: WebViewSession) {}
 
   // Build a WebLocator scoped to this page, carrying step instrumentation forward.
-  private locatorFor(strategy: WebLocatorStrategy): WebLocator {
-    const loc = new WebLocator(this.session, strategy);
+  private locatorFor(selector: string): WebLocator {
+    const loc = new WebLocator(this.session, selector);
     loc._stepFn = this._stepFn;
     return loc;
   }
@@ -31,35 +41,35 @@ export class Page {
   // ─── Locator factories ───────────────────────────────────────
 
   locator(selector: string): WebLocator {
-    return this.locatorFor({ kind: 'css', selector });
+    return this.locatorFor(selector);
   }
 
-  getByRole(role: string, opts?: { name?: string | RegExp }): WebLocator {
-    return this.locatorFor({ kind: 'role', role, name: opts?.name });
+  getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): WebLocator {
+    return this.locatorFor(getByRoleSelector(role, { name: opts?.name, exact: opts?.exact }));
   }
 
   getByText(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.locatorFor({ kind: 'text', text, exact: opts?.exact });
+    return this.locatorFor(getByTextSelector(text, { exact: opts?.exact }));
   }
 
   getByLabel(label: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.locatorFor({ kind: 'label', label, exact: opts?.exact });
+    return this.locatorFor(getByLabelSelector(label, { exact: opts?.exact }));
   }
 
   getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.locatorFor({ kind: 'placeholder', text, exact: opts?.exact });
+    return this.locatorFor(getByPlaceholderSelector(text, { exact: opts?.exact }));
   }
 
   getByTestId(testId: string): WebLocator {
-    return this.locatorFor({ kind: 'testId', testId });
+    return this.locatorFor(getByTestIdSelector(TEST_ID_ATTR, testId));
   }
 
   getByAltText(text: string | RegExp): WebLocator {
-    return this.locatorFor({ kind: 'altText', text });
+    return this.locatorFor(getByAltTextSelector(text));
   }
 
   getByTitle(text: string | RegExp): WebLocator {
-    return this.locatorFor({ kind: 'title', text });
+    return this.locatorFor(getByTitleSelector(text));
   }
 
   // ─── Page-level methods ──────────────────────────────────────

@@ -3,121 +3,66 @@ import type { Bounds, WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
 import { runStep } from './stackTrace.js';
+import {
+  getByRoleSelector,
+  getByTextSelector,
+  getByLabelSelector,
+  getByPlaceholderSelector,
+  getByAltTextSelector,
+  getByTitleSelector,
+  getByTestIdSelector,
+  TEST_ID_ATTR,
+} from './playwright-engine.js';
+import { buildExpectEvaluate, type FrameExpectParams, type ExpectResult } from './web-expect-matcher.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 
 const debug = createDebug('mw:web-locator');
-
-export type WebLocatorStrategy =
-  | { kind: 'css'; selector: string }
-  | { kind: 'role'; role: string; name?: string | RegExp; exact?: boolean }
-  | { kind: 'text'; text: string | RegExp; exact?: boolean }
-  | { kind: 'label'; label: string | RegExp; exact?: boolean }
-  | { kind: 'placeholder'; text: string | RegExp; exact?: boolean }
-  | { kind: 'testId'; testId: string }
-  | { kind: 'altText'; text: string | RegExp; exact?: boolean }
-  | { kind: 'title'; text: string | RegExp; exact?: boolean }
-  | { kind: 'nth'; parent: WebLocatorStrategy; index: number }
-  | { kind: 'chain'; parent: WebLocatorStrategy; child: WebLocatorStrategy };
-
-// Serialise a string-or-RegExp value to a JS expression fragment.
-// RegExps become their literal form (/pat/flags); strings become JSON.
-function serializeTextArg(value: string | RegExp): string {
-  return value instanceof RegExp ? value.toString() : JSON.stringify(value);
-}
-
-// Builds a JS expression (usable in session.evaluate) that evaluates to an
-// array of DOM elements matching the strategy, searched within `root` (a JS
-// expression for the scope, defaulting to the whole document). Delegates to
-// window.__mw.* helpers injected by DOM_SELECTOR_ENGINE.
-function buildFindAll(strategy: WebLocatorStrategy, root: string = 'document'): string {
-  switch (strategy.kind) {
-    case 'css':
-      return `Array.from(${root}.querySelectorAll(${JSON.stringify(strategy.selector)}))`;
-
-    case 'testId':
-      return `Array.from(${root}.querySelectorAll('[data-testid=${JSON.stringify(strategy.testId)}]'))`;
-
-    case 'role': {
-      const nameArg = strategy.name === undefined ? 'undefined' : serializeTextArg(strategy.name);
-      const exactArg = strategy.exact === true ? 'true' : 'false';
-      return `window.__mw.findByRole(${root}, ${JSON.stringify(strategy.role)}, ${nameArg}, ${exactArg})`;
-    }
-
-    case 'text':
-      return `window.__mw.findByText(${root}, ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
-
-    case 'label':
-      return `window.__mw.findByLabel(${root}, ${serializeTextArg(strategy.label)}, ${strategy.exact === true})`;
-
-    case 'placeholder':
-      return `window.__mw.findByAttr(${root}, 'placeholder', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
-
-    case 'altText':
-      return `window.__mw.findByAttr(${root}, 'alt', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
-
-    case 'title':
-      return `window.__mw.findByAttr(${root}, 'title', ${serializeTextArg(strategy.text)}, ${strategy.exact === true})`;
-
-    case 'nth': {
-      const all = buildFindAll(strategy.parent, root);
-      return `(arr => { const i = ${strategy.index} < 0 ? arr.length + ${strategy.index} : ${strategy.index}; return i >= 0 && i < arr.length ? [arr[i]] : []; })(${all})`;
-    }
-
-    case 'chain': {
-      // Scope the child query within each parent match, then flatten and
-      // de-duplicate (a node nested under two matched parents appears once).
-      const parents = buildFindAll(strategy.parent, root);
-      const childOf = buildFindAll(strategy.child, 'p');
-      return `[...new Set((${parents}).flatMap(p => ${childOf}))]`;
-    }
-  }
-}
 
 export class WebLocator {
   _stepFn: StepFn | null = null;
 
   constructor(
     protected readonly session: WebViewSession,
-    protected readonly strategy: WebLocatorStrategy,
+    // A Playwright selector string (e.g. 'internal:role=button[name="OK"i]' or a
+    // raw CSS selector). Resolved in-page by the imported Playwright engine.
+    protected readonly selector: string,
   ) {}
 
-  // Build a WebLocator from a strategy, carrying step instrumentation forward.
-  private derive(strategy: WebLocatorStrategy): WebLocator {
-    const loc = new WebLocator(this.session, strategy);
+  // Build a WebLocator from a selector, carrying step instrumentation forward.
+  private derive(selector: string): WebLocator {
+    const loc = new WebLocator(this.session, selector);
     loc._stepFn = this._stepFn;
     return loc;
   }
 
-  // Build a child WebLocator scoped within this locator's matches by composing
-  // the current strategy with the incoming one, so the query stays scoped.
-  private child(strategy: WebLocatorStrategy): WebLocator {
-    return this.derive({ kind: 'chain', parent: this.strategy, child: strategy });
+  // Compose a child selector within this locator's scope, Playwright-style.
+  private child(childSelector: string): WebLocator {
+    return this.derive(`${this.selector} >> ${childSelector}`);
   }
 
   private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
     return runStep(this._stepFn, title, fn);
   }
 
-  // JS expression evaluating to the first matched element (or undefined).
+  // JS expression resolving to the first match via the imported Playwright
+  // engine. strict=true: a selector matching >1 element throws a strict-mode
+  // violation in-page, matching Playwright's strict locators.
   private firstEl(): string {
-    return `(${buildFindAll(this.strategy)})[0]`;
+    const sel = JSON.stringify(this.selector);
+    return `window.__mwInjected.querySelector(window.__mwInjected.parseSelector(${sel}), document, true)`;
   }
 
-  // Wrap a statement list in an IIFE with `el` bound to the first match.
-  // Use a `return` inside `body` to produce a value.
   private firstElExpr(body: string): string {
     return `(() => { const el = ${this.firstEl()}; ${body} })()`;
   }
 
-  // Evaluate `firstElExpr(body)` in the page and return its result.
   private evalOnFirst<T = void>(body: string): Promise<T> {
     return this.session.evaluate<T>(this.firstElExpr(body));
   }
 
-  // Run a mutating action against the first match. `action` is a JS statement
-  // list with `el` bound to the element. Throws in the page when the element is
-  // absent so the action rejects instead of silently no-op'ing on a stale match.
+  // Run a mutating action against the first match. Throws in-page when the
+  // element is absent so the action rejects instead of silently no-op'ing.
   private actOnFirst(action: string, what: string): Promise<void> {
     const notFound = JSON.stringify(`${what}: element not found`);
     return this.session.evaluate<void>(
@@ -125,16 +70,17 @@ export class WebLocator {
     );
   }
 
-  // Evaluate a boolean predicate against the first matched element, retrying
-  // until it is true or the timeout elapses. A timeout of 0 checks once.
-  // An evaluation error is treated as false (the element is absent or the page
-  // is mid-navigation) but logged via debug so genuine failures stay diagnosable.
+  // Poll a boolean predicate, retrying until true or timeout. timeout 0 checks
+  // once. Transient errors (missing element, mid-navigation) count as false, but
+  // strict-mode violations propagate — matching Playwright's isVisible.
   private async pollBoolean(js: string, timeout: number, what: string): Promise<boolean> {
     const read = async (): Promise<boolean> => {
       try {
         return await this.session.evaluate<boolean>(js);
       } catch (e) {
-        debug('"%s" check evaluation failed, treating as false: %s', what, e instanceof Error ? e.message : e);
+        const message = e instanceof Error ? e.message : String(e);
+        if (message.includes('strict mode violation')) { throw e; }
+        debug('"%s" check evaluation failed, treating as false: %s', what, message);
         return false;
       }
     };
@@ -150,20 +96,41 @@ export class WebLocator {
         `WebLocator: timed out waiting for element to be ${what}`,
       );
       return result;
-    } catch {
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (message.includes('strict mode violation')) { throw e; }
       return false;
     }
   }
 
+  // Resolve the element (waiting up to timeout) and read an injected element
+  // state. Throws "<what>: element not found" when no element resolves —
+  // matching Playwright's isEnabled/isChecked, which require an attached element.
+  private async readElementState(state: 'enabled' | 'checked', timeout: number, what: string): Promise<boolean> {
+    const sel = JSON.stringify(this.selector);
+    const stateArg = JSON.stringify(state);
+    const js = `(() => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return null; } return is.elementState(el, ${stateArg}).matches; })()`;
+    let result = false;
+    await retryUntil(
+      async () => {
+        const state = await this.session.evaluate<boolean | null>(js);
+        if (state === null) { return false; }
+        result = state;
+        return true;
+      },
+      (found) => found,
+      timeout,
+      `${what}: element not found`,
+    );
+    return result;
+  }
+
   // Wait for the element to be visible, then return a value read from it.
-  // `valueExpr` is a JS expression evaluated with `el` bound to the first match.
   private async readFromFirst<T>(valueExpr: string, opts?: { timeout?: number }): Promise<T> {
     await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
     return this.evalOnFirst<T>(`return ${valueExpr};`);
   }
 
-  // Read a string property (textContent/innerText/...) from the first match,
-  // defaulting to '' when the element or property is absent.
   private async readStringProp(prop: string, opts?: { timeout?: number }): Promise<string> {
     return this.readFromFirst<string>(`el?.${prop} ?? ''`, opts);
   }
@@ -171,35 +138,35 @@ export class WebLocator {
   // ─── Chaining ────────────────────────────────────────────────
 
   locator(selector: string): WebLocator {
-    return this.child({ kind: 'css', selector });
+    return this.child(selector);
   }
 
   getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): WebLocator {
-    return this.child({ kind: 'role', role, name: opts?.name, exact: opts?.exact });
+    return this.child(getByRoleSelector(role, { name: opts?.name, exact: opts?.exact }));
   }
 
   getByText(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.child({ kind: 'text', text, exact: opts?.exact });
+    return this.child(getByTextSelector(text, { exact: opts?.exact }));
   }
 
   getByLabel(label: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.child({ kind: 'label', label, exact: opts?.exact });
+    return this.child(getByLabelSelector(label, { exact: opts?.exact }));
   }
 
   getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
-    return this.child({ kind: 'placeholder', text, exact: opts?.exact });
+    return this.child(getByPlaceholderSelector(text, { exact: opts?.exact }));
   }
 
   getByTestId(testId: string): WebLocator {
-    return this.child({ kind: 'testId', testId });
+    return this.child(getByTestIdSelector(TEST_ID_ATTR, testId));
   }
 
   getByAltText(text: string | RegExp): WebLocator {
-    return this.child({ kind: 'altText', text });
+    return this.child(getByAltTextSelector(text));
   }
 
   getByTitle(text: string | RegExp): WebLocator {
-    return this.child({ kind: 'title', text });
+    return this.child(getByTitleSelector(text));
   }
 
   // ─── Collection ──────────────────────────────────────────────
@@ -213,13 +180,14 @@ export class WebLocator {
   }
 
   nth(index: number): WebLocator {
-    // nth already references this.strategy as its parent, so derive directly
-    // rather than going through child() (which would re-wrap the parent).
-    return this.derive({ kind: 'nth', parent: this.strategy, index });
+    return this.derive(`${this.selector} >> nth=${index}`);
   }
 
   async count(): Promise<number> {
-    return this.session.evaluate<number>(`(${buildFindAll(this.strategy)}).length`);
+    const sel = JSON.stringify(this.selector);
+    return this.session.evaluate<number>(
+      `window.__mwInjected.querySelectorAll(window.__mwInjected.parseSelector(${sel}), document).length`,
+    );
   }
 
   // Aliases matching native Locator's API so LocatorAssertions works with WebLocator
@@ -239,7 +207,8 @@ export class WebLocator {
   // ─── State queries ───────────────────────────────────────────
 
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
-    const js = this.firstElExpr('if (!el) return false; const s = window.getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden";');
+    const sel = JSON.stringify(this.selector);
+    const js = `(() => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } return is.elementState(el, 'visible').matches; })()`;
     return this.pollBoolean(js, opts?.timeout ?? DEFAULT_TIMEOUT, 'visible');
   }
 
@@ -249,17 +218,16 @@ export class WebLocator {
   }
 
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
-    const js = this.firstElExpr('return !!el && !el.disabled;');
-    return this.pollBoolean(js, opts?.timeout ?? 0, 'enabled');
+    return this.readElementState('enabled', opts?.timeout ?? 0, 'locator.isEnabled()');
   }
 
   async isDisabled(opts?: { timeout?: number }): Promise<boolean> {
-    return !(await this.isEnabled(opts));
+    const enabled = await this.isEnabled(opts);
+    return !enabled;
   }
 
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
-    const js = this.firstElExpr('return !!el && (el.checked === true || el.getAttribute("aria-checked") === "true");');
-    return this.pollBoolean(js, opts?.timeout ?? 0, 'checked');
+    return this.readElementState('checked', opts?.timeout ?? 0, 'locator.isChecked()');
   }
 
   // ─── Value queries ───────────────────────────────────────────
@@ -316,7 +284,7 @@ export class WebLocator {
 
   async click(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.click()', async () => {
-      await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
+      await this.pollActionable(['visible', 'enabled'], opts?.timeout ?? DEFAULT_TIMEOUT);
       await this.actOnFirst('el.click();', 'locator.click()');
     });
   }
@@ -362,6 +330,22 @@ export class WebLocator {
 
   // ─── Private helpers ─────────────────────────────────────────
 
+  // Poll Playwright's own checkElementStates until the element satisfies all the
+  // given states (it returns undefined when they all pass). Used by click to
+  // gate on visible+enabled before a synthetic dispatch (slice-1 behavior).
+  private async pollActionable(states: string[], timeout: number): Promise<void> {
+    const sel = JSON.stringify(this.selector);
+    const list = JSON.stringify(states);
+    await retryUntil(
+      () => this.session.evaluate<boolean>(
+        `(async () => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } const missing = await is.checkElementStates(el, ${list}); return missing === undefined; })()`,
+      ),
+      (ready) => ready,
+      timeout,
+      'WebLocator: timed out waiting for element to be actionable',
+    );
+  }
+
   private async pollUntilVisible(timeout: number): Promise<void> {
     await retryUntil(
       () => this.isVisible({ timeout: 0 }),
@@ -369,5 +353,19 @@ export class WebLocator {
       timeout,
       'WebLocator: timed out waiting for element to be visible',
     );
+  }
+
+  // Run Playwright's injected expect() matcher for this locator's selector and
+  // return its raw verdict. The assertion layer (expect.ts) decides pass/fail
+  // (pass = matches !== isNot) and handles retry/negation/messages.
+  async _runInjectedExpect(params: FrameExpectParams): Promise<ExpectResult> {
+    return this.session.evaluate<ExpectResult>(buildExpectEvaluate(this.selector, params));
+  }
+
+  // Default expect() timeout for assertions on this locator (none → fall back to
+  // the assertion default). Present so LocatorAssertions-style timeout
+  // resolution works uniformly across native and web locators.
+  get expectTimeout(): number | undefined {
+    return undefined;
   }
 }

@@ -2,7 +2,17 @@ import { test, expect as playwrightExpect } from '@playwright/test';
 import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { WebLocator } from './web-locator.js';
-import { expect } from './expect.js';
+import { Page } from './page.js';
+import {
+  getByRoleSelector,
+  getByLabelSelector,
+  getByPlaceholderSelector,
+  getByAltTextSelector,
+  getByTitleSelector,
+  getByTestIdSelector,
+  getByTextSelector,
+  TEST_ID_ATTR,
+} from './playwright-engine.js';
 import { fakeWebViewSession } from './fake-webview-session.js';
 
 // A step function that records the title of every step it wraps, then runs the body.
@@ -27,81 +37,29 @@ function sessionAlwaysReturning(value: unknown) {
   return fakeWebViewSession({ evaluateAlways: value, url: '', title: '' });
 }
 
-// ─── Strategy → JS generation ────────────────────────────────
+// ─── Selector resolution via the injected engine ─────────────
 
-test.describe('buildFindAll — strategy to JS', () => {
-  test('css strategy generates querySelectorAll call', async () => {
+test.describe('selector resolution via the injected engine', () => {
+  test('count() resolves the selector through window.__mwInjected.querySelectorAll', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.my-btn' });
+    const loc = new WebLocator(session, '.my-btn');
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".my-btn")');
+    playwrightExpect(evaluateCalls[0]).toContain('window.__mwInjected.querySelectorAll');
+    playwrightExpect(evaluateCalls[0]).toContain('parseSelector(".my-btn")');
   });
 
-  test('testId strategy generates data-testid attribute selector', async () => {
+  test('getByRole builds the exact Playwright role selector', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'testId', testId: 'submit' });
+    const loc = new WebLocator(session, getByRoleSelector('button', { name: 'Sign In' }));
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('data-testid="submit"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify(getByRoleSelector('button', { name: 'Sign In' }))})`);
   });
 
-  test('role strategy calls window.__mw.findByRole', async () => {
+  test('getByTestId builds the exact Playwright testid selector', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'role', role: 'button' });
+    const loc = new WebLocator(session, getByTestIdSelector(TEST_ID_ATTR, 'submit'));
     await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('window.__mw.findByRole');
-    playwrightExpect(evaluateCalls[0]).toContain('"button"');
-  });
-
-  test('role strategy includes name when provided', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'role', role: 'button', name: 'Sign In' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('"Sign In"');
-  });
-
-  test('role strategy serialises RegExp name correctly', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'role', role: 'button', name: /sign/i });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('/sign/i');
-  });
-
-  test('text strategy calls window.__mw.findByText', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'text', text: 'Hello' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('window.__mw.findByText');
-    playwrightExpect(evaluateCalls[0]).toContain('"Hello"');
-  });
-
-  test('label strategy calls window.__mw.findByLabel', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'label', label: 'Email' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('window.__mw.findByLabel');
-    playwrightExpect(evaluateCalls[0]).toContain('"Email"');
-  });
-
-  test('placeholder strategy calls window.__mw.findByAttr with placeholder', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'placeholder', text: 'Enter email' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('\'placeholder\'');
-    playwrightExpect(evaluateCalls[0]).toContain('"Enter email"');
-  });
-
-  test('altText strategy calls window.__mw.findByAttr with alt', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'altText', text: 'logo' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('\'alt\'');
-  });
-
-  test('title strategy calls window.__mw.findByAttr with title', async () => {
-    const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'title', text: 'Close' });
-    await loc.count();
-    playwrightExpect(evaluateCalls[0]).toContain('\'title\'');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify(getByTestIdSelector(TEST_ID_ATTR, 'submit'))})`);
   });
 });
 
@@ -110,13 +68,13 @@ test.describe('buildFindAll — strategy to JS', () => {
 test.describe('WebLocator.count()', () => {
   test('returns 0 when evaluate returns 0', async () => {
     const { session } = sessionReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.count()).toBe(0);
   });
 
   test('returns the element count from evaluate', async () => {
     const { session } = sessionReturning(3);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.count()).toBe(3);
   });
 });
@@ -124,7 +82,7 @@ test.describe('WebLocator.count()', () => {
 test.describe('WebLocator.all()', () => {
   test('returns an array of WebLocators matching the count', async () => {
     const { session } = sessionReturning(3);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
+    const loc = new WebLocator(session, '.item');
     const all = await loc.all();
     playwrightExpect(all).toHaveLength(3);
     playwrightExpect(all[0]).toBeInstanceOf(WebLocator);
@@ -132,79 +90,70 @@ test.describe('WebLocator.all()', () => {
 
   test('returns empty array when count is 0', async () => {
     const { session } = sessionReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
+    const loc = new WebLocator(session, '.item');
     playwrightExpect(await loc.all()).toHaveLength(0);
   });
 });
 
 test.describe('WebLocator.first() / last() / nth()', () => {
-  test('first() returns a WebLocator with nth(0) strategy', async () => {
+  test('first() returns a WebLocator', async () => {
     const { session } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     const first = loc.first();
     playwrightExpect(first).toBeInstanceOf(WebLocator);
   });
 
-  test('nth() builds correct JS to pick from the array', async () => {
+  test('nth() composes an nth=index selector', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.nth(2).count();
-    playwrightExpect(evaluateCalls[0]).toContain('2');
+    playwrightExpect(evaluateCalls[0]).toContain('parseSelector(".btn >> nth=2")');
   });
 });
 
 // ─── Chaining getters ─────────────────────────────────────────
 
 test.describe('WebLocator chaining getters', () => {
-  test('getByLabel scopes a findByLabel query within the parent', async () => {
+  test('getByLabel composes a label selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    const loc = new WebLocator(session, '.form');
     await loc.getByLabel('Email').count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
-    playwrightExpect(evaluateCalls[0]).toContain('window.__mw.findByLabel');
-    playwrightExpect(evaluateCalls[0]).toContain('"Email"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.form >> ' + getByLabelSelector('Email'))})`);
   });
 
-  test('getByPlaceholder scopes a findByAttr placeholder query within the parent', async () => {
+  test('getByPlaceholder composes a placeholder selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    const loc = new WebLocator(session, '.form');
     await loc.getByPlaceholder('Enter email').count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
-    playwrightExpect(evaluateCalls[0]).toContain('\'placeholder\'');
-    playwrightExpect(evaluateCalls[0]).toContain('"Enter email"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.form >> ' + getByPlaceholderSelector('Enter email'))})`);
   });
 
-  test('getByTestId scopes a data-testid query within the parent', async () => {
+  test('getByTestId composes a testid selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    const loc = new WebLocator(session, '.form');
     await loc.getByTestId('submit').count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".form")');
-    playwrightExpect(evaluateCalls[0]).toContain('data-testid="submit"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.form >> ' + getByTestIdSelector(TEST_ID_ATTR, 'submit'))})`);
   });
 
-  test('getByAltText scopes a findByAttr alt query within the parent', async () => {
+  test('getByAltText composes an alt selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.gallery' });
+    const loc = new WebLocator(session, '.gallery');
     await loc.getByAltText('logo').count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".gallery")');
-    playwrightExpect(evaluateCalls[0]).toContain('\'alt\'');
-    playwrightExpect(evaluateCalls[0]).toContain('"logo"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.gallery >> ' + getByAltTextSelector('logo'))})`);
   });
 
-  test('getByTitle scopes a findByAttr title query within the parent', async () => {
+  test('getByTitle composes a title selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.toolbar' });
+    const loc = new WebLocator(session, '.toolbar');
     await loc.getByTitle('Close').count();
-    playwrightExpect(evaluateCalls[0]).toContain('querySelectorAll(".toolbar")');
-    playwrightExpect(evaluateCalls[0]).toContain('\'title\'');
-    playwrightExpect(evaluateCalls[0]).toContain('"Close"');
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.toolbar >> ' + getByTitleSelector('Close'))})`);
   });
 
-  test('last() builds an nth(-1) query', async () => {
+  test('last() composes an nth=-1 selector', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.last().count();
-    playwrightExpect(evaluateCalls[0]).toContain('-1');
+    playwrightExpect(evaluateCalls[0]).toContain('parseSelector(".btn >> nth=-1")');
   });
 });
 
@@ -213,13 +162,13 @@ test.describe('WebLocator chaining getters', () => {
 test.describe('WebLocator.isVisible()', () => {
   test('returns true when element is visible', async () => {
     const { session } = sessionReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isVisible({ timeout: 0 })).toBe(true);
   });
 
   test('returns false when element is not found', async () => {
     const { session } = sessionReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isVisible({ timeout: 0 })).toBe(false);
   });
 
@@ -231,19 +180,19 @@ test.describe('WebLocator.isVisible()', () => {
       title: async () => '', reload: async () => {}, waitForLoadState: async () => {},
       close: async () => {},
     };
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isVisible({ timeout: 0 })).toBe(false);
   });
 
   test('returns true when element is visible while polling with a non-zero timeout', async () => {
     const { session } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isVisible({ timeout: 200 })).toBe(true);
   });
 
   test('returns false when the element stays invisible until the polling timeout elapses', async () => {
     const { session } = sessionAlwaysReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isVisible({ timeout: 200 })).toBe(false);
   });
 });
@@ -251,7 +200,7 @@ test.describe('WebLocator.isVisible()', () => {
 test.describe('WebLocator.isHidden()', () => {
   test('returns true when element is not visible', async () => {
     const { session } = sessionReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.isHidden({ timeout: 0 })).toBe(true);
   });
 });
@@ -259,13 +208,13 @@ test.describe('WebLocator.isHidden()', () => {
 test.describe('WebLocator.isEnabled()', () => {
   test('returns true when element is enabled', async () => {
     const { session } = sessionReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.isEnabled({ timeout: 0 })).toBe(true);
   });
 
   test('returns false when element is disabled', async () => {
     const { session } = sessionReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.isEnabled({ timeout: 0 })).toBe(false);
   });
 });
@@ -273,7 +222,7 @@ test.describe('WebLocator.isEnabled()', () => {
 test.describe('WebLocator.isChecked()', () => {
   test('returns true when element is checked', async () => {
     const { session } = sessionReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input[type=checkbox]' });
+    const loc = new WebLocator(session, 'input[type=checkbox]');
     playwrightExpect(await loc.isChecked({ timeout: 0 })).toBe(true);
   });
 });
@@ -281,14 +230,38 @@ test.describe('WebLocator.isChecked()', () => {
 test.describe('WebLocator.isDisabled()', () => {
   test('returns true when the element is not enabled', async () => {
     const { session } = sessionReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.isDisabled({ timeout: 0 })).toBe(true);
   });
 
   test('returns false when the element is enabled', async () => {
     const { session } = sessionReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.isDisabled({ timeout: 0 })).toBe(false);
+  });
+});
+
+// ─── State-query missing-element semantics ───────────────────
+// Matches Playwright: isVisible → false on missing; isEnabled/isChecked throw.
+
+test.describe('state-query missing-element semantics', () => {
+  test('isVisible returns false when the element is absent', async () => {
+    const { session } = sessionReturning(false);
+    const loc = new WebLocator(session, '.gone');
+    playwrightExpect(await loc.isVisible({ timeout: 0 })).toBe(false);
+  });
+
+  test('isEnabled rejects with "element not found" when the element is absent', async () => {
+    // null = injected querySelector found nothing.
+    const { session } = sessionReturning(null);
+    const loc = new WebLocator(session, '.gone');
+    await playwrightExpect(loc.isEnabled({ timeout: 0 })).rejects.toThrow(/element not found/);
+  });
+
+  test('isChecked rejects with "element not found" when the element is absent', async () => {
+    const { session } = sessionReturning(null);
+    const loc = new WebLocator(session, '.gone');
+    await playwrightExpect(loc.isChecked({ timeout: 0 })).rejects.toThrow(/element not found/);
   });
 });
 
@@ -298,7 +271,7 @@ test.describe('WebLocator.textContent()', () => {
   test('returns text content after waiting for visibility', async () => {
     // First call: isVisible check → true; second: textContent expression
     const { session } = sessionReturning(true, 'Sign In');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.textContent()).toBe('Sign In');
   });
 });
@@ -306,7 +279,7 @@ test.describe('WebLocator.textContent()', () => {
 test.describe('WebLocator.innerText()', () => {
   test('returns the rendered inner text after waiting for visibility', async () => {
     const { session } = sessionReturning(true, 'Sign In');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.innerText()).toBe('Sign In');
   });
 });
@@ -314,7 +287,7 @@ test.describe('WebLocator.innerText()', () => {
 test.describe('WebLocator.innerHTML()', () => {
   test('returns the inner HTML after waiting for visibility', async () => {
     const { session } = sessionReturning(true, '<span>Sign In</span>');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.innerHTML()).toBe('<span>Sign In</span>');
   });
 });
@@ -322,7 +295,7 @@ test.describe('WebLocator.innerHTML()', () => {
 test.describe('WebLocator.inputValue()', () => {
   test('returns the input value after waiting for visibility', async () => {
     const { session } = sessionReturning(true, 'john@example.com');
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.inputValue()).toBe('john@example.com');
   });
 });
@@ -331,7 +304,7 @@ test.describe('WebLocator.boundingBox()', () => {
   test('returns a Bounds object with x, y, width, and height', async () => {
     // isVisible → true, then the getBoundingClientRect expression → a rect.
     const { session } = sessionReturning(true, { x: 10, y: 20, width: 100, height: 40 });
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     const box = await loc.boundingBox();
     // The Bounds contract clients depend on: all four numeric fields present.
     playwrightExpect(box).toEqual({ x: 10, y: 20, width: 100, height: 40 });
@@ -339,7 +312,7 @@ test.describe('WebLocator.boundingBox()', () => {
 
   test('returns null when the element is absent', async () => {
     const { session } = sessionReturning(true, null);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.missing' });
+    const loc = new WebLocator(session, '.missing');
     playwrightExpect(await loc.boundingBox()).toBeNull();
   });
 });
@@ -347,13 +320,13 @@ test.describe('WebLocator.boundingBox()', () => {
 test.describe('WebLocator.getAttribute()', () => {
   test('returns the attribute value after waiting for visibility', async () => {
     const { session } = sessionReturning(true, 'primary');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.getAttribute('class')).toBe('primary');
   });
 
   test('returns null when attribute is absent', async () => {
     const { session } = sessionReturning(true, null);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     playwrightExpect(await loc.getAttribute('data-missing')).toBeNull();
   });
 });
@@ -361,7 +334,7 @@ test.describe('WebLocator.getAttribute()', () => {
 test.describe('WebLocator.getAttribute() — evaluate contains correct attribute name', () => {
   test('embeds the attribute name in the evaluate expression', async () => {
     const { session, evaluateCalls } = sessionReturning(true, 'value');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.getAttribute('aria-label');
     playwrightExpect(evaluateCalls.some(c => c.includes('aria-label'))).toBe(true);
   });
@@ -372,20 +345,20 @@ test.describe('WebLocator.getAttribute() — evaluate contains correct attribute
 test.describe('WebLocator.waitFor()', () => {
   test('resolves immediately when element is already visible', async () => {
     const { session } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.waitFor({ state: 'visible', timeout: 1000 });
   });
 
   test('resolves when element becomes detached', async () => {
     // count: 0 → attached check fails (detached = true)
     const { session } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.removed' });
+    const loc = new WebLocator(session, '.removed');
     await loc.waitFor({ state: 'detached', timeout: 1000 });
   });
 
   test('rejects when element never becomes visible within timeout', async () => {
     const { session } = sessionAlwaysReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.missing' });
+    const loc = new WebLocator(session, '.missing');
     await playwrightExpect(
       loc.waitFor({ state: 'visible', timeout: 200 }),
     ).rejects.toThrow();
@@ -397,14 +370,14 @@ test.describe('WebLocator.waitFor()', () => {
 test.describe('WebLocator.click()', () => {
   test('evaluates a click expression after waiting for visibility', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.click();
     playwrightExpect(evaluateCalls.some(c => c.includes('.click()'))).toBe(true);
   });
 
   test('asserts the element exists, throwing in-page rather than silently no-op', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.click();
     const js = evaluateCalls.find(c => c.includes('.click()')) ?? '';
     playwrightExpect(js).toContain('throw new Error');
@@ -415,20 +388,40 @@ test.describe('WebLocator.click()', () => {
 test.describe('WebLocator.fill()', () => {
   test('evaluates a fill expression with the given text', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     await loc.fill('hello@example.com');
     playwrightExpect(evaluateCalls.some(c => c.includes('hello@example.com'))).toBe(true);
+  });
+});
+
+test.describe('getByRole().click() via the injected engine', () => {
+  test('resolves and clicks through window.__mwInjected using the exact Playwright selector', async () => {
+    // Every evaluate resolves true: the actionability poll passes on the first
+    // read, so click() proceeds to dispatch.
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const page = await Page.attach(session);
+
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    const expectedSelector = getByRoleSelector('button', { name: 'Sign in' });
+    const usesInjectedSelector = evaluateCalls.some((c) =>
+      c.includes('window.__mwInjected') &&
+      c.includes(`parseSelector(${JSON.stringify(expectedSelector)})`),
+    );
+    const dispatchesClick = evaluateCalls.some((c) => c.includes('el.click()'));
+    playwrightExpect(usesInjectedSelector).toBe(true);
+    playwrightExpect(dispatchesClick).toBe(true);
   });
 });
 
 test.describe('WebLocator.hover()', () => {
   test('waits for the element to be visible before dispatching the hover events', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.hover();
-    // Like click/fill/type, hover must first run the visibility check
-    // (getComputedStyle) before acting — otherwise it acts on a stale match.
-    const visibilityCheckIndex = evaluateCalls.findIndex(c => c.includes('getComputedStyle'));
+    // Like click/fill/type, hover must first run the injected visibility check
+    // before acting — otherwise it acts on a stale match.
+    const visibilityCheckIndex = evaluateCalls.findIndex(c => c.includes('elementState(el,'));
     const hoverIndex = evaluateCalls.findIndex(c => c.includes('mouseover'));
     playwrightExpect(visibilityCheckIndex).toBeGreaterThanOrEqual(0);
     playwrightExpect(hoverIndex).toBeGreaterThan(visibilityCheckIndex);
@@ -440,167 +433,14 @@ test.describe('WebLocator.hover()', () => {
 test.describe('getText() and getValue() aliases', () => {
   test('getText() delegates to textContent()', async () => {
     const { session } = sessionReturning(true, 'Hello World');
-    const loc = new WebLocator(session, { kind: 'css', selector: 'p' });
+    const loc = new WebLocator(session, 'p');
     playwrightExpect(await loc.getText()).toBe('Hello World');
   });
 
   test('getValue() delegates to inputValue()', async () => {
     const { session } = sessionReturning(true, 'myvalue');
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
+    const loc = new WebLocator(session, 'input');
     playwrightExpect(await loc.getValue()).toBe('myvalue');
-  });
-});
-
-// ─── expect(webLocator) assertions ───────────────────────────
-
-test.describe('expect(webLocator).toBeVisible()', () => {
-  test('passes when element is visible', async () => {
-    const { session } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).toBeVisible();
-  });
-
-  test('fails when element is not visible', async () => {
-    const { session } = sessionAlwaysReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await playwrightExpect(
-      expect(loc).toBeVisible({ timeout: 200 }),
-    ).rejects.toThrow();
-  });
-
-  test('not.toBeVisible passes when element is hidden', async () => {
-    const { session } = sessionAlwaysReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.hidden' });
-    await expect(loc).not.toBeVisible();
-  });
-});
-
-test.describe('expect(webLocator).toBeEnabled()', () => {
-  test('passes when element is enabled', async () => {
-    const { session } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
-    await expect(loc).toBeEnabled();
-  });
-
-  test('not.toBeEnabled passes when element is disabled', async () => {
-    const { session } = sessionAlwaysReturning(false);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
-    await expect(loc).not.toBeEnabled();
-  });
-});
-
-test.describe('expect(webLocator).toBeChecked()', () => {
-  test('passes when element is checked', async () => {
-    const { session } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input[type=checkbox]' });
-    await expect(loc).toBeChecked();
-  });
-});
-
-test.describe('expect(webLocator).toHaveText()', () => {
-  test('passes when text matches exactly', async () => {
-    const { session } = sessionReturning(true, 'Sign In');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).toHaveText('Sign In');
-  });
-
-  test('passes when text matches a regex', async () => {
-    const { session } = sessionReturning(true, 'Sign In Now');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).toHaveText(/Sign In/);
-  });
-
-  test('fails when text does not match', async () => {
-    const { session } = sessionAlwaysReturning('Cancel');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await playwrightExpect(
-      expect(loc).toHaveText('Sign In', { timeout: 200 }),
-    ).rejects.toThrow();
-  });
-});
-
-test.describe('expect(webLocator).toContainText()', () => {
-  test('passes when text contains the substring', async () => {
-    const { session } = sessionReturning(true, 'Welcome to the dashboard');
-    const loc = new WebLocator(session, { kind: 'css', selector: 'h1' });
-    await expect(loc).toContainText('dashboard');
-  });
-});
-
-test.describe('expect(webLocator).toHaveValue()', () => {
-  test('passes when input value matches', async () => {
-    const { session } = sessionReturning(true, 'john@example.com');
-    const loc = new WebLocator(session, { kind: 'css', selector: 'input' });
-    await expect(loc).toHaveValue('john@example.com');
-  });
-});
-
-test.describe('expect(webLocator).toHaveAttribute()', () => {
-  test('passes when attribute value matches', async () => {
-    // isVisible → true, getAttribute → 'primary'
-    const { session } = sessionReturning(true, 'primary');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).toHaveAttribute('data-variant', 'primary');
-  });
-
-  test('passes when attribute matches a regex', async () => {
-    const { session } = sessionReturning(true, 'btn-primary');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).toHaveAttribute('class', /primary/);
-  });
-
-  test('fails when attribute is absent', async () => {
-    const { session } = sessionAlwaysReturning(null);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await playwrightExpect(
-      expect(loc).toHaveAttribute('data-missing', 'value', { timeout: 200 }),
-    ).rejects.toThrow();
-  });
-
-  test('not.toHaveAttribute passes when the attribute value differs', async () => {
-    const { session } = sessionAlwaysReturning('secondary');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await expect(loc).not.toHaveAttribute('data-variant', 'primary');
-  });
-
-  test('not.toHaveAttribute rejects when the attribute value matches', async () => {
-    const { session } = sessionAlwaysReturning('primary');
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await playwrightExpect(
-      expect(loc).not.toHaveAttribute('data-variant', 'primary', { timeout: 200 }),
-    ).rejects.toThrow();
-  });
-
-  test('not.toHaveAttribute rejects when the attribute is absent (requires the element to exist)', async () => {
-    // A missing attribute is a non-match for both forms, so .not still requires
-    // the element to exist with a differing value rather than passing on absence.
-    const { session } = sessionAlwaysReturning(null);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    await playwrightExpect(
-      expect(loc).not.toHaveAttribute('data-missing', 'value', { timeout: 200 }),
-    ).rejects.toThrow();
-  });
-});
-
-test.describe('expect(webLocator).toHaveCount()', () => {
-  test('passes when count matches', async () => {
-    const { session } = sessionAlwaysReturning(3);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
-    await expect(loc).toHaveCount(3);
-  });
-
-  test('fails when count does not match', async () => {
-    const { session } = sessionAlwaysReturning(1);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
-    await playwrightExpect(
-      expect(loc).toHaveCount(5, { timeout: 200 }),
-    ).rejects.toThrow();
-  });
-
-  test('not.toHaveCount passes when count differs', async () => {
-    const { session } = sessionAlwaysReturning(2);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.item' });
-    await expect(loc).not.toHaveCount(5);
   });
 });
 
@@ -610,7 +450,7 @@ test.describe('WebLocator step instrumentation', () => {
   test('actions emit a named step matching the method call', async () => {
     const { session } = sessionAlwaysReturning(true);
     const { stepFn, titles } = recordingStepFn();
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     loc._stepFn = stepFn;
 
     await loc.click();
@@ -632,21 +472,18 @@ test.describe('WebLocator step instrumentation', () => {
     ]);
   });
 
-  test('chaining scopes the child query within the parent matches', async () => {
+  test('chaining composes the child selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    const loc = new WebLocator(session, '.form');
     await loc.getByText('Submit').count();
-    const js = evaluateCalls[0];
-    // Parent matches feed into the child query rather than being discarded.
-    playwrightExpect(js).toContain('querySelectorAll(".form")');
-    playwrightExpect(js).toContain('window.__mw.findByText');
-    playwrightExpect(js).toContain('flatMap');
+    // The child query is scoped to the parent via Playwright's `>>` combinator.
+    playwrightExpect(evaluateCalls[0]).toContain(`parseSelector(${JSON.stringify('.form >> ' + getByTextSelector('Submit'))})`);
   });
 
   test('chaining propagates the step function to descendants', async () => {
     const { session } = sessionAlwaysReturning(true);
     const { stepFn } = recordingStepFn();
-    const loc = new WebLocator(session, { kind: 'css', selector: '.form' });
+    const loc = new WebLocator(session, '.form');
     loc._stepFn = stepFn;
 
     playwrightExpect(loc.locator('.field')._stepFn).toBe(stepFn);
@@ -657,7 +494,7 @@ test.describe('WebLocator step instrumentation', () => {
 
   test('actions run normally when no step function is set', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     await loc.click();
     playwrightExpect(evaluateCalls.some(c => c.includes('.click()'))).toBe(true);
   });
@@ -665,18 +502,9 @@ test.describe('WebLocator step instrumentation', () => {
   test('value queries are NOT wrapped as steps', async () => {
     const { session } = sessionReturning(true, 'Sign In');
     const { stepFn, titles } = recordingStepFn();
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
+    const loc = new WebLocator(session, '.btn');
     loc._stepFn = stepFn;
     await loc.textContent();
     playwrightExpect(titles).toEqual([]);
-  });
-
-  test('assertions on a web locator emit expect steps', async () => {
-    const { session } = sessionAlwaysReturning(true);
-    const { stepFn, titles } = recordingStepFn();
-    const loc = new WebLocator(session, { kind: 'css', selector: '.btn' });
-    loc._stepFn = stepFn;
-    await expect(loc).toBeVisible();
-    playwrightExpect(titles).toContain('expect.toBeVisible()');
   });
 });
