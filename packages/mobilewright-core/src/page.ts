@@ -33,6 +33,15 @@ export class Page {
     await this.session.evaluate(bootstrapScript());
   }
 
+  // Wait for the navigation to settle before injecting, otherwise a redirect
+  // (e.g. a server bounce to a mobile host) replaces the document after we
+  // inject and drops window.__mwInjected. Injecting once the load completes
+  // targets the final document.
+  private async settleAndInject(): Promise<void> {
+    await this.session.waitForLoadState('load');
+    await this.injectEngine();
+  }
+
   constructor(readonly session: WebViewSession) {}
 
   // Build a WebLocator scoped to this page, carrying step instrumentation forward.
@@ -93,28 +102,28 @@ export class Page {
   async goto(url: string): Promise<void> {
     return this._step(`page.goto(${JSON.stringify(url)})`, async () => {
       await this.session.goto(url);
-      await this.injectEngine();
+      await this.settleAndInject();
     });
   }
 
   async reload(): Promise<void> {
     return this._step('page.reload()', async () => {
       await this.session.reload();
-      await this.injectEngine();
+      await this.settleAndInject();
     });
   }
 
   async goBack(): Promise<void> {
     return this._step('page.goBack()', async () => {
       await this.session.goBack();
-      await this.injectEngine();
+      await this.settleAndInject();
     });
   }
 
   async goForward(): Promise<void> {
     return this._step('page.goForward()', async () => {
       await this.session.goForward();
-      await this.injectEngine();
+      await this.settleAndInject();
     });
   }
 
