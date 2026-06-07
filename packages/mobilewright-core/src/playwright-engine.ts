@@ -5,6 +5,7 @@
 // this file breaks. Playwright is Apache-2.0 (see NOTICE).
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import type { WebViewSession } from '@mobilewright/protocol';
 
 type GetByRoleSelector = (
   role: string,
@@ -67,4 +68,35 @@ export function bootstrapScript(): string {
     const options = Object.assign(${JSON.stringify(BOOTSTRAP_OPTIONS_BASE)}, { browserName: detectBrowserName(navigator.userAgent) });
     window.__mwInjected = new (module.exports.InjectedScript())(globalThis, options);
   })()`;
+}
+
+// A page can replace its own document after we injected the engine (a
+// client-side redirect or reload that mobilewright didn't initiate), which drops
+// window.__mwInjected. The next engine call then throws "... of undefined
+// (reading 'querySelector...')". Detect that so we can re-inject and retry.
+export function isEngineMissing(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return (
+    message.includes('__mwInjected') ||
+    /undefined \(reading '(querySelector|querySelectorAll|parseSelector|expect|elementState|checkElementStates)'\)/.test(message)
+  );
+}
+
+// Evaluate an expression that depends on the injected engine, re-injecting the
+// engine and retrying once if it has gone missing. Keeps engine-dependent calls
+// resilient to page-initiated navigations without paying the re-inject cost
+// unless the engine is actually gone.
+export async function evaluateWithEngine<T = unknown>(
+  session: WebViewSession,
+  expr: string,
+): Promise<T> {
+  try {
+    return await session.evaluate<T>(expr);
+  } catch (e) {
+    if (!isEngineMissing(e)) {
+      throw e;
+    }
+    await session.evaluate(bootstrapScript());
+    return session.evaluate<T>(expr);
+  }
 }

@@ -12,6 +12,7 @@ import {
   getByTitleSelector,
   getByTestIdSelector,
   TEST_ID_ATTR,
+  evaluateWithEngine,
 } from './playwright-engine.js';
 import { buildExpectEvaluate, type FrameExpectParams, type ExpectResult } from './web-expect-matcher.js';
 
@@ -65,15 +66,22 @@ export class WebLocator {
     return `(() => { const el = ${this.firstEl()}; ${body} })()`;
   }
 
+  // Every engine-dependent evaluate goes through here so it self-heals: if a
+  // page-initiated navigation dropped window.__mwInjected, the engine is
+  // re-injected and the call retried once.
+  private evaluate<T = void>(expr: string): Promise<T> {
+    return evaluateWithEngine<T>(this.session, expr);
+  }
+
   private evalOnFirst<T = void>(body: string): Promise<T> {
-    return this.session.evaluate<T>(this.firstElExpr(body));
+    return this.evaluate<T>(this.firstElExpr(body));
   }
 
   // Run a mutating action against the first match. Throws in-page when the
   // element is absent so the action rejects instead of silently no-op'ing.
   private actOnFirst(action: string, what: string): Promise<void> {
     const notFound = JSON.stringify(`${what}: element not found`);
-    return this.session.evaluate<void>(
+    return this.evaluate<void>(
       `(() => { const el = ${this.firstEl()}; if (!el) { throw new Error(${notFound}); } ${action} })()`,
     );
   }
@@ -84,7 +92,7 @@ export class WebLocator {
   private async pollBoolean(js: string, timeout: number, what: string): Promise<boolean> {
     const read = async (): Promise<boolean> => {
       try {
-        return await this.session.evaluate<boolean>(js);
+        return await this.evaluate<boolean>(js);
       } catch (e) {
         if (isStrictModeViolation(e)) { throw e; }
         const message = e instanceof Error ? e.message : String(e);
@@ -120,7 +128,7 @@ export class WebLocator {
     let result = false;
     await retryUntil(
       async () => {
-        const matches = await this.session.evaluate<boolean | null>(js);
+        const matches = await this.evaluate<boolean | null>(js);
         if (matches === null) { return false; }
         result = matches;
         return true;
@@ -192,7 +200,7 @@ export class WebLocator {
 
   async count(): Promise<number> {
     const sel = JSON.stringify(this.selector);
-    return this.session.evaluate<number>(
+    return this.evaluate<number>(
       `window.__mwInjected.querySelectorAll(window.__mwInjected.parseSelector(${sel}), document).length`,
     );
   }
@@ -344,7 +352,7 @@ export class WebLocator {
     const sel = JSON.stringify(this.selector);
     const list = JSON.stringify(states);
     await retryUntil(
-      () => this.session.evaluate<boolean>(
+      () => this.evaluate<boolean>(
         `(async () => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } const missing = await is.checkElementStates(el, ${list}); return missing === undefined; })()`,
       ),
       (ready) => ready,
@@ -366,7 +374,7 @@ export class WebLocator {
   // return its raw verdict. The assertion layer (expect.ts) decides pass/fail
   // (pass = matches !== isNot) and handles retry/negation/messages.
   async _runInjectedExpect(params: FrameExpectParams): Promise<ExpectResult> {
-    return this.session.evaluate<ExpectResult>(buildExpectEvaluate(this.selector, params));
+    return this.evaluate<ExpectResult>(buildExpectEvaluate(this.selector, params));
   }
 
   // Default expect() timeout for assertions on this locator (none → fall back to
