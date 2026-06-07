@@ -1,5 +1,4 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
 
 // A real, cross-origin HTTPS page (not a data: URL) so this exercises an actual
 // network navigation plus engine re-injection on the fresh document. It covers
@@ -7,9 +6,7 @@ import { openWebviewPage } from './harness.js';
 // deterministic matcher matrix lives in the other conformance files.
 const PYTHAGOREAN_ARTICLE = 'https://en.wikipedia.org/wiki/Pythagorean_theorem';
 
-test('navigates to a live page and drives it like Playwright', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const realNavigationSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(PYTHAGOREAN_ARTICLE);
   await page.waitForLoadState('domcontentloaded');
 
@@ -32,4 +29,4 @@ test('navigates to a live page and drives it like Playwright', async ({ device, 
   const lastLink = page.getByRole('link').last();
   await lastLink.scrollIntoViewIfNeeded();
   await expect(lastLink).toBeInViewport();
-});
+};

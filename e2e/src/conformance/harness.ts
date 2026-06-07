@@ -12,10 +12,3 @@ export async function openWebviewPage(ctx: { device: Device; screen: Screen }): 
   const page = await ctx.screen.getByWebView().page();
   return page;
 }
-
-// Wrap a readable HTML body fragment into a self-contained data: URL document.
-// Tests author legible HTML; the data-URL encoding stays hidden behind the name.
-export function pageWithBody(bodyHtml: string): string {
-  const doc = `<!doctype html><meta charset="utf-8"><body>${bodyHtml}</body>`;
-  return `data:text/html,${encodeURIComponent(doc)}`;
-}

@@ -1,9 +1,7 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage, pageWithBody } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
+import { pageWithBody } from './fixtures.js';
 
-test('locator factories resolve like Playwright', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const locatorsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(pageWithBody(`
     <button>Sign in</button>
     <a href="#">Sign in</a>
@@ -38,4 +36,4 @@ test('locator factories resolve like Playwright', async ({ device, screen }) => 
   await expect(page.locator('li').nth(1)).toHaveText('two');
   await expect(page.locator('li').last()).toHaveText('three');
   await expect(page.locator('ul').getByText('two')).toHaveCount(1);
-});
+};

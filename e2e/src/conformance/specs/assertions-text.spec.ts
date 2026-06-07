@@ -1,9 +1,7 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage, pageWithBody } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
+import { pageWithBody } from './fixtures.js';
 
-test('text assertions match Playwright (incl. whitespace normalization)', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const textAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(pageWithBody(`
     <p id="text">  Hello   world  </p>
     <input id="value" type="text" value="john@example.com">
@@ -26,4 +24,4 @@ test('text assertions match Playwright (incl. whitespace normalization)', async 
   await expect(page.locator('#value')).toHaveValue('john@example.com');
   await expect(page.locator('#value')).toHaveValue(/@example\.com$/);
   await expect(page.locator('#value')).not.toHaveValue('other');
-});
+};

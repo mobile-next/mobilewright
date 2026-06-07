@@ -1,9 +1,7 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage, pageWithBody } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
+import { pageWithBody } from './fixtures.js';
 
-test('web-only assertions match Playwright', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const webAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(pageWithBody(`
     <ul><li class="item">a</li><li class="item">b</li></ul>
     <button id="btn" class="btn primary" data-variant="primary" style="color: rgb(255, 0, 0);">go</button>
@@ -32,4 +30,4 @@ test('web-only assertions match Playwright', async ({ device, screen }) => {
 
   // JS property
   await expect(page.locator('#check')).toHaveJSProperty('checked', true);
-});
+};

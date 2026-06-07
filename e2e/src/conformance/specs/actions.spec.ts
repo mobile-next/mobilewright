@@ -1,9 +1,7 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage, pageWithBody } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
+import { pageWithBody } from './fixtures.js';
 
-test('actions affect the DOM like Playwright', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const actionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(pageWithBody(`
     <button id="b" onclick="this.textContent='clicked'">press me</button>
     <input id="fill" type="text">
@@ -43,4 +41,4 @@ test('actions affect the DOM like Playwright', async ({ device, screen }) => {
   // scrollIntoViewIfNeeded — no throw, element becomes in viewport
   await page.locator('#bottom').scrollIntoViewIfNeeded();
   await expect(page.locator('#bottom')).toBeInViewport();
-});
+};

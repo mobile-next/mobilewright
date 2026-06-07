@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli node ../packages/mobilewright/dist/cli.js test",
-    "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext node ../packages/mobilewright/dist/cli.js test"
+    "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext node ../packages/mobilewright/dist/cli.js test",
+    "test:playwright": "playwright test"
   },
   "dependencies": {
     "mobilewright": "^0.0.1",
     "@mobilewright/test": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@types/node": "^22.0.0"
   }
 }

@@ -1,9 +1,7 @@
-import { test, expect } from '@mobilewright/test';
-import { openWebviewPage, pageWithBody } from './harness.js';
+import type { ConformancePage, ConformanceExpect } from './types.js';
+import { pageWithBody } from './fixtures.js';
 
-test('state assertions match Playwright', async ({ device, screen }) => {
-  const page = await openWebviewPage({ device, screen });
-
+export const stateAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
   await page.goto(pageWithBody(`
     <div id="visible">shown</div>
     <div id="hidden" style="display:none">gone</div>
@@ -36,4 +34,4 @@ test('state assertions match Playwright', async ({ device, screen }) => {
   await expect(page.locator('#visible')).not.toBeEmpty();
 
   await expect(page.locator('#visible')).toBeInViewport();
-});
+};
