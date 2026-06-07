@@ -69,6 +69,14 @@ function walkTree(
   }
 }
 
+export const WEBVIEW_TYPES = new Set([
+  'WKWebView',
+  'XCUIElementTypeWebView',
+  'android.webkit.WebView',
+  'RCTWebView',
+  'RNCWebView',
+]);
+
 function matchesStrategy(
   node: ViewNode,
   strategy: LocatorStrategy,
@@ -131,14 +139,6 @@ function matchesStrategy(
       throw new Error(`Unknown strategy kind: ${(strategy as any).kind}`);
   }
 }
-
-export const WEBVIEW_TYPES = new Set([
-  'WKWebView',
-  'XCUIElementTypeWebView',
-  'android.webkit.WebView',
-  'RCTWebView',
-  'RNCWebView',
-]);
 
 const ROLE_TYPE_MAP: Record<string, string[]> = {
   button: ['button', 'imagebutton'],

@@ -49,7 +49,7 @@ export function detectBrowserName(userAgent: string): 'webkit' | 'chromium' {
 const BOOTSTRAP_OPTIONS_BASE = {
   isUnderTest: false,
   sdkLanguage: 'javascript',
-  testIdAttributeName: 'data-testid',
+  testIdAttributeName: TEST_ID_ATTR,
   stableRafCount: 1,
   isUtilityWorld: false,
   customEngines: [],

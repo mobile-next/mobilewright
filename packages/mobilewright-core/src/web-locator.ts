@@ -19,6 +19,14 @@ const DEFAULT_TIMEOUT = 5_000;
 
 const debug = createDebug('mw:web-locator');
 
+// Playwright's injected engine throws this when a strict selector matches >1
+// element. Detected by message text because it crosses the in-page boundary as
+// a plain serialized error.
+function isStrictModeViolation(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return message.includes('strict mode violation');
+}
+
 export class WebLocator {
   _stepFn: StepFn | null = null;
 
@@ -78,8 +86,8 @@ export class WebLocator {
       try {
         return await this.session.evaluate<boolean>(js);
       } catch (e) {
+        if (isStrictModeViolation(e)) { throw e; }
         const message = e instanceof Error ? e.message : String(e);
-        if (message.includes('strict mode violation')) { throw e; }
         debug('"%s" check evaluation failed, treating as false: %s', what, message);
         return false;
       }
@@ -97,8 +105,7 @@ export class WebLocator {
       );
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes('strict mode violation')) { throw e; }
+      if (isStrictModeViolation(e)) { throw e; }
       return false;
     }
   }
@@ -113,9 +120,9 @@ export class WebLocator {
     let result = false;
     await retryUntil(
       async () => {
-        const state = await this.session.evaluate<boolean | null>(js);
-        if (state === null) { return false; }
-        result = state;
+        const matches = await this.session.evaluate<boolean | null>(js);
+        if (matches === null) { return false; }
+        result = matches;
         return true;
       },
       (found) => found,

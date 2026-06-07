@@ -44,7 +44,7 @@ export class WebViewLocator extends Locator {
   }
 
   private async _resolvePage(): Promise<Page> {
-    if (this._page) return this._page;
+    if (this._page) { return this._page; }
 
     const bridge = this.driver.webViewBridge;
     if (!bridge) {

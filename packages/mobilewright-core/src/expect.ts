@@ -26,8 +26,8 @@ export function expect(actual: WebLocator): WebLocatorAssertions;
 export function expect(actual: Locator): LocatorAssertions;
 export function expect<T>(actual: T): ValueAssertions<T>;
 export function expect(actual: unknown): any {
-  if (actual instanceof Page) return new PageAssertions(actual, false);
-  if (actual instanceof WebLocator) return new WebLocatorAssertions(actual, false);
+  if (actual instanceof Page) { return new PageAssertions(actual, false); }
+  if (actual instanceof WebLocator) { return new WebLocatorAssertions(actual, false); }
   if (actual && typeof actual === 'object' && 'tap' in actual && 'getText' in actual) {
     return new LocatorAssertions(actual as Locator, false);
   }
