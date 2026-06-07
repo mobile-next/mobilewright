@@ -155,9 +155,9 @@ export class Page {
     return this.session.evaluate<string>('document.documentElement.outerHTML');
   }
 
-  async screenshot(): Promise<Buffer> {
-    throw new Error('page.screenshot() is not yet supported — requires a screenshot capability on WebViewSession');
-  }
+  // screenshot() intentionally omitted until WebViewSession gains a capture
+  // capability (a device.webview.screenshot RPC, or a native-screenshot crop to
+  // the webview's nativeBounds). Adding it later is a non-breaking change.
 
   async close(): Promise<void> {
     await this.session.close();
