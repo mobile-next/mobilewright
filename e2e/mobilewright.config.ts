@@ -29,13 +29,20 @@ const config: MobilewrightConfig = defineConfig({
   testMatch: '**/*.test.ts',
   retries: 0,
   timeout: 60_000,
-  platform: 'ios',
 
   // parallel by test() instead of parallel by file
   fullyParallel: true,
 
   // supports mobilecli and mobilenext drivers
   driver: resolveDriver(),
+
+  // one project per platform. Tests under src/conformance run on both; tests
+  // under src/ios or src/android are platform-specific and only run on that
+  // project (each project ignores the other platform's directory).
+  projects: [
+    { name: 'ios', use: { platform: 'ios' }, testIgnore: '**/android/**' },
+    { name: 'android', use: { platform: 'android' }, testIgnore: '**/ios/**' },
+  ],
 
   // filter used devices with regexp
   // deviceName: /Max/,
