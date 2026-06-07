@@ -21,8 +21,16 @@ export class Page {
   _stepFn: StepFn | null = null;
 
   static async attach(session: WebViewSession): Promise<Page> {
-    await session.evaluate(bootstrapScript());
-    return new Page(session);
+    const page = new Page(session);
+    await page.injectEngine();
+    return page;
+  }
+
+  // (Re)inject the Playwright engine into the current document. Runs at attach
+  // and after every navigation, because navigating creates a fresh document that
+  // drops window.__mwInjected.
+  private async injectEngine(): Promise<void> {
+    await this.session.evaluate(bootstrapScript());
   }
 
   constructor(readonly session: WebViewSession) {}
@@ -85,24 +93,28 @@ export class Page {
   async goto(url: string): Promise<void> {
     return this._step(`page.goto(${JSON.stringify(url)})`, async () => {
       await this.session.goto(url);
+      await this.injectEngine();
     });
   }
 
   async reload(): Promise<void> {
     return this._step('page.reload()', async () => {
       await this.session.reload();
+      await this.injectEngine();
     });
   }
 
   async goBack(): Promise<void> {
     return this._step('page.goBack()', async () => {
       await this.session.goBack();
+      await this.injectEngine();
     });
   }
 
   async goForward(): Promise<void> {
     return this._step('page.goForward()', async () => {
       await this.session.goForward();
+      await this.injectEngine();
     });
   }
 

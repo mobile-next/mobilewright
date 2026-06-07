@@ -37,26 +37,34 @@ export const getByAltTextSelector: TextBuilder = locatorUtils.getByAltTextSelect
 export const getByTitleSelector: TextBuilder = locatorUtils.getByTitleSelector;
 export const getByTestIdSelector = locatorUtils.getByTestIdSelector;
 
+// WKWebView's UA contains "AppleWebKit" without "Chrome/"; Android System
+// WebView / Chromium contains "Chrome/". Pinning browserName makes Playwright's
+// engine-specific branches behave correctly per webview engine.
+export function detectBrowserName(userAgent: string): 'webkit' | 'chromium' {
+  return /AppleWebKit/.test(userAgent) && !/Chrome\//.test(userAgent) ? 'webkit' : 'chromium';
+}
+
 // Options mirror what playwright-core passes when instantiating the engine.
-// browserName 'chromium' is correct for Android System WebView; per-platform
-// selection (iOS WKWebView → 'webkit') is a later slice.
-const BOOTSTRAP_OPTIONS = {
+// browserName is resolved in-page (see bootstrapScript) from the live UA.
+const BOOTSTRAP_OPTIONS_BASE = {
   isUnderTest: false,
   sdkLanguage: 'javascript',
   testIdAttributeName: 'data-testid',
   stableRafCount: 1,
-  browserName: 'chromium',
   isUtilityWorld: false,
   customEngines: [],
 };
 
 // A self-contained IIFE evaluated once per page (at Page.attach). It defines the
 // injected module and stashes a live InjectedScript instance on window so every
-// later evaluate() can reference it without needing a JSHandle.
+// later evaluate() can reference it without needing a JSHandle. browserName is
+// detected in-page so WKWebView is configured as webkit (not chromium).
 export function bootstrapScript(): string {
   return `(() => {
     const module = {};
     ${INJECTED_SOURCE}
-    window.__mwInjected = new (module.exports.InjectedScript())(globalThis, ${JSON.stringify(BOOTSTRAP_OPTIONS)});
-  })();`;
+    const detectBrowserName = ${detectBrowserName.toString()};
+    const options = Object.assign(${JSON.stringify(BOOTSTRAP_OPTIONS_BASE)}, { browserName: detectBrowserName(navigator.userAgent) });
+    window.__mwInjected = new (module.exports.InjectedScript())(globalThis, options);
+  })()`;
 }

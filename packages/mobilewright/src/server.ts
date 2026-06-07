@@ -33,10 +33,26 @@ export async function startMobilecliServer(opts?: {
   const binary = opts?.binaryPath ?? 'mobilecli';
   const port = opts?.port ?? 12000;
 
-  const proc = spawn(binary, ['server', 'start', '--listen', `localhost:${port}`], {
+  const verbose = !!process.env['DEBUG'];
+  const serverArgs = ['server', 'start', '--listen', `localhost:${port}`];
+  if (verbose) {
+    serverArgs.push('--verbose');
+  }
+
+  const proc = spawn(binary, serverArgs, {
     stdio: 'pipe',
     detached: false,
   });
+  // Always drain mobilecli's stdio: an unconsumed pipe buffer fills and then
+  // blocks the server's next log write (a single large log line would hang it).
+  // Forward to our stderr only when debugging (DEBUG set).
+  const drain = (chunk: Buffer): void => {
+    if (verbose) {
+      process.stderr.write(chunk);
+    }
+  };
+  proc.stdout?.on('data', drain);
+  proc.stderr?.on('data', drain);
 
   const wsUrl = `ws://localhost:${port}/ws`;
   const deadline = Date.now() + SERVER_START_TIMEOUT;

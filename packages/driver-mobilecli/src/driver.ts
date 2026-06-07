@@ -182,10 +182,17 @@ class MobilecliWebViewSession implements WebViewSession {
   async evaluate<T = unknown>(expr: string): Promise<T> {
     // mobilecli evaluates the expression and returns the value directly
     // (not wrapped in a { result } envelope).
-    return this.call<T>('device.webview.evaluate', {
+    debug('webview.evaluate len=%d prefix=%j', expr.length, expr.slice(0, 100));
+    const result = await this.call<T>('device.webview.evaluate', {
       id: this.id,
       expression: expr,
     });
+    if (expr.length < 2000) {
+      debug('webview.evaluate done len=%d result=%j', expr.length, result);
+    } else {
+      debug('webview.evaluate done len=%d', expr.length);
+    }
+    return result;
   }
 
   async goto(url: string): Promise<void> {

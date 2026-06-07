@@ -77,6 +77,17 @@ test.describe('Page.goto()', () => {
     await page.goto('https://example.com/login');
     playwrightExpect(gotoCalls).toContain('https://example.com/login');
   });
+
+  test('re-injects the engine after navigating (a new document drops window.__mwInjected)', async () => {
+    const { session, evaluateCalls } = sessionWithResponses();
+    const page = await Page.attach(session);
+    await page.goto('https://example.com/login');
+    // Engine bootstrap is injected once at attach and once more after goto.
+    const injections = evaluateCalls.filter((c) =>
+      c.includes('window.__mwInjected = new (module.exports.InjectedScript())(globalThis,'),
+    );
+    playwrightExpect(injections).toHaveLength(2);
+  });
 });
 
 test.describe('Page.reload()', () => {
