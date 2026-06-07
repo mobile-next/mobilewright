@@ -5,7 +5,7 @@ export { ios, android, type LaunchOptions } from './launchers.js';
 export { expect } from '@mobilewright/core';
 
 // Core classes (for advanced use)
-export { Device, Screen, Locator } from '@mobilewright/core';
+export { Device, Screen, Locator, Page, WebLocator } from '@mobilewright/core';
 
 // Configuration
 export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext } from './config.js';
