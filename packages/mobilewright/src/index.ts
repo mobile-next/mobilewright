@@ -4,8 +4,9 @@ export { ios, android, type LaunchOptions } from './launchers.js';
 // Assertions
 export { expect } from '@mobilewright/core';
 
-// Core classes (for advanced use)
-export { Device, Screen, Locator, Page, WebLocator } from '@mobilewright/core';
+// Core classes (for advanced use). MobileWebViewPage/MobileWebViewLocator are
+// drop-in Playwright Page/Locator; Page/WebLocator remain as back-compat aliases.
+export { Device, Screen, Locator, MobileWebViewPage, MobileWebViewLocator, Page, WebLocator } from '@mobilewright/core';
 
 // Configuration
 export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext } from './config.js';

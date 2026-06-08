@@ -39,7 +39,7 @@ test.describe('Page.attach()', () => {
   test('returns a Page instance', async () => {
     const { session } = sessionWithResponses();
     const page = await Page.attach(session);
-    playwrightExpect(page).toBeInstanceOf(Page);
+    playwrightExpect(page instanceof Page).toBe(true);
   });
 
   test('injects the Playwright engine bootstrap so window.__mwInjected exists', async () => {
@@ -198,21 +198,21 @@ test.describe('Page locator factories', () => {
     const { session } = sessionWithUrl('https://example.com');
     const page = await Page.attach(session);
     const loc = page.locator('.my-button');
-    playwrightExpect(loc).toBeInstanceOf(WebLocator);
+    playwrightExpect(loc instanceof WebLocator).toBe(true);
   });
 
   test('getByRole() returns a WebLocator with role strategy', async () => {
     const { session } = sessionWithUrl('https://example.com');
     const page = await Page.attach(session);
     const loc = page.getByRole('button', { name: 'Sign In' });
-    playwrightExpect(loc).toBeInstanceOf(WebLocator);
+    playwrightExpect(loc instanceof WebLocator).toBe(true);
   });
 
   test('getByTestId() returns a WebLocator with testId strategy', async () => {
     const { session } = sessionWithUrl('https://example.com');
     const page = await Page.attach(session);
     const loc = page.getByTestId('submit-btn');
-    playwrightExpect(loc).toBeInstanceOf(WebLocator);
+    playwrightExpect(loc instanceof WebLocator).toBe(true);
   });
 });
 
@@ -292,9 +292,9 @@ test.describe('Page step instrumentation', () => {
     const page = await Page.attach(session);
     page._stepFn = stepFn;
 
-    playwrightExpect(page.locator('.btn')._stepFn).toBe(stepFn);
-    playwrightExpect(page.getByRole('button')._stepFn).toBe(stepFn);
-    playwrightExpect(page.getByTestId('submit')._stepFn).toBe(stepFn);
+    playwrightExpect((page.locator('.btn') as WebLocator)._stepFn).toBe(stepFn);
+    playwrightExpect((page.getByRole('button') as WebLocator)._stepFn).toBe(stepFn);
+    playwrightExpect((page.getByTestId('submit') as WebLocator)._stepFn).toBe(stepFn);
   });
 
   test('page assertions emit expect steps', async () => {

@@ -101,7 +101,7 @@ test.describe('WebViewLocator.page() resolution', () => {
   test('attaches the matching webview when exactly one resolves', async () => {
     const { driver, attached } = driverWith({ nativeWebViews: 1, bridgeIds: ['wv-1'] });
     const page = await getByWebView(driver).page();
-    playwrightExpect(page).toBeInstanceOf(Page);
+    playwrightExpect(page instanceof Page).toBe(true);
     playwrightExpect(attached).toEqual(['wv-1']);
   });
 
@@ -120,14 +120,14 @@ test.describe('WebViewLocator.page() resolution', () => {
   test('first() attaches the first webview', async () => {
     const { driver, attached } = driverWith({ nativeWebViews: 2, bridgeIds: ['wv-0', 'wv-1'] });
     const page = await getByWebView(driver).first().page();
-    playwrightExpect(page).toBeInstanceOf(Page);
+    playwrightExpect(page instanceof Page).toBe(true);
     playwrightExpect(attached).toEqual(['wv-0']);
   });
 
   test('nth() attaches the webview at the given index', async () => {
     const { driver, attached } = driverWith({ nativeWebViews: 3, bridgeIds: ['wv-0', 'wv-1', 'wv-2'] });
     const page = await getByWebView(driver).nth(2).page();
-    playwrightExpect(page).toBeInstanceOf(Page);
+    playwrightExpect(page instanceof Page).toBe(true);
     playwrightExpect(attached).toEqual(['wv-2']);
   });
 
@@ -170,7 +170,7 @@ test.describe('WebViewLocator chaining', () => {
   test('chaining into a DOM locator returns a plain Locator, not a WebViewLocator', async () => {
     const { driver } = driverWith({ nativeWebViews: 1, bridgeIds: ['wv-0'] });
     const child = getByWebView(driver).getByText('Submit');
-    playwrightExpect(child).toBeInstanceOf(Locator);
+    playwrightExpect(child instanceof Locator).toBe(true);
     playwrightExpect(child).not.toBeInstanceOf(WebViewLocator);
   });
 });

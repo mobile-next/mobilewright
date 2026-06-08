@@ -1,7 +1,9 @@
 import createDebug from 'debug';
+import type { Locator } from '@playwright/test';
 import type { Bounds, WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
+import { sleep } from './sleep.js';
 import { runStep } from './stackTrace.js';
 import {
   getByRoleSelector,
@@ -14,9 +16,29 @@ import {
   TEST_ID_ATTR,
   evaluateWithEngine,
 } from './playwright-engine.js';
-import { buildExpectEvaluate, type FrameExpectParams, type ExpectResult } from './web-expect-matcher.js';
+import { buildExpectEvaluate, type FrameExpectParams, type ExpectResult, type ExpectedTextValue } from './web-expect-matcher.js';
 
 const DEFAULT_TIMEOUT = 5_000;
+const EXPECT_POLL_INTERVAL = 100;
+
+// The options Playwright's web-first matchers pass to Locator._expect(), and the
+// result shape they read back (see playwright/lib/matchers). Mirrors
+// playwright-core's private contract (pinned to 1.58.2) so `expect()` from
+// @playwright/test can drive a MobileWebViewLocator directly.
+interface PlaywrightExpectOptions {
+  isNot?: boolean;
+  timeout?: number;
+  expectedText?: ExpectedTextValue[];
+  expectedNumber?: number;
+  expectedValue?: unknown;
+  expressionArg?: unknown;
+}
+
+interface PlaywrightExpectResult {
+  matches: boolean;
+  received?: unknown;
+  timedOut: boolean;
+}
 
 const debug = createDebug('mw:web-locator');
 
@@ -28,7 +50,7 @@ function isStrictModeViolation(e: unknown): boolean {
   return message.includes('strict mode violation');
 }
 
-export class WebLocator {
+export class MobileWebViewLocator {
   _stepFn: StepFn | null = null;
 
   constructor(
@@ -38,15 +60,15 @@ export class WebLocator {
     protected readonly selector: string,
   ) {}
 
-  // Build a WebLocator from a selector, carrying step instrumentation forward.
-  private derive(selector: string): WebLocator {
-    const loc = new WebLocator(this.session, selector);
+  // Build a MobileWebViewLocator from a selector, carrying step instrumentation forward.
+  private derive(selector: string): MobileWebViewLocator {
+    const loc = new MobileWebViewLocator(this.session, selector);
     loc._stepFn = this._stepFn;
     return loc;
   }
 
   // Compose a child selector within this locator's scope, Playwright-style.
-  private child(childSelector: string): WebLocator {
+  private child(childSelector: string): MobileWebViewLocator {
     return this.derive(`${this.selector} >> ${childSelector}`);
   }
 
@@ -69,19 +91,19 @@ export class WebLocator {
   // Every engine-dependent evaluate goes through here so it self-heals: if a
   // page-initiated navigation dropped window.__mwInjected, the engine is
   // re-injected and the call retried once.
-  private evaluate<T = void>(expr: string): Promise<T> {
+  private evalEngine<T = void>(expr: string): Promise<T> {
     return evaluateWithEngine<T>(this.session, expr);
   }
 
   private evalOnFirst<T = void>(body: string): Promise<T> {
-    return this.evaluate<T>(this.firstElExpr(body));
+    return this.evalEngine<T>(this.firstElExpr(body));
   }
 
   // Run a mutating action against the first match. Throws in-page when the
   // element is absent so the action rejects instead of silently no-op'ing.
   private actOnFirst(action: string, what: string): Promise<void> {
     const notFound = JSON.stringify(`${what}: element not found`);
-    return this.evaluate<void>(
+    return this.evalEngine<void>(
       `(() => { const el = ${this.firstEl()}; if (!el) { throw new Error(${notFound}); } ${action} })()`,
     );
   }
@@ -92,7 +114,7 @@ export class WebLocator {
   private async pollBoolean(js: string, timeout: number, what: string): Promise<boolean> {
     const read = async (): Promise<boolean> => {
       try {
-        return await this.evaluate<boolean>(js);
+        return await this.evalEngine<boolean>(js);
       } catch (e) {
         if (isStrictModeViolation(e)) { throw e; }
         const message = e instanceof Error ? e.message : String(e);
@@ -109,7 +131,7 @@ export class WebLocator {
         async () => { result = await read(); return result; },
         (v) => v,
         timeout,
-        `WebLocator: timed out waiting for element to be ${what}`,
+        `MobileWebViewLocator: timed out waiting for element to be ${what}`,
       );
       return result;
     } catch (e) {
@@ -128,7 +150,7 @@ export class WebLocator {
     let result = false;
     await retryUntil(
       async () => {
-        const matches = await this.evaluate<boolean | null>(js);
+        const matches = await this.evalEngine<boolean | null>(js);
         if (matches === null) { return false; }
         result = matches;
         return true;
@@ -152,60 +174,60 @@ export class WebLocator {
 
   // ─── Chaining ────────────────────────────────────────────────
 
-  locator(selector: string): WebLocator {
+  locator(selector: string): MobileWebViewLocator {
     return this.child(selector);
   }
 
-  getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): WebLocator {
+  getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): MobileWebViewLocator {
     return this.child(getByRoleSelector(role, { name: opts?.name, exact: opts?.exact }));
   }
 
-  getByText(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
+  getByText(text: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
     return this.child(getByTextSelector(text, { exact: opts?.exact }));
   }
 
-  getByLabel(label: string | RegExp, opts?: { exact?: boolean }): WebLocator {
+  getByLabel(label: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
     return this.child(getByLabelSelector(label, { exact: opts?.exact }));
   }
 
-  getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): WebLocator {
+  getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
     return this.child(getByPlaceholderSelector(text, { exact: opts?.exact }));
   }
 
-  getByTestId(testId: string): WebLocator {
+  getByTestId(testId: string): MobileWebViewLocator {
     return this.child(getByTestIdSelector(TEST_ID_ATTR, testId));
   }
 
-  getByAltText(text: string | RegExp): WebLocator {
+  getByAltText(text: string | RegExp): MobileWebViewLocator {
     return this.child(getByAltTextSelector(text));
   }
 
-  getByTitle(text: string | RegExp): WebLocator {
+  getByTitle(text: string | RegExp): MobileWebViewLocator {
     return this.child(getByTitleSelector(text));
   }
 
   // ─── Collection ──────────────────────────────────────────────
 
-  first(): WebLocator {
+  first(): MobileWebViewLocator {
     return this.nth(0);
   }
 
-  last(): WebLocator {
+  last(): MobileWebViewLocator {
     return this.nth(-1);
   }
 
-  nth(index: number): WebLocator {
+  nth(index: number): MobileWebViewLocator {
     return this.derive(`${this.selector} >> nth=${index}`);
   }
 
   async count(): Promise<number> {
     const sel = JSON.stringify(this.selector);
-    return this.evaluate<number>(
+    return this.evalEngine<number>(
       `window.__mwInjected.querySelectorAll(window.__mwInjected.parseSelector(${sel}), document).length`,
     );
   }
 
-  // Aliases matching native Locator's API so LocatorAssertions works with WebLocator
+  // Aliases matching native Locator's API so LocatorAssertions works with MobileWebViewLocator
   async getText(opts?: { timeout?: number }): Promise<string> {
     return this.textContent(opts);
   }
@@ -214,7 +236,7 @@ export class WebLocator {
     return this.inputValue(opts);
   }
 
-  async all(): Promise<WebLocator[]> {
+  async all(): Promise<MobileWebViewLocator[]> {
     const n = await this.count();
     return Array.from({ length: n }, (_, i) => this.nth(i));
   }
@@ -291,7 +313,7 @@ export class WebLocator {
       },
       (result) => result,
       timeout,
-      `WebLocator: timed out waiting for state "${state}"`,
+      `MobileWebViewLocator: timed out waiting for state "${state}"`,
     );
   }
 
@@ -352,12 +374,12 @@ export class WebLocator {
     const sel = JSON.stringify(this.selector);
     const list = JSON.stringify(states);
     await retryUntil(
-      () => this.evaluate<boolean>(
+      () => this.evalEngine<boolean>(
         `(async () => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } const missing = await is.checkElementStates(el, ${list}); return missing === undefined; })()`,
       ),
       (ready) => ready,
       timeout,
-      'WebLocator: timed out waiting for element to be actionable',
+      'MobileWebViewLocator: timed out waiting for element to be actionable',
     );
   }
 
@@ -366,7 +388,7 @@ export class WebLocator {
       () => this.isVisible({ timeout: 0 }),
       (v) => v,
       timeout,
-      'WebLocator: timed out waiting for element to be visible',
+      'MobileWebViewLocator: timed out waiting for element to be visible',
     );
   }
 
@@ -374,7 +396,43 @@ export class WebLocator {
   // return its raw verdict. The assertion layer (expect.ts) decides pass/fail
   // (pass = matches !== isNot) and handles retry/negation/messages.
   async _runInjectedExpect(params: FrameExpectParams): Promise<ExpectResult> {
-    return this.evaluate<ExpectResult>(buildExpectEvaluate(this.selector, params));
+    return this.evalEngine<ExpectResult>(buildExpectEvaluate(this.selector, params));
+  }
+
+  // The private hook Playwright's web-first matchers call: expect(locator).toBeX()
+  // dispatches to locator._expect(expression, options). We run the same injected
+  // matcher we already use, polling until the expectation holds (matches !== isNot)
+  // or the timeout elapses, and return the { matches, received, timedOut } shape
+  // the matchers read back. This makes `expect()` from @playwright/test drive a
+  // MobileWebViewLocator with no mobilewright-specific assertion API.
+  async _expect(expression: string, options: PlaywrightExpectOptions): Promise<PlaywrightExpectResult> {
+    const isNot = options.isNot ?? false;
+    const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+    const deadline = Date.now() + timeout;
+    let lastMatches = false;
+    let received: unknown;
+
+    const check = async (): Promise<boolean> => {
+      const result = await this._runInjectedExpect({
+        expression,
+        expressionArg: options.expressionArg,
+        expectedText: options.expectedText,
+        expectedNumber: options.expectedNumber,
+        expectedValue: options.expectedValue,
+        isNot,
+        timeout: 0,
+      });
+      lastMatches = result.matches;
+      received = result.received;
+      return result.matches !== isNot;
+    };
+
+    let reached = await check();
+    while (!reached && Date.now() < deadline) {
+      await sleep(EXPECT_POLL_INTERVAL);
+      reached = await check();
+    }
+    return { matches: lastMatches, received, timedOut: !reached };
   }
 
   // Default expect() timeout for assertions on this locator (none → fall back to
@@ -384,3 +442,18 @@ export class WebLocator {
     return undefined;
   }
 }
+
+// Playwright's web-first matchers gate on `receiver.constructor.name === 'Locator'`
+// (see expectTypes in playwright/lib/util). Report that name so expect() from
+// @playwright/test accepts a MobileWebViewLocator, while the exported class name stays
+// distinct for our own code.
+Object.defineProperty(MobileWebViewLocator, 'name', { value: 'Locator', configurable: true });
+
+// Declaration-merge the rest of Playwright's Locator surface in as ambient: the
+// members we implement above are signature-checked against it; the rest are
+// typed as present (so the object is a drop-in Playwright Locator) and throw a
+// TypeError at runtime if called, since a webview can't support them.
+export interface MobileWebViewLocator extends Locator {}
+
+// Back-compat alias for internal callers that still import WebLocator.
+export { MobileWebViewLocator as WebLocator };

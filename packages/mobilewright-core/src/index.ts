@@ -2,8 +2,8 @@ export { Locator, LocatorError, type LocatorOptions, type ScrollIntoViewOptions 
 export { WebViewLocator } from './webview-locator.js';
 export { Screen } from './screen.js';
 export { Device, type DeviceOptions } from './device.js';
-export { Page } from './page.js';
-export { WebLocator } from './web-locator.js';
+export { MobileWebViewPage, MobileWebViewPage as Page } from './page.js';
+export { MobileWebViewLocator, MobileWebViewLocator as WebLocator } from './web-locator.js';
 export { expect, ExpectError, type ExpectOptions } from './expect.js';
 export { queryAll, type LocatorStrategy } from './query-engine.js';
 export { sleep } from './sleep.js';

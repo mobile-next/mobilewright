@@ -85,7 +85,7 @@ test.describe('WebLocator.all()', () => {
     const loc = new WebLocator(session, '.item');
     const all = await loc.all();
     playwrightExpect(all).toHaveLength(3);
-    playwrightExpect(all[0]).toBeInstanceOf(WebLocator);
+    playwrightExpect(all[0] instanceof WebLocator).toBe(true);
   });
 
   test('returns empty array when count is 0', async () => {
@@ -100,7 +100,7 @@ test.describe('WebLocator.first() / last() / nth()', () => {
     const { session } = sessionAlwaysReturning(0);
     const loc = new WebLocator(session, '.btn');
     const first = loc.first();
-    playwrightExpect(first).toBeInstanceOf(WebLocator);
+    playwrightExpect(first instanceof WebLocator).toBe(true);
   });
 
   test('nth() composes an nth=index selector', async () => {
