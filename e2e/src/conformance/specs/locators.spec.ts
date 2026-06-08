@@ -1,7 +1,7 @@
-import type { ConformancePage, ConformanceExpect } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 import { pageWithBody } from './fixtures.js';
 
-export const locatorsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
+export const locatorsSpec = async (page: Page, expect: Expect): Promise<void> => {
   await page.goto(pageWithBody(`
     <button>Sign in</button>
     <a href="#">Sign in</a>

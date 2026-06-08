@@ -1,7 +1,7 @@
-import type { ConformancePage, ConformanceExpect } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 import { pageWithBody } from './fixtures.js';
 
-export const webAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
+export const webAssertionsSpec = async (page: Page, expect: Expect): Promise<void> => {
   await page.goto(pageWithBody(`
     <ul><li class="item">a</li><li class="item">b</li></ul>
     <button id="btn" class="btn primary" data-variant="primary" style="color: rgb(255, 0, 0);">go</button>

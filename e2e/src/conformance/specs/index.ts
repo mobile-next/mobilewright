@@ -1,4 +1,4 @@
-import type { ConformanceSpec } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 import { actionsSpec } from './actions.spec.js';
 import { stateAssertionsSpec } from './assertions-state.spec.js';
 import { textAssertionsSpec } from './assertions-text.spec.js';
@@ -6,11 +6,9 @@ import { webAssertionsSpec } from './assertions-web.spec.js';
 import { locatorsSpec } from './locators.spec.js';
 import { realNavigationSpec } from './real-navigation.spec.js';
 
-export type { ConformancePage, ConformanceExpect, ConformanceSpec } from './types.js';
-
 export interface ConformanceCase {
   name: string;
-  run: ConformanceSpec;
+  run: (page: Page, expect: Expect) => Promise<void>;
 }
 
 // The single source of truth for the conformance suite. Each runtime wrapper

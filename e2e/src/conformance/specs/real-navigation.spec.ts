@@ -1,4 +1,4 @@
-import type { ConformancePage, ConformanceExpect } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 
 // A real, cross-origin HTTPS page (not a data: URL) so this exercises an actual
 // network navigation plus engine re-injection on the fresh document. It covers
@@ -6,7 +6,7 @@ import type { ConformancePage, ConformanceExpect } from './types.js';
 // deterministic matcher matrix lives in the other conformance files.
 const PYTHAGOREAN_ARTICLE = 'https://en.wikipedia.org/wiki/Pythagorean_theorem';
 
-export const realNavigationSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
+export const realNavigationSpec = async (page: Page, expect: Expect): Promise<void> => {
   await page.goto(PYTHAGOREAN_ARTICLE);
   await page.waitForLoadState('domcontentloaded');
 

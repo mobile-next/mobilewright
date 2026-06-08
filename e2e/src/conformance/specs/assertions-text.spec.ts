@@ -1,7 +1,7 @@
-import type { ConformancePage, ConformanceExpect } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 import { pageWithBody } from './fixtures.js';
 
-export const textAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
+export const textAssertionsSpec = async (page: Page, expect: Expect): Promise<void> => {
   await page.goto(pageWithBody(`
     <p id="text">  Hello   world  </p>
     <input id="value" type="text" value="john@example.com">

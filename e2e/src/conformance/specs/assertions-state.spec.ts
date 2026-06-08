@@ -1,7 +1,7 @@
-import type { ConformancePage, ConformanceExpect } from './types.js';
+import type { Page, Expect } from '@playwright/test';
 import { pageWithBody } from './fixtures.js';
 
-export const stateAssertionsSpec = async (page: ConformancePage, expect: ConformanceExpect): Promise<void> => {
+export const stateAssertionsSpec = async (page: Page, expect: Expect): Promise<void> => {
   await page.goto(pageWithBody(`
     <div id="visible">shown</div>
     <div id="hidden" style="display:none">gone</div>
