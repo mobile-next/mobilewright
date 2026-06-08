@@ -74,11 +74,16 @@ export function bootstrapScript(): string {
 // client-side redirect or reload that mobilewright didn't initiate), which drops
 // window.__mwInjected. The next engine call then throws "... of undefined
 // (reading 'querySelector...')". Detect that so we can re-inject and retry.
+const ENGINE_METHODS = '(querySelector|querySelectorAll|parseSelector|expect|elementState|checkElementStates)';
+
 export function isEngineMissing(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
   return (
     message.includes('__mwInjected') ||
-    /undefined \(reading '(querySelector|querySelectorAll|parseSelector|expect|elementState|checkElementStates)'\)/.test(message)
+    // Chromium: "Cannot read properties of undefined (reading 'querySelectorAll')"
+    new RegExp(`undefined \\(reading '${ENGINE_METHODS}'\\)`).test(message) ||
+    // WebKit: "undefined is not an object (evaluating 'is.querySelectorAll')"
+    new RegExp(`undefined is not an object \\(evaluating '[^']*${ENGINE_METHODS}`).test(message)
   );
 }
 
