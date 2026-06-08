@@ -30,9 +30,6 @@ const config: MobilewrightConfig = defineConfig({
   retries: 0,
   timeout: 60_000,
 
-  // parallel by test() instead of parallel by file
-  fullyParallel: true,
-
   // supports mobilecli and mobilenext drivers
   driver: resolveDriver(),
 
