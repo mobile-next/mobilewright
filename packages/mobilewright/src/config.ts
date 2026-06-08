@@ -4,6 +4,9 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import type { MobileNextTestResultConfig } from '@mobilewright/driver-mobilenext';
+
+export type { MobileNextTestResultConfig };
 
 const _require = createRequire(import.meta.url);
 
@@ -60,13 +63,6 @@ export interface MobilewrightProjectConfig {
 
 export interface DriverConfigMobilecli {
   type: 'mobilecli';
-}
-
-export interface MobileNextTestResultConfig {
-  uploadReport?: 'on' | 'off' | 'on-failure';
-  name?: string;
-  tags?: string[];
-  environment?: string;
 }
 
 export interface DriverConfigMobileNext {
@@ -179,7 +175,7 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
     os.tmpdir(),
     `mobilewright-results-${randomUUID()}.json`,
   );
-  const uploadReporterPath = _require.resolve('./reporters/mobilenext-upload.js');
+  const uploadReporterPath = _require.resolve('@mobilewright/driver-mobilenext/reporter');
   const reporters = normalizeReporters(config.reporter);
 
   return {

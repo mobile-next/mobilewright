@@ -1,10 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { Reporter, TestCase, TestResult, FullResult, FullConfig, Suite, TestStep } from '@playwright/test/reporter';
-import type { MobileNextTestResultConfig } from '../config.js';
-import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams } from '@mobilewright/driver-mobilenext';
+import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams } from './upload-client.js';
 
 const _require = createRequire(import.meta.url);
+
+export interface MobileNextTestResultConfig {
+  uploadReport?: 'on' | 'off' | 'on-failure';
+  name?: string;
+  tags?: string[];
+  environment?: string;
+}
 
 type UploadFn = (params: UploadTestResultParams) => Promise<{ url: string }>;
 
@@ -87,7 +93,7 @@ export default class MobileNextUploadReporter implements Reporter {
     if (uploadReport === 'on-failure' && !this.hasFailed) return;
 
     const upload = this.options._uploadFn ?? uploadTestResult;
-    const pkg = _require('../../package.json') as { version: string };
+    const pkg = _require('../package.json') as { version: string };
     const userAgent = `mobilewright/${pkg.version}`;
     const rawContent = readFileSync(this.options.jsonResultsPath, 'utf8');
     const report = JSON.parse(rawContent) as JsonReport;
