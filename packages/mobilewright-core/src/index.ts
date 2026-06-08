@@ -1,6 +1,6 @@
 export { Locator, LocatorError, type LocatorOptions, type ScrollIntoViewOptions } from './locator.js';
 export { WebViewLocator } from './webview-locator.js';
-export { Screen } from './screen.js';
+export { Screen, type GetByWebViewOptions } from './screen.js';
 export { Device, type DeviceOptions } from './device.js';
 export { MobileWebViewPage, MobileWebViewPage as Page } from './page.js';
 export { MobileWebViewLocator, MobileWebViewLocator as WebLocator } from './web-locator.js';

@@ -174,3 +174,82 @@ test.describe('WebViewLocator chaining', () => {
     playwrightExpect(child).not.toBeInstanceOf(WebViewLocator);
   });
 });
+
+// A webview node carrying a native testId (accessibility id / resource-id).
+function webViewNodeWithTestId(testId: string): ViewNode {
+  return { ...webViewNode(), identifier: testId };
+}
+
+function getByWebViewWithTestId(driver: MobilewrightDriver, testId: string): WebViewLocator {
+  return new WebViewLocator(
+    driver,
+    { kind: 'chain', parent: { kind: 'root' }, child: { kind: 'webview', testId } },
+    {},
+  );
+}
+
+test.describe('getByWebView({ testId })', () => {
+  test('attaches the webview whose native testId matches', async () => {
+    // Two native webviews; only the second carries testId "checkout".
+    const { driver, attached } = driverWithNodes(
+      [webViewNode(), webViewNodeWithTestId('checkout')],
+      ['wv-0', 'wv-1'],
+    );
+    const page = await getByWebViewWithTestId(driver, 'checkout').page();
+    playwrightExpect(page instanceof Page).toBe(true);
+    playwrightExpect(attached).toEqual(['wv-1']);
+  });
+
+  test('throws when no webview has the given testId', async () => {
+    const { driver } = driverWithNodes([webViewNode(), webViewNode()], ['wv-0', 'wv-1']);
+    await playwrightExpect(getByWebViewWithTestId(driver, 'missing').page())
+      .rejects.toThrow(/did not resolve to a single webview/);
+  });
+});
+
+test.describe('getByWebView() with no native webview nodes', () => {
+  test('attaches the only bridge webview when the hierarchy exposes none', async () => {
+    const { driver, attached } = driverWith({ nativeWebViews: 0, bridgeIds: ['only'] });
+    const page = await getByWebView(driver).page();
+    playwrightExpect(page instanceof Page).toBe(true);
+    playwrightExpect(attached).toEqual(['only']);
+  });
+
+  test('throws rather than silently attaching index 0 when several exist', async () => {
+    const { driver } = driverWith({ nativeWebViews: 0, bridgeIds: ['a', 'b'] });
+    await playwrightExpect(getByWebView(driver).page()).rejects.toThrow(/cannot disambiguate/);
+  });
+});
+
+test.describe('WebViewLocator session cleanup', () => {
+  test('closes the session when engine injection fails', async () => {
+    let closed = false;
+    const session: WebViewSession = {
+      evaluate: async () => { throw new Error('inject failed'); },
+      goto: async () => {},
+      goBack: async () => {},
+      goForward: async () => {},
+      url: async () => '',
+      title: async () => '',
+      reload: async () => {},
+      waitForLoadState: async () => {},
+      close: async () => { closed = true; },
+    };
+    const driver = {
+      getViewHierarchy: async (): Promise<ViewNode[]> => [webViewNode()],
+      webViewBridge: {
+        listWebViews: async (): Promise<WebViewInfo[]> => [{ id: 'wv', url: '', title: '' }],
+        attachWebView: async (): Promise<WebViewSession> => session,
+      },
+    } as unknown as MobilewrightDriver;
+
+    let threw = false;
+    try {
+      await getByWebView(driver).page();
+    } catch {
+      threw = true;
+    }
+    playwrightExpect(threw).toBe(true);
+    playwrightExpect(closed).toBe(true);
+  });
+});

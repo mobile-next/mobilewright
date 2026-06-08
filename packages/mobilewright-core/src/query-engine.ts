@@ -8,7 +8,7 @@ export type LocatorStrategy =
   | { kind: 'type'; value: string }
   | { kind: 'role'; value: string; name?: string | RegExp }
   | { kind: 'placeholder'; value: string; exact?: boolean }
-  | { kind: 'webview' }
+  | { kind: 'webview'; testId?: string }
   | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
   | { kind: 'nth'; parent: LocatorStrategy; index: number };
 
@@ -129,7 +129,13 @@ function matchesStrategy(
         : node.placeholder === strategy.value;
 
     case 'webview':
-      return WEBVIEW_TYPES.has(node.type);
+      if (!WEBVIEW_TYPES.has(node.type)) {
+        return false;
+      }
+      if (strategy.testId !== undefined) {
+        return node.identifier === strategy.testId || node.resourceId === strategy.testId;
+      }
+      return true;
 
     case 'chain':
       // Handled above in queryAll

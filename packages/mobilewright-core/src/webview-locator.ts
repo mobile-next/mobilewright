@@ -60,8 +60,8 @@ export class WebViewLocator extends Locator {
 
     // Map this locator to a specific webview by its position among native
     // webview nodes. Platforms like iOS flatten webview content into the
-    // accessibility tree without a dedicated webview node, so fall back to the
-    // first webview when the hierarchy exposes none.
+    // accessibility tree without a dedicated webview node, so when the hierarchy
+    // exposes none we can only attach an unambiguous single webview.
     const roots = await this.driver.getViewHierarchy();
     const allNativeWebviews = queryAll(roots, { kind: 'webview' });
     let index = 0;
@@ -83,6 +83,15 @@ export class WebViewLocator extends Locator {
         );
       }
       index = matched;
+    } else if (bridgeWebviews.length > 1) {
+      // No native webview nodes to position-match against, yet several webviews
+      // exist — attaching index 0 would silently ignore .last()/.nth(i), so fail.
+      throw new Error(
+        'getByWebView().page(): the platform exposes no native webview nodes to ' +
+          `select by position, but ${bridgeWebviews.length} webviews are available — ` +
+          'cannot disambiguate which to attach. ' +
+          `Strategy: ${JSON.stringify(this.strategy)}`,
+      );
     }
 
     if (index < 0 || index >= bridgeWebviews.length) {
@@ -95,8 +104,15 @@ export class WebViewLocator extends Locator {
     const target = bridgeWebviews[index];
 
     const session = await bridge.attachWebView(target.id);
-    this._page = await Page.attach(session);
-    this._page._stepFn = this._stepFn;
-    return this._page;
+    try {
+      this._page = await Page.attach(session);
+      this._page._stepFn = this._stepFn;
+      return this._page;
+    } catch (err) {
+      // Engine injection failed — release the session we just opened rather than
+      // leaking it. Swallow close errors so the original failure propagates.
+      await session.close().catch(() => {});
+      throw err;
+    }
   }
 }

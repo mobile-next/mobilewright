@@ -11,6 +11,11 @@ import type {
 import { Locator, type LocatorOptions, type StepFn } from './locator.js';
 import { WebViewLocator } from './webview-locator.js';
 
+export interface GetByWebViewOptions {
+  /** Match a web view whose native testId (accessibility id / resource-id) equals this. */
+  testId?: string;
+}
+
 export class Screen {
   private readonly root: Locator;
 
@@ -51,10 +56,10 @@ export class Screen {
     return this.root.getByPlaceholder(placeholder, opts);
   }
 
-  getByWebView(): WebViewLocator {
+  getByWebView(opts?: GetByWebViewOptions): WebViewLocator {
     const loc = new WebViewLocator(
       this.driver,
-      { kind: 'chain', parent: { kind: 'root' }, child: { kind: 'webview' } },
+      { kind: 'chain', parent: { kind: 'root' }, child: { kind: 'webview', testId: opts?.testId } },
       this.locatorDefaults,
     );
     loc._stepFn = this.root._stepFn;
