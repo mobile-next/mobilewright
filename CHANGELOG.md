@@ -1,3 +1,10 @@
+## [0.0.42] (2026-06-09)
+* Feat: adding Playwright webview support with `getByWebView()` locator ([#172](https://github.com/mobile-next/mobilewright/pull/172))
+* Feat: test result upload to mobilenext.ai ([#147](https://github.com/mobile-next/mobilewright/pull/147))
+* Feat: Playwright-idiomatic timeout configuration ([#155](https://github.com/mobile-next/mobilewright/pull/155))
+* Feat: collect code snippets from each test step for mobilenext report ([#157](https://github.com/mobile-next/mobilewright/pull/157))
+* Feat: additional debug logs around mobilenext test report upload ([#161](https://github.com/mobile-next/mobilewright/pull/161))
+
 ## [0.0.41] (2026-05-26)
 * Refactor: rename `mobile-use` driver to `mobilenext` ([#146](https://github.com/mobile-next/mobilewright/pull/146))
 * Chore(driver-mobilecli): update mobilecli to fix websocket 1006 errors ([#150](https://github.com/mobile-next/mobilewright/pull/150))
