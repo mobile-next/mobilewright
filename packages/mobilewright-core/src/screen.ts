@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type {
+  GestureSequence,
   HardwareButton,
   MobilewrightDriver,
   ScreenshotOptions,
@@ -90,6 +91,18 @@ export class Screen {
 
   async tap(x: number, y: number): Promise<void> {
     return this.driver.tap(x, y);
+  }
+
+  async doubleTap(x: number, y: number): Promise<void> {
+    return this.driver.doubleTap(x, y);
+  }
+
+  async longPress(x: number, y: number, duration?: number): Promise<void> {
+    return this.driver.longPress(x, y, duration);
+  }
+
+  async gesture(sequence: GestureSequence): Promise<void> {
+    return this.driver.gesture(sequence);
   }
 
   async goBack(): Promise<void> {
