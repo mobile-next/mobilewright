@@ -448,3 +448,135 @@ test.describe('testId with resourceId', () => {
     expect(results).toHaveLength(0);
   });
 });
+
+test.describe('and strategy', () => {
+  test('matches only elements satisfying both locators', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'and',
+      left: { kind: 'role', value: 'button' },
+      right: { kind: 'label', value: 'Sign In' },
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].identifier).toBe('loginButton');
+  });
+
+  test('returns empty when the two locators never overlap', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'and',
+      left: { kind: 'role', value: 'button' },
+      right: { kind: 'type', value: 'TextField' },
+    });
+    expect(results).toHaveLength(0);
+  });
+
+  test('preserves document order of the left locator', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'and',
+      left: { kind: 'role', value: 'button' },
+      right: { kind: 'role', value: 'button' },
+    });
+    expect(results.map((n) => n.identifier)).toEqual(['loginButton', 'forgotPassword']);
+  });
+});
+
+test.describe('or strategy', () => {
+  test('matches elements satisfying either locator', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'or',
+      left: { kind: 'type', value: 'TextField' },
+      right: { kind: 'type', value: 'SecureTextField' },
+    });
+    expect(results.map((n) => n.identifier)).toEqual(['emailField', 'passwordField']);
+  });
+
+  test('deduplicates elements matched by both locators', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'or',
+      left: { kind: 'role', value: 'button' },
+      right: { kind: 'label', value: 'Sign In' },
+    });
+    // loginButton matches both sides but appears once, in document order
+    expect(results.map((n) => n.identifier)).toEqual(['loginButton', 'forgotPassword']);
+  });
+});
+
+test.describe('filter strategy', () => {
+  test('hasText keeps elements whose own text matches', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'Button' },
+      hasText: 'Forgot',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].identifier).toBe('forgotPassword');
+  });
+
+  test('hasText keeps elements whose descendant text matches', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'NavigationBar' },
+      hasText: 'Login',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].type).toBe('NavigationBar');
+  });
+
+  test('hasNotText drops elements containing the text', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'filter',
+      parent: { kind: 'role', value: 'button' },
+      hasNotText: 'Forgot',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].identifier).toBe('loginButton');
+  });
+
+  test('has keeps elements with a matching descendant', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'NavigationBar' },
+      has: { kind: 'type', value: 'StaticText' },
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].type).toBe('NavigationBar');
+  });
+
+  test('hasNot drops elements with a matching descendant', () => {
+    const results = queryAll(sampleTree, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'NavigationBar' },
+      hasNot: { kind: 'type', value: 'StaticText' },
+    });
+    expect(results).toHaveLength(0);
+  });
+});
+
+test.describe('filter strategy on flat hierarchy (bounds-based)', () => {
+  const flatList: ViewNode[] = [
+    node({ type: 'Cell', label: 'Row 1', bounds: { x: 0, y: 0, width: 400, height: 100 } }),
+    node({ type: 'StaticText', label: 'Title 1', text: 'Title 1', bounds: { x: 10, y: 10, width: 200, height: 30 } }),
+    node({ type: 'Button', label: 'Delete', identifier: 'delete1', bounds: { x: 300, y: 10, width: 80, height: 30 } }),
+    node({ type: 'Cell', label: 'Row 2', bounds: { x: 0, y: 100, width: 400, height: 100 } }),
+    node({ type: 'StaticText', label: 'Title 2', text: 'Title 2', bounds: { x: 10, y: 110, width: 200, height: 30 } }),
+  ];
+
+  test('has uses bounds containment when there are no tree children', () => {
+    const results = queryAll(flatList, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'Cell' },
+      has: { kind: 'role', value: 'button' },
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].label).toBe('Row 1');
+  });
+
+  test('hasText uses bounds containment when there are no tree children', () => {
+    const results = queryAll(flatList, {
+      kind: 'filter',
+      parent: { kind: 'type', value: 'Cell' },
+      hasText: 'Title 2',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].label).toBe('Row 2');
+  });
+});

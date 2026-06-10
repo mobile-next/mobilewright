@@ -364,6 +364,48 @@ test.describe('Locator', () => {
     });
   });
 
+  test.describe('filter / and / or', () => {
+    const tree: ViewNode[] = [
+      node({
+        type: 'Window',
+        children: [
+          node({ type: 'Cell', label: 'Apple', text: 'Apple', bounds: { x: 0, y: 0, width: 390, height: 44 } }),
+          node({ type: 'Cell', label: 'Banana', text: 'Banana', bounds: { x: 0, y: 44, width: 390, height: 44 } }),
+          node({ type: 'Button', label: 'Apple', identifier: 'appleBtn', bounds: { x: 0, y: 88, width: 390, height: 44 } }),
+        ],
+      }),
+    ];
+
+    test('filter narrows by hasText', async () => {
+      const driver = createMockDriver(tree);
+      const cells = new Locator(driver, { kind: 'type', value: 'Cell' });
+
+      const text = await cells.filter({ hasText: 'Banana' }).getText();
+      expect(text).toBe('Banana');
+    });
+
+    test('and matches elements satisfying both locators', async () => {
+      const driver = createMockDriver(tree);
+      const byRole = new Locator(driver, { kind: 'role', value: 'button' });
+      const byLabel = new Locator(driver, { kind: 'label', value: 'Apple' });
+
+      const matched = byRole.and(byLabel);
+      const count = await matched.count();
+      const id = (await matched.all())[0];
+      expect(count).toBe(1);
+      expect(await id.getText()).toBe('Apple');
+    });
+
+    test('or matches elements satisfying either locator', async () => {
+      const driver = createMockDriver(tree);
+      const cells = new Locator(driver, { kind: 'type', value: 'Cell' });
+      const buttons = new Locator(driver, { kind: 'role', value: 'button' });
+
+      const count = await cells.or(buttons).count();
+      expect(count).toBe(3);
+    });
+  });
+
   test.describe('chaining', () => {
     test('supports chained locators', async () => {
       const treeWithList: ViewNode[] = [

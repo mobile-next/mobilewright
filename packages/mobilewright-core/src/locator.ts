@@ -14,6 +14,17 @@ export interface LocatorOptions {
   expectTimeout?: number;
 }
 
+export interface FilterOptions {
+  /** Keep only elements whose subtree contains this text. */
+  hasText?: string | RegExp;
+  /** Keep only elements whose subtree does NOT contain this text. */
+  hasNotText?: string | RegExp;
+  /** Keep only elements that contain an element matching this locator. */
+  has?: Locator;
+  /** Keep only elements that do NOT contain an element matching this locator. */
+  hasNot?: Locator;
+}
+
 export interface ScrollIntoViewOptions {
   /** Maximum number of swipe attempts before giving up (default: 10) */
   maxSwipes?: number;
@@ -74,13 +85,38 @@ export class Locator {
   }
 
   protected child(childStrategy: LocatorStrategy): Locator {
-    const loc = new Locator(
-      this.driver,
-      { kind: 'chain', parent: this.strategy, child: childStrategy },
-      this.options,
-    );
+    return this.withStrategy({ kind: 'chain', parent: this.strategy, child: childStrategy });
+  }
+
+  /** Build a sibling locator that shares this one's driver, options, and step fn. */
+  protected withStrategy(strategy: LocatorStrategy): Locator {
+    const loc = new Locator(this.driver, strategy, this.options);
     loc._stepFn = this._stepFn;
     return loc;
+  }
+
+  // ─── Narrowing & combining ───────────────────────────────────
+
+  /** Narrow this locator to elements matching the given conditions. */
+  filter(opts?: FilterOptions): Locator {
+    return this.withStrategy({
+      kind: 'filter',
+      parent: this.strategy,
+      hasText: opts?.hasText,
+      hasNotText: opts?.hasNotText,
+      has: opts?.has?.strategy,
+      hasNot: opts?.hasNot?.strategy,
+    });
+  }
+
+  /** Match elements that satisfy both this locator and the given locator. */
+  and(locator: Locator): Locator {
+    return this.withStrategy({ kind: 'and', left: this.strategy, right: locator.strategy });
+  }
+
+  /** Match elements that satisfy either this locator or the given locator. */
+  or(locator: Locator): Locator {
+    return this.withStrategy({ kind: 'or', left: this.strategy, right: locator.strategy });
   }
 
   // ─── Collection ──────────────────────────────────────────────
@@ -94,13 +130,7 @@ export class Locator {
   }
 
   nth(index: number): Locator {
-    const loc = new Locator(
-      this.driver,
-      { kind: 'nth', parent: this.strategy, index },
-      this.options,
-    );
-    loc._stepFn = this._stepFn;
-    return loc;
+    return this.withStrategy({ kind: 'nth', parent: this.strategy, index });
   }
 
   async count(): Promise<number> {
