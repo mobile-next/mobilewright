@@ -1,6 +1,7 @@
 import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { Transform } from 'node:stream';
 import createDebug from 'debug';
 import type {
   AppInfo,
@@ -496,16 +497,36 @@ export class MobileNextDriver implements MobilewrightDriver {
     });
 
     debug('uploading %s to S3 (uploadId=%s)', filename, upload.uploadId);
-    const body = createReadStream(filePath);
-    const response = await fetch(upload.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(fileInfo.size),
+    let uploadedBytes = 0;
+    const counter = new Transform({
+      transform(chunk, _encoding, callback) {
+        uploadedBytes += chunk.length;
+        callback(null, chunk);
       },
-      body,
-      duplex: 'half',
-    } as RequestInit);
+    });
+    const body = createReadStream(filePath).pipe(counter);
+
+    const totalMB = (fileInfo.size / 1024 / 1024).toFixed(1);
+    const progressTimer = setInterval(() => {
+      const uploadedMB = (uploadedBytes / 1024 / 1024).toFixed(1);
+      const percent = Math.round((uploadedBytes / fileInfo.size) * 100);
+      debug('still uploading %s: %s / %s MB (%d%%)', filename, uploadedMB, totalMB, percent);
+    }, 10_000);
+
+    let response: Response;
+    try {
+      response = await fetch(upload.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(fileInfo.size),
+        },
+        body,
+        duplex: 'half',
+      } as RequestInit);
+    } finally {
+      clearInterval(progressTimer);
+    }
     if (!response.ok) {
       throw new Error(`Upload failed with status ${response.status}`);
     }
