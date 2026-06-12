@@ -1,3 +1,9 @@
+## [0.0.43] (2026-06-12)
+* Feat: add `device.screenSize()` returning width, height, scale ([#179](https://github.com/mobile-next/mobilewright/pull/179))
+* Feat: expose `doubleTap()`, `longPress()`, `gesture()` on Screen ([#178](https://github.com/mobile-next/mobilewright/pull/178))
+* Feat: add `filter()`, `and()`, `or()` to Locator ([#177](https://github.com/mobile-next/mobilewright/pull/177))
+* Fix: added missing webview types ([#183](https://github.com/mobile-next/mobilewright/pull/183))
+
 ## [0.0.42] (2026-06-09)
 * Feat: adding Playwright webview support with `getByWebView()` locator ([#172](https://github.com/mobile-next/mobilewright/pull/172))
 * Feat: test result upload to mobilenext.ai ([#147](https://github.com/mobile-next/mobilewright/pull/147))
