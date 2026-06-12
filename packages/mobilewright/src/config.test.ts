@@ -112,9 +112,12 @@ test('defineConfig does not inject upload reporter when uploadReport is off', ()
   }
 });
 
-test('defineConfig does not inject upload reporter when testResult is absent', () => {
+test('defineConfig injects upload reporter by default when testResult is absent', () => {
   const config = defineConfig({ driver: { type: 'mobilenext', apiKey: 'key' } });
-  expect(config.reporter).toBeUndefined();
+  const reporters = config.reporter as Array<[string, unknown]>;
+  expect(Array.isArray(reporters)).toBe(true);
+  const paths = reporters.map((r) => r[0]);
+  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
 });
 
 test('defineConfig does not inject upload reporter for mobilecli driver', () => {
@@ -215,9 +218,9 @@ test('defineConfig sets captureGitInfo when mobilenext driver is configured with
   expect(config.captureGitInfo).toEqual({ commit: true });
 });
 
-test('defineConfig does not set captureGitInfo when testResult is absent', () => {
+test('defineConfig sets captureGitInfo by default when testResult is absent', () => {
   const config = defineConfig({ driver: { type: 'mobilenext', apiKey: 'key' } });
-  expect(config.captureGitInfo).toBeUndefined();
+  expect(config.captureGitInfo).toEqual({ commit: true });
 });
 
 test('defineConfig accepts mobilenext driver with testResult config', () => {

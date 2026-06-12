@@ -6,6 +6,7 @@ import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams
 const _require = createRequire(import.meta.url);
 
 export interface MobileNextTestResultConfig {
+  /** Upload the test report to mobilenext. 'on' always uploads, 'on-failure' uploads only when a test fails, 'off' disables uploading. Default: 'on'. */
   uploadReport?: 'on' | 'off' | 'on-failure';
   name?: string;
   tags?: string[];

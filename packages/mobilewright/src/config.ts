@@ -167,7 +167,7 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
   }
   const mobileNextDriver = driver as DriverConfigMobileNext;
   const testResult = mobileNextDriver.testResult;
-  if (!testResult || testResult.uploadReport === 'off') {
+  if (testResult?.uploadReport === 'off') {
     return config;
   }
 
@@ -187,7 +187,7 @@ function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
       [uploadReporterPath, {
         apiKey: mobileNextDriver.apiKey ?? '',
         jsonResultsPath,
-        testResult: mobileNextDriver.testResult,
+        testResult: mobileNextDriver.testResult ?? {},
         uploadTimeout: mobileNextDriver.uploadTimeout,
       }],
     ],
