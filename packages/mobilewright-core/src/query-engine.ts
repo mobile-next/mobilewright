@@ -71,6 +71,7 @@ function walkTree(
 
 export const WEBVIEW_TYPES = new Set([
   'WKWebView',
+  'WebView', // mobilecli iOS dump strips the XCUIElementType prefix
   'XCUIElementTypeWebView',
   'android.webkit.WebView',
   'RCTWebView',

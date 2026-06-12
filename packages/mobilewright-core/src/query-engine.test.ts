@@ -378,6 +378,11 @@ test.describe('webview strategy', () => {
     expect(results).toHaveLength(1);
   });
 
+  test('finds WebView (mobilecli iOS dump strips the XCUIElementType prefix)', () => {
+    const results = queryAll([webviewNode('WebView', 'wv')], { kind: 'webview' });
+    expect(results).toHaveLength(1);
+  });
+
   test('finds android.webkit.WebView', () => {
     const results = queryAll([webviewNode('android.webkit.WebView', 'wv')], { kind: 'webview' });
     expect(results).toHaveLength(1);
