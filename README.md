@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-Framework for mobile device automation, inspired by Playwright's architecture and developer experience. 
+Framework for mobile device automation, inspired by Playwright's architecture and developer experience.
 
 **Mobilewright** targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
 
@@ -14,15 +14,15 @@ Framework for mobile device automation, inspired by Playwright's architecture an
 
 If you've used Playwright, you already know Mobilewright.
 
-| | Mobilewright | Appium | Detox | XCTest/Espresso |
-|---|---|---|---|---|
-| API style | Playwright (`getByRole`, `expect`) | Selenium (WebDriver) | Custom | Native framework |
-| Auto-wait | Built-in, every action | Manual waits | Partial | Manual |
-| Setup | `npm install mobilewright` | Server + drivers + caps | React Native only | Xcode/AS only |
-| Cross-platform | iOS + Android, one API | Yes, verbose | React Native only | Single platform |
-| AI agent support | First-class (accessibility tree) | Limited | No | No |
-| Real devices in the cloud | Via [mobile-use.com](https://mobile-use.com) | Yes (complex) | Simulators only | Yes |
-| Locators | Semantic roles + labels | XPath, CSS, ID | Test IDs | Native queries |
+|                           | Mobilewright                                 | Appium                  | Detox             | XCTest/Espresso  |
+| ------------------------- | -------------------------------------------- | ----------------------- | ----------------- | ---------------- |
+| API style                 | Playwright (`getByRole`, `expect`)           | Selenium (WebDriver)    | Custom            | Native framework |
+| Auto-wait                 | Built-in, every action                       | Manual waits            | Partial           | Manual           |
+| Setup                     | `npm install mobilewright`                   | Server + drivers + caps | React Native only | Xcode/AS only    |
+| Cross-platform            | iOS + Android, one API                       | Yes, verbose            | React Native only | Single platform  |
+| AI agent support          | First-class (accessibility tree)             | Limited                 | No                | No               |
+| Real devices in the cloud | Via [mobile-use.com](https://mobile-use.com) | Yes (complex)           | Simulators only   | Yes              |
+| Locators                  | Semantic roles + labels                      | XPath, CSS, ID          | Test IDs          | Native queries   |
 
 ## Built for AI agents
 
@@ -32,9 +32,9 @@ Mobilewright exposes the device's accessibility tree — deterministic, token-ef
 
 ```typescript
 // An AI agent can control a real phone with readable, semantic actions
-await screen.getByRole('button', { name: 'Sign In' }).tap();
-await screen.getByLabel('Email').fill('user@example.com');
-await expect(screen.getByText('Welcome')).toBeVisible();
+await screen.getByRole("button", { name: "Sign In" }).tap();
+await screen.getByLabel("Email").fill("user@example.com");
+await expect(screen.getByText("Welcome")).toBeVisible();
 ```
 
 No XPath. No coordinates. No vision model. The agent reads the accessibility tree and acts on it directly.
@@ -49,6 +49,7 @@ No XPath. No coordinates. No vision model. The agent reads the accessibility tre
 - **Retry assertions** — `expect(locator).toBeVisible()` polls until satisfied or timeout
 - **Remote support** — connect to mobilecli on another machine for device lab setups
 - **Test fixtures** — `@mobilewright/test` extends Playwright Test with `screen` and `device` fixtures
+- **WebView support** — Inspect and control web content inside apps using Playwright's locator API
 
 ## Quick Start
 
@@ -57,16 +58,16 @@ npm install mobilewright
 ```
 
 ```typescript
-import { ios, expect } from 'mobilewright';
+import { ios, expect } from "mobilewright";
 
-const device = await ios.launch({ bundleId: 'com.example.myapp' });
+const device = await ios.launch({ bundleId: "com.example.myapp" });
 const { screen } = device;
 
-await screen.getByLabel('Email').fill('user@example.com');
-await screen.getByLabel('Password').fill('password123');
-await screen.getByRole('button', { name: 'Sign In' }).tap();
+await screen.getByLabel("Email").fill("user@example.com");
+await screen.getByLabel("Password").fill("password123");
+await screen.getByRole("button", { name: "Sign In" }).tap();
 
-await expect(screen.getByText('Welcome back')).toBeVisible();
+await expect(screen.getByText("Welcome back")).toBeVisible();
 const screenshot = await screen.screenshot();
 
 await device.close();
@@ -87,14 +88,14 @@ It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and te
 
 ## Packages
 
-| Package | Description |
-|---|---|
-| `mobilewright` | Main entry point — `ios`, `android` launchers, `expect`, config, CLI |
-| `@mobilewright/test` | Test fixtures |
-| `@mobilewright/protocol` | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`) |
-| `@mobilewright/driver-mobilecli` | WebSocket JSON-RPC client for mobilecli |
+| Package                           | Description                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `mobilewright`                    | Main entry point — `ios`, `android` launchers, `expect`, config, CLI                 |
+| `@mobilewright/test`              | Test fixtures                                                                        |
+| `@mobilewright/protocol`          | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`)                             |
+| `@mobilewright/driver-mobilecli`  | WebSocket JSON-RPC client for mobilecli                                              |
 | `@mobilewright/driver-mobile-use` | WebSocket JSON-RPC client for [mobile-use.com](https://mobile-use.com) cloud devices |
-| `@mobilewright/mobilewright-core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
+| `@mobilewright/mobilewright-core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API                        |
 
 Most users only need `mobilewright` (or `@mobilewright/test` for vitest integration).
 
@@ -105,19 +106,19 @@ Most users only need `mobilewright` (or `@mobilewright/test` for vitest integrat
 The top-level entry points. Like Playwright's `chromium` / `firefox` / `webkit`.
 
 ```typescript
-import { ios, android } from 'mobilewright';
+import { ios, android } from "mobilewright";
 
 // Launch with auto-discovery (finds first booted simulator)
 const device = await ios.launch();
 
 // Launch a specific app
-const device = await ios.launch({ bundleId: 'com.example.app' });
+const device = await ios.launch({ bundleId: "com.example.app" });
 
 // Target a specific simulator by name
 const device = await ios.launch({ deviceName: /My.*iPhone/ });
 
 // Explicit device UDID (skips discovery)
-const device = await ios.launch({ deviceId: '5A5FCFCA-...' });
+const device = await ios.launch({ deviceId: "5A5FCFCA-..." });
 
 // List available devices
 const devices = ios.devices();
@@ -125,6 +126,7 @@ const devices = android.devices();
 ```
 
 `launch()` handles the full lifecycle:
+
 1. Checks if mobilecli is reachable (auto-starts it for local URLs if not running)
 2. Discovers booted devices (prefers simulators over real devices)
 3. Connects and optionally launches the app
@@ -137,25 +139,25 @@ Entry point for finding and interacting with elements. Access via `device.screen
 **Locator factories:**
 
 ```typescript
-screen.getByLabel('Email')                          // accessibility label
-screen.getByTestId('login-button')                  // accessibility identifier
-screen.getByText('Welcome')                         // visible text (exact match)
-screen.getByText(/welcome/i)                        // RegExp match
-screen.getByText('welcome', { exact: false })       // substring match
-screen.getByType('TextField')                       // element type
-screen.getByRole('button', { name: 'Sign In' })     // semantic role + name filter
-screen.getByPlaceholder('Search...')                // placeholder text
+screen.getByLabel("Email"); // accessibility label
+screen.getByTestId("login-button"); // accessibility identifier
+screen.getByText("Welcome"); // visible text (exact match)
+screen.getByText(/welcome/i); // RegExp match
+screen.getByText("welcome", { exact: false }); // substring match
+screen.getByType("TextField"); // element type
+screen.getByRole("button", { name: "Sign In" }); // semantic role + name filter
+screen.getByPlaceholder("Search..."); // placeholder text
 ```
 
 **Direct actions:**
 
 ```typescript
-await screen.screenshot()                            // capture PNG
-await screen.screenshot({ format: 'jpeg', quality: 80 })
-await screen.swipe('up')
-await screen.swipe('down', { distance: 300, duration: 500 })
-await screen.pressButton('HOME')
-await screen.tap(195, 400)                           // raw coordinate tap
+await screen.screenshot(); // capture PNG
+await screen.screenshot({ format: "jpeg", quality: 80 });
+await screen.swipe("up");
+await screen.swipe("down", { distance: 300, duration: 500 });
+await screen.pressButton("HOME");
+await screen.tap(195, 400); // raw coordinate tap
 ```
 
 ### Locator
@@ -165,44 +167,47 @@ Lazy, chainable element reference. No queries execute until you call an action o
 **Actions** (all auto-wait for the element to be visible, enabled, and have stable bounds):
 
 ```typescript
-await locator.tap()
-await locator.doubleTap()
-await locator.longPress({ duration: 1000 })
-await locator.fill('hello@example.com')              // tap to focus + type text
-await locator.swipe({ direction: 'left' })           // swipe on a specific element
-await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
+await locator.tap();
+await locator.doubleTap();
+await locator.longPress({ duration: 1000 });
+await locator.fill("hello@example.com"); // tap to focus + type text
+await locator.swipe({ direction: "left" }); // swipe on a specific element
+await locator.scrollIntoViewIfNeeded(); // scroll until element is visible
 ```
 
 **Queries:**
 
 ```typescript
-await locator.isVisible()                            // boolean
-await locator.isEnabled()                            // boolean
-await locator.isSelected()                           // boolean
-await locator.isFocused()                            // boolean
-await locator.isChecked()                            // boolean
-await locator.getText()                              // waits for visibility first
-await locator.getValue()                             // raw value (e.g. text field content)
+await locator.isVisible(); // boolean
+await locator.isEnabled(); // boolean
+await locator.isSelected(); // boolean
+await locator.isFocused(); // boolean
+await locator.isChecked(); // boolean
+await locator.getText(); // waits for visibility first
+await locator.getValue(); // raw value (e.g. text field content)
 ```
 
 **Explicit waiting:**
 
 ```typescript
-await locator.waitFor({ state: 'visible' })
-await locator.waitFor({ state: 'hidden' })
-await locator.waitFor({ state: 'enabled' })
-await locator.waitFor({ state: 'disabled', timeout: 10_000 })
+await locator.waitFor({ state: "visible" });
+await locator.waitFor({ state: "hidden" });
+await locator.waitFor({ state: "enabled" });
+await locator.waitFor({ state: "disabled", timeout: 10_000 });
 ```
 
 **Chaining** — scope queries within a parent element's bounds:
 
 ```typescript
 // Tap the delete button inside the first row
-const row = screen.getByType('Cell');
-await row.getByRole('button', { name: 'Delete' }).tap();
+const row = screen.getByType("Cell");
+await row.getByRole("button", { name: "Delete" }).tap();
 
 // Get text from a navigation bar
-const title = await screen.getByType('NavigationBar').getByType('StaticText').getText();
+const title = await screen
+  .getByType("NavigationBar")
+  .getByType("StaticText")
+  .getText();
 ```
 
 When chaining, child lookups use bounds-based containment: any element whose bounds fit within the parent's bounds is considered a child. This works correctly with mobilecli's flat element lists.
@@ -213,21 +218,21 @@ Manages the connection lifecycle and exposes device/app-level controls.
 
 ```typescript
 // Orientation
-await device.setOrientation('landscape');
+await device.setOrientation("landscape");
 const orientation = await device.getOrientation();
 
 // URLs / deep links (goto is a Playwright-style alias for openUrl)
-await device.goto('myapp://settings');
-await device.openUrl('https://example.com');
+await device.goto("myapp://settings");
+await device.openUrl("https://example.com");
 
 // App lifecycle
-await device.launchApp('com.example.app', { locale: 'fr_FR' }); // waits until app is in foreground
-await device.launchApp('com.example.app', { noWaitAfter: true }); // skip foreground wait
-await device.terminateApp('com.example.app');
+await device.launchApp("com.example.app", { locale: "fr_FR" }); // waits until app is in foreground
+await device.launchApp("com.example.app", { noWaitAfter: true }); // skip foreground wait
+await device.terminateApp("com.example.app");
 const apps = await device.listApps();
 const foreground = await device.getForegroundApp();
-await device.installApp('/path/to/app.ipa');
-await device.uninstallApp('com.example.app');
+await device.installApp("/path/to/app.ipa");
+await device.uninstallApp("com.example.app");
 
 // Cleanup (disconnects + stops auto-started mobilecli)
 await device.close();
@@ -238,7 +243,7 @@ await device.close();
 All assertions poll repeatedly until satisfied or timeout (default 5s). Supports `.not` for negation.
 
 ```typescript
-import { expect } from 'mobilewright';
+import { expect } from "mobilewright";
 
 await expect(locator).toBeVisible();
 await expect(locator).not.toBeVisible();
@@ -246,9 +251,9 @@ await expect(locator).not.toBeVisible();
 await expect(locator).toBeEnabled();
 await expect(locator).not.toBeEnabled();
 
-await expect(locator).toHaveText('Welcome back!');
+await expect(locator).toHaveText("Welcome back!");
 await expect(locator).toHaveText(/welcome/i);
-await expect(locator).toContainText('back');
+await expect(locator).toContainText("back");
 
 await expect(locator).toBeVisible({ timeout: 10_000 });
 ```
@@ -257,54 +262,90 @@ await expect(locator).toBeVisible({ timeout: 10_000 });
 
 `getByRole` maps semantic roles to platform-specific element types:
 
-| Role | iOS | Android |
-|---|---|---|
-| `button` | Button, ImageButton | Button, ImageButton, ReactViewGroup* |
-| `textfield` | TextField, SecureTextField, SearchField | EditText, ReactEditText |
-| `text` | StaticText | TextView, Text, ReactTextView |
-| `image` | Image | ImageView, ReactImageView |
-| `switch` | Switch | Switch, Toggle |
-| `checkbox` | -- | Checkbox |
-| `slider` | Slider | SeekBar |
-| `list` | Table, CollectionView, ScrollView | ListView, RecyclerView, ReactScrollView |
-| `header` | NavigationBar | Toolbar, Header |
-| `link` | Link | Link |
-| `listitem` | Cell | LinearLayout, RelativeLayout, Other |
-| `tab` | Tab, TabBar | Tab, TabBar |
+| Role        | iOS                                     | Android                                 |
+| ----------- | --------------------------------------- | --------------------------------------- |
+| `button`    | Button, ImageButton                     | Button, ImageButton, ReactViewGroup\*   |
+| `textfield` | TextField, SecureTextField, SearchField | EditText, ReactEditText                 |
+| `text`      | StaticText                              | TextView, Text, ReactTextView           |
+| `image`     | Image                                   | ImageView, ReactImageView               |
+| `switch`    | Switch                                  | Switch, Toggle                          |
+| `checkbox`  | --                                      | Checkbox                                |
+| `slider`    | Slider                                  | SeekBar                                 |
+| `list`      | Table, CollectionView, ScrollView       | ListView, RecyclerView, ReactScrollView |
+| `header`    | NavigationBar                           | Toolbar, Header                         |
+| `link`      | Link                                    | Link                                    |
+| `listitem`  | Cell                                    | LinearLayout, RelativeLayout, Other     |
+| `tab`       | Tab, TabBar                             | Tab, TabBar                             |
 
 \* ReactViewGroup matches `button` only when the element has `clickable="true"` or `accessible="true"` in its raw attributes, to avoid false positives since React Native uses ReactViewGroup for all container views.
 
 Falls back to direct type matching if no mapping exists.
 
-## Configuration
+## WebView Support
 
+Mobilewright lets you inspect and interact with web content embedded in mobile apps, using the same Playwright-style API:
+
+```typescript
+import { test, expect } from "@mobilewright/test";
+
+test("interact with in-app web content", async ({ device, screen }) => {
+  // Navigate to the screen containing a web view
+  await screen.getByText("Browser").tap();
+
+  // Attach to the web view and get a Playwright Page
+  const page = await screen.getByWebView().page();
+
+  // Use standard Playwright locators on web content
+  await page.goto("https://example.com");
+  await page.getByRole("button", { name: "Submit" }).click();
+  await expect(page.getByText("Success")).toBeVisible();
+});
+```
+
+For **multiple web views**, select by position or testId:
+
+```typescript
+// By position
+const page = await screen.getByWebView().nth(1).page();
+
+// By native testId
+const checkoutPage = await screen.getByWebView({ testId: "checkout" }).page();
+```
+
+**Requirements:**
+
+- App must be debuggable (debug build with appropriate entitlements)
+- iOS: `get-task-allow` entitlement (development/simulator build)
+- Android: `android:debuggable="true"` (debug build)
+
+See [`docs/guides/webviews.md`](docs/src/guides/webviews.md) for more details.
 Create a `mobilewright.config.ts` in your project root:
 
 ```typescript
-import { defineConfig } from 'mobilewright';
+import { defineConfig } from "mobilewright";
 
 export default defineConfig({
-  platform: 'ios',
-  bundleId: 'com.example.myapp',
-  deviceName: 'iPhone 16',
+  platform: "ios",
+  bundleId: "com.example.myapp",
+  deviceName: "iPhone 16",
   timeout: 10_000,
 });
 ```
 
 All options:
 
-| Option | Type | Description |
-|---|---|---|
-| `platform` | `'ios' \| 'android'` | Device platform (optional) |
-| `bundleId` | `string` | App bundle ID (optional) |
-| `deviceId` | `string` | Explicit device UDID (optional) |
-| `deviceName` | `RegExp` | RegExp to match device name (optional) |
-| `timeout` | `number` | Global locator timeout in ms (optional) |
-| `testDir` | `string` | Directory to search for test files (optional) |
-| `testMatch` | `string \| RegExp \| Array` | Glob patterns for test files (optional) |
-| `reporter` | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional) |
-| `retries` | `number` | Maximum retry count for flaky tests (optional) |
-| `projects` | `MobilewrightProjectConfig[]` | Multi-device / multi-platform project matrix (optional) |
+| Option       | Type                                             | Description                                             |
+| ------------ | ------------------------------------------------ | ------------------------------------------------------- |
+| `platform`   | `'ios' \| 'android'`                             | Device platform (optional)                              |
+| `bundleId`   | `string`                                         | App bundle ID (optional)                                |
+| `deviceId`   | `string`                                         | Explicit device UDID (optional)                         |
+| `deviceName` | `RegExp`                                         | RegExp to match device name (optional)                  |
+| `timeout`    | `number`                                         | Global locator timeout in ms (optional)                 |
+| `testDir`    | `string`                                         | Directory to search for test files (optional)           |
+| `testMatch`  | `string \| RegExp \| Array`                      | Glob patterns for test files (optional)                 |
+| `reporter`   | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional)                              |
+| `retries`    | `number`                                         | Maximum retry count for flaky tests (optional)          |
+| `projects`   | `MobilewrightProjectConfig[]`                    | Multi-device / multi-platform project matrix (optional) |
 
 Config values are used as defaults — `LaunchOptions` passed to `ios.launch()` always take precedence.
 
@@ -315,21 +356,21 @@ Mobilewright will use the first device that matches your configured criteria.
 `@mobilewright/test` extends [Playwright Test](https://playwright.dev/docs/test-intro) with mobile-specific fixtures:
 
 ```typescript
-import { test, expect } from '@mobilewright/test';
+import { test, expect } from "@mobilewright/test";
 
 // Configure the app bundle and video recording for all tests in this file
-test.use({ bundleId: 'com.example.myapp', video: 'on' });
+test.use({ bundleId: "com.example.myapp", video: "on" });
 
-test('can sign in', async ({ device, screen, bundleId }) => {
+test("can sign in", async ({ device, screen, bundleId }) => {
   // Fresh-launch the app before the test
   await device.terminateApp(bundleId).catch(() => {});
   await device.launchApp(bundleId);
 
-  await screen.getByLabel('Email').fill('user@example.com');
-  await screen.getByLabel('Password').fill('password123');
-  await screen.getByRole('button', { name: 'Sign In' }).tap();
+  await screen.getByLabel("Email").fill("user@example.com");
+  await screen.getByLabel("Password").fill("password123");
+  await screen.getByRole("button", { name: "Sign In" }).tap();
 
-  await expect(screen.getByText('Welcome back')).toBeVisible();
+  await expect(screen.getByText("Welcome back")).toBeVisible();
 });
 ```
 
@@ -413,21 +454,20 @@ npm test
 
 ## Framework Support
 
-| Framework | iOS | Android | Notes |
-|---|---|---|---|
-| UIKit / Storyboards | ✅ | — | Full native element types, all locators work |
-| SwiftUI | ✅ | — | Maps to standard `XCUIElementType` accessibility tree |
-| Jetpack Compose | — | ✅ | Renders to native Android accessibility nodes |
-| Android Views (XML layouts) | — | ✅ | Full native element types, all locators work |
-| React Native | ✅ | ✅ | Uses real native components; RN-specific types mapped to roles |
-| Expo | ✅ | ✅ | Same as React Native (Expo builds to RN) |
-| Flutter | ⏳ | ⏳ | Renders via Skia/Impeller, not native views — requires Dart VM Service driver |
-| .NET MAUI | ✅ | ✅ | Compiles to native controls on both platforms |
-| Kotlin Multiplatform (shared UI) | ⏳ | ✅ | Android native works; iOS Compose Multiplatform support in progress |
-| Cordova / Capacitor | ✅ | ✅ | WebView content accessible via native accessibility tree |
-| NativeScript | ✅ | ✅ | Renders to native views on both platforms |
+| Framework                        | iOS | Android | Notes                                                                         |
+| -------------------------------- | --- | ------- | ----------------------------------------------------------------------------- |
+| UIKit / Storyboards              | ✅  | —       | Full native element types, all locators work                                  |
+| SwiftUI                          | ✅  | —       | Maps to standard `XCUIElementType` accessibility tree                         |
+| Jetpack Compose                  | —   | ✅      | Renders to native Android accessibility nodes                                 |
+| Android Views (XML layouts)      | —   | ✅      | Full native element types, all locators work                                  |
+| React Native                     | ✅  | ✅      | Uses real native components; RN-specific types mapped to roles                |
+| Expo                             | ✅  | ✅      | Same as React Native (Expo builds to RN)                                      |
+| Flutter                          | ⏳  | ⏳      | Renders via Skia/Impeller, not native views — requires Dart VM Service driver |
+| .NET MAUI                        | ✅  | ✅      | Compiles to native controls on both platforms                                 |
+| Kotlin Multiplatform (shared UI) | ⏳  | ✅      | Android native works; iOS Compose Multiplatform support in progress           |
+| Cordova / Capacitor              | ✅  | ✅      | WebView content accessible via native accessibility tree                      |
+| NativeScript                     | ✅  | ✅      | Renders to native views on both platforms                                     |
 
 ## License
 
 This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
-
