@@ -10,6 +10,7 @@ import { Device } from './device.js';
 
 function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
   return {
+    platform: 'ios' as const,
     connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => [],
@@ -17,6 +18,7 @@ function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
     doubleTap: async () => {},
     longPress: async () => {},
     typeText: async () => {},
+    pressKeys: async () => {},
     swipe: async () => {},
     gesture: async () => {},
     pressButton: async () => {},

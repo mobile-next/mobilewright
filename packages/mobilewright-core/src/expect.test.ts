@@ -58,6 +58,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
   return {
     _tracker: tracker,
     _setHierarchy: (h: ViewNode[]) => { currentHierarchy = h; },
+    platform: 'ios' as const,
     connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => currentHierarchy,
@@ -65,6 +66,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     doubleTap: async (...args: any[]) => { tracker.doubleTapCalls.push(args); },
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async (...args: any[]) => { tracker.typeTextCalls.push(args); },
+    pressKeys: async () => {},
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
@@ -108,6 +110,12 @@ const hierarchy: ViewNode[] = [
         identifier: 'hiddenBtn',
         isVisible: false,
         bounds: { x: 20, y: 200, width: 200, height: 50 },
+      }),
+      // A visible field with no text/label/value — i.e. genuinely empty.
+      node({
+        type: 'TextField',
+        identifier: 'emptyField',
+        bounds: { x: 20, y: 260, width: 200, height: 40 },
       }),
     ],
   }),
@@ -191,6 +199,30 @@ test.describe('expect', () => {
       await expect(
         mwExpect(locator).toHaveText('Wrong text', { timeout: 200 }),
       ).rejects.toThrow(ExpectError);
+    });
+
+    test('passes for a resolved element with empty text', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, {
+        kind: 'testId',
+        value: 'emptyField',
+      });
+
+      await mwExpect(locator).toHaveText('');
+    });
+
+    test('reports that the element was not found, not an empty text match', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, {
+        kind: 'testId',
+        value: 'nonExistent',
+      });
+
+      // Without a fix this throws `... but got ""`, which is indistinguishable
+      // from a genuinely-empty element. The message must name the real cause.
+      await expect(
+        mwExpect(locator).toHaveText('', { timeout: 200 }),
+      ).rejects.toThrow(/no matching element/i);
     });
   });
 

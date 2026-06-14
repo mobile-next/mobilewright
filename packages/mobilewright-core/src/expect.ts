@@ -186,7 +186,7 @@ class LocatorAssertions {
 
   async toBeEmpty(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeEmpty', async () => {
-      let lastValue = '';
+      let lastValue: string | null = null;
       await this.retryAssertion(
         async (): Promise<string | null> => {
           try {
@@ -196,6 +196,7 @@ class LocatorAssertions {
             if (!(e instanceof LocatorError)) {
               throw e;
             }
+            lastValue = null;
             return null;
           }
         },
@@ -207,16 +208,21 @@ class LocatorAssertions {
           return this.negated ? !isEmpty : isEmpty;
         },
         this.assertionTimeout(opts),
-        () => this.negated
-          ? 'Expected element NOT to be empty, but it was'
-          : `Expected element to be empty, but got "${lastValue}"`,
+        () => {
+          if (lastValue === null) {
+            return 'Expected element to be empty, but no matching element was found';
+          }
+          return this.negated
+            ? 'Expected element NOT to be empty, but it was'
+            : `Expected element to be empty, but got "${lastValue}"`;
+        },
       );
     });
   }
 
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveValue', async () => {
-      let lastValue = '';
+      let lastValue: string | null = null;
       await this.retryAssertion(
         async (): Promise<string | null> => {
           try {
@@ -226,6 +232,7 @@ class LocatorAssertions {
             if (!(e instanceof LocatorError)) {
               throw e;
             }
+            lastValue = null;
             return null;
           }
         },
@@ -237,9 +244,14 @@ class LocatorAssertions {
           return this.negated ? !matches : matches;
         },
         this.assertionTimeout(opts),
-        () => this.negated
-          ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
-          : `Expected element to have value "${expected}", but got "${lastValue}"`,
+        () => {
+          if (lastValue === null) {
+            return `Expected element to have value "${expected}", but no matching element was found`;
+          }
+          return this.negated
+            ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
+            : `Expected element to have value "${expected}", but got "${lastValue}"`;
+        },
       );
     });
   }
@@ -264,7 +276,7 @@ class LocatorAssertions {
     expected: string | RegExp,
     opts?: ExpectOptions,
   ): Promise<void> {
-    let lastText = '';
+    let lastText: string | null = null;
     await this.retryAssertion(
       async (): Promise<string | null> => {
         try {
@@ -274,6 +286,7 @@ class LocatorAssertions {
           if (!(e instanceof LocatorError)) {
             throw e;
           }
+          lastText = null;
           return null;
         }
       },
@@ -285,9 +298,14 @@ class LocatorAssertions {
         return this.negated ? !matches : matches;
       },
       this.assertionTimeout(opts),
-      () => this.negated
-        ? `Expected element NOT to have text "${expected}", but got "${lastText}"`
-        : `Expected element to have text "${expected}", but got "${lastText}"`,
+      () => {
+        if (lastText === null) {
+          return `Expected element to have text "${expected}", but no matching element was found`;
+        }
+        return this.negated
+          ? `Expected element NOT to have text "${expected}", but got "${lastText}"`
+          : `Expected element to have text "${expected}", but got "${lastText}"`;
+      },
     );
   }
 

@@ -7,6 +7,7 @@ import type {
   LaunchOptions,
   ListDevicesOptions,
   Orientation,
+  Platform,
   RecordingOptions,
   RecordingResult,
   ScreenSize,
@@ -36,6 +37,9 @@ export interface WebViewBridge {
 }
 
 export interface MobilewrightDriver {
+  /** Platform of the active session (set after connect()). */
+  readonly platform: Platform;
+
   // Connection
   connect(config: ConnectionConfig): Promise<Session>;
   disconnect(): Promise<void>;
@@ -48,6 +52,8 @@ export interface MobilewrightDriver {
   doubleTap(x: number, y: number): Promise<void>;
   longPress(x: number, y: number, duration?: number): Promise<void>;
   typeText(text: string): Promise<void>;
+  /** Press one or more key combinations in order, e.g. ["ctrl+a", "backspace"]. */
+  pressKeys(keys: string[]): Promise<void>;
   swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void>;
   gesture(gestures: GestureSequence): Promise<void>;
   pressButton(button: HardwareButton): Promise<void>;

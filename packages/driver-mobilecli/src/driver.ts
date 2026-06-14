@@ -239,6 +239,10 @@ export class MobilecliDriver implements MobilewrightDriver {
     this.serverUrl = opts?.url ?? DEFAULT_URL;
   }
 
+  get platform(): Platform {
+    return this.requireSession().platform;
+  }
+
   // ─── Connection ──────────────────────────────────────────────
 
   async connect(config: ConnectionConfig): Promise<Session> {
@@ -367,6 +371,10 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async typeText(text: string): Promise<void> {
     await this.call('device.io.text', { text });
+  }
+
+  async pressKeys(keys: string[]): Promise<void> {
+    await this.call('device.io.keys', { keys });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {

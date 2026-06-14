@@ -178,13 +178,24 @@ export class Locator {
     });
   }
 
+  async clear(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.clear()', () => this._tapAndClear(opts?.timeout));
+  }
+
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
-      const node = await this.resolveActionable(opts?.timeout);
-      const { x, y } = centerOf(node.bounds);
-      await this.driver.tap(x, y);
+      await this._tapAndClear(opts?.timeout);
       await this.driver.typeText(text);
     });
+  }
+
+  /** Focus the element by tapping it, then select all and delete its contents. */
+  private async _tapAndClear(timeout?: number): Promise<void> {
+    const node = await this.resolveActionable(timeout);
+    const { x, y } = centerOf(node.bounds);
+    await this.driver.tap(x, y);
+    const selectAll = this.driver.platform === 'ios' ? 'cmd+a' : 'ctrl+a';
+    await this.driver.pressKeys([selectAll, 'backspace']);
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
