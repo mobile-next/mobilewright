@@ -1,0 +1,176 @@
+---
+title: Changelog
+description: Release notes and notable changes for Mobilewright.
+slug: /changelog
+hide_table_of_contents: true
+---
+
+# Changelog
+
+## [0.0.44] (2026-06-12)
+* Feat: add `activity` to `LaunchOptions` ([#182](https://github.com/mobile-next/mobilewright/pull/182))
+* Feat(driver-mobilenext): upload test report by default unless `uploadReport` is off ([#188](https://github.com/mobile-next/mobilewright/pull/188))
+* Feat(driver-mobilenext): log periodic progress during app upload to S3 ([#187](https://github.com/mobile-next/mobilewright/pull/187))
+
+## [0.0.43] (2026-06-12)
+* Feat: add `device.screenSize()` returning width, height, scale ([#179](https://github.com/mobile-next/mobilewright/pull/179))
+* Feat: expose `doubleTap()`, `longPress()`, `gesture()` on Screen ([#178](https://github.com/mobile-next/mobilewright/pull/178))
+* Feat: add `filter()`, `and()`, `or()` to Locator ([#177](https://github.com/mobile-next/mobilewright/pull/177))
+* Fix: added missing webview types ([#183](https://github.com/mobile-next/mobilewright/pull/183))
+
+## [0.0.42] (2026-06-09)
+* Feat: adding Playwright webview support with `getByWebView()` locator ([#172](https://github.com/mobile-next/mobilewright/pull/172))
+* Feat: test result upload to mobilenext.ai ([#147](https://github.com/mobile-next/mobilewright/pull/147))
+* Feat: Playwright-idiomatic timeout configuration ([#155](https://github.com/mobile-next/mobilewright/pull/155))
+* Feat: collect code snippets from each test step for mobilenext report ([#157](https://github.com/mobile-next/mobilewright/pull/157))
+* Feat: additional debug logs around mobilenext test report upload ([#161](https://github.com/mobile-next/mobilewright/pull/161))
+
+## [0.0.41] (2026-05-26)
+* Refactor: rename `mobile-use` driver to `mobilenext` ([#146](https://github.com/mobile-next/mobilewright/pull/146))
+* Chore(driver-mobilecli): update mobilecli to fix websocket 1006 errors ([#150](https://github.com/mobile-next/mobilewright/pull/150))
+
+## [0.0.39] (2026-05-21)
+* Feat: add test step instrumentation for HTML reporter ([#144](https://github.com/mobile-next/mobilewright/pull/144))
+* Feat: add Dockerfile for mobilewright image, multi-arch for arm64 and amd64 ([#143](https://github.com/mobile-next/mobilewright/pull/143))
+* Fix(locator): `isVisible()` no longer swallows driver/session errors — only returns `false` for element-not-found failures, rethrows all other errors ([#138](https://github.com/mobile-next/mobilewright/pull/138)), thanks to [@JustasMonkev](https://github.com/JustasMonkev)
+
+## [0.0.38] (2026-05-17)
+* Fix(ios): call `getForegroundApp()` before `launchApp()` in mobilecli driver to ensure DeviceKit is running first, preventing a race where its startup minimizes the newly-launched app ([#89](https://github.com/mobile-next/mobilewright/issues/89))
+* Fix(android): using instruments to get view tree, solves bug when constant UI change would fail "uiautomator dump" (fix is in mobilecli 0.3.74)
+* General: skip redundant `mobilecli devices` shell-outs in `connect()` and `installApp()` when device type is already known, reducing test startup time by ~4s
+* General: break early if installApps points to non-zip containers, before allocating devices
+* General: added plenty of verbose logs when `DEBUG=mw:*`
+
+## [0.0.37] (2026-05-16)
+* Feat: add installApps to per-project overrides ([#133](https://github.com/mobile-next/mobilewright/pull/133))
+* Feat: export HardwareButton from @mobilewright/core and add LOCK button ([#132](https://github.com/mobile-next/mobilewright/pull/132))
+* Fix: use Number.NaN and String.raw in tests ([#93](https://github.com/mobile-next/mobilewright/pull/93)), thanks to [@khanhdodang](https://github.com/khanhdodang)
+
+## [0.0.36] (2026-05-16)
+* Feat: add toHaveCount and toBeEmpty assertions ([#122](https://github.com/mobile-next/mobilewright/pull/122)), thanks to [@alexC2K](https://github.com/alexC2K)
+* Feat: add device info annotations to test report ([#125](https://github.com/mobile-next/mobilewright/pull/125))
+* Feat(test): attach accessibility tree on test failure via saveTreeOnFailure ([#111](https://github.com/mobile-next/mobilewright/pull/111)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+* Feat: add eslint with @typescript-eslint and @stylistic rules ([#127](https://github.com/mobile-next/mobilewright/pull/127))
+* Fix(driver): reject .ipa installs on iOS simulators with a clear error ([#74](https://github.com/mobile-next/mobilewright/pull/74)), thanks to [@krismuhi](https://github.com/krismuhi)
+* Fix: only catch LocatorError in expect assertions, rethrow unexpected errors ([#126](https://github.com/mobile-next/mobilewright/pull/126))
+* Fix: respect autoAppLaunch config option in test fixture ([#110](https://github.com/mobile-next/mobilewright/pull/110)), thanks to [@farhanlabib](https://github.com/farhanlabib)
+
+## [0.0.35] (2026-05-12)
+* Fix(android): updated mobilecli to 0.3.73 to fix missing elements that had non-null resource-id ([#120](https://github.com/mobile-next/mobilewright/pull/120))
+
+## [0.0.34] (2026-05-12)
+* Feat(locator): `locator.exists()` is now available — returns `true` if the element is present in the view tree
+* Fix: `--config` flag is now correctly honored in fixtures and device-pool setup ([#109](https://github.com/mobile-next/mobilewright/pull/109))
+* Fix(android): moved away from monkey to run apps, fixes apks compiled with 'test' flag
+
+## [0.0.33] (2026-05-07)
+* Fix(android): warn and continue when foreground app check fails on launch instead of throwing error, thanks [@farhanlabib](https://github.com/farhanlabib) ([#102](https://github.com/mobile-next/mobilewright/pull/102))
+
+## [0.0.32] (2026-05-05)
+* Fix: updated mobilecli to fix 'SYS_KEYS has no physical keys but with factor 2.0%' error on certain Android devices
+
+## [0.0.31] (2026-05-04)
+* Feat: `screen.getByPlaceholder()` is now available ([#84](https://github.com/mobile-next/mobilewright/pull/84))
+* Feat: `launchApp()` now waits for the app to reach the foreground before continuing; pass `noWaitAfter: true` to skip ([#80](https://github.com/mobile-next/mobilewright/pull/80))
+* Feat: Add anonymous telemetry for `test`, `doctor`, and `init` commands - see README for opt-out ([#79](https://github.com/mobile-next/mobilewright/pull/79))
+* Feat: `init` example test template now includes a `device` param and doc comments ([#86](https://github.com/mobile-next/mobilewright/pull/86))
+* Fix: mobilewright --version now reads from `package.json` instead of the hardcoded `'0.0.1'` ([#78](https://github.com/mobile-next/mobilewright/pull/78))
+
+## [0.0.30] (2026-05-01)
+* Fix(config): `loadConfig()` now uses `pathToFileURL` for dynamic import — fixes config not loading on Windows
+* Fix(doctor): Suggest `Microsoft.OpenJDK.17` instead of Azul Zulu for Windows JDK installs
+* Feat(test): `swipe` on a locator — e.g. swipe left on a list item
+* Docs: Added Windows instructions for enabling debug logs (`$env:DEBUG` / `set DEBUG`)
+
+## [0.0.29] (2026-04-30)
+* General: mobilecli agent is automatically installed on simulators and emulators at connect time — no manual `mobilewright install` step needed
+* Fix(cli): `npx mobilewright init` now works correctly — templates were missing from the published dist
+* Fix(driver-mobilecli): Windows 11 is now supported — `win32-x64` resolves to `mobilecli-windows-amd64.exe`
+
+## [0.0.28] (2026-04-29)
+* Fix(test): Stream cloud recordings to disk instead of loading into memory — safe for large video files
+* Fix(test): Video attachments now work with the cloud drivers
+* Fix(cli): Fixed HTML report branding so it now applies when the `html` reporter is configured
+
+## [0.0.27] (2026-04-28)
+* General: New worker/device-pool architecture: workers acquire devices from a shared pool instead of each worker owning a dedicated device
+* General: Track installed apps per slot to skip re-install when the same worker reuses a device
+* General: Per-allocation timeouts via `AbortSignal`; pool shutdown drains waiters and releases all slots
+* General: Stack traces from `expect()` failures now omit mobilewright frames — set `MWDEBUGIMPL=1` to see them
+* General: Upgrade mobilecli to `0.3.67`
+* CLI: Add `--shard` option to the `test` command for multi-host sharding of tests
+* CLI: Add `mobilewright merge-reports` command, needed for sharding
+* Fix: Fix 'text' field from viewTree to fetch from dump's 'text' instead of 'label', thanks to [emor](https://github.com/emor)
+* Fix(allocator-factory): Throw on unknown driver type instead of silently falling back to mobile-use
+* Fix(driver-mobile-use): Only call `fleet.release` on disconnect when this instance owns the lease
+* Fix(device-pool): Re-queue waiters on `NoDeviceAvailableError`; treat `NaN` `--workers` as 1
+* Fix(rpc-client): Close WebSocket nicely with code 1000 and await the close handshake on `disconnect()`
+
+## [0.0.26] (2026-04-22)
+* Fix(driver-mobile-use): Device allocation now correctly waits for provisioning to complete 
+* Fix(driver-mobile-use): `devices.list` response properly unwrapped from `{ devices: [...] }` envelope
+* Fix(driver-mobile-use): `installApp` upload now includes `duplex: 'half'` required by Node.js for stream bodies
+
+## [0.0.25] (2026-04-22)
+* General: Add `installApps` config option to install apps before launching
+* General: Add `autoAppLaunch` config option to skip automatic app launch (default: `true`)
+* Fix: `loadConfig()` now unwraps double-wrapped default exports caused by Playwright's transpiler
+* Fix(driver-mobile-use): Handle `allocating` state from mobile-use.com, wait until device is ready
+* Fix(driver-mobile-use): `installApp` uploads file via `uploads.create`
+
+## [0.0.24] (2026-04-22)
+* General: Add `@mobilewright/driver-mobile-use` package for mobile-use.com cloud device support
+* General: Refactor `ConnectionConfig` — replace required `deviceId` with required `platform`, optional `deviceId`, `deviceName`, `osVersion`
+* General: Move device resolution into drivers — mobilecli resolves locally
+* General: Add missing `scale` field to getScreenSize response
+* General: Default `workers: 1` in `defineConfig` — mobile tests target a single device, changeable for cloud
+* General: Add `debug` logging to both drivers (`DEBUG=mw:*` to enable)
+* General: Improve WebSocket error messages with close code and reason
+* General: Add `toMatch`, `toBeInstanceOf`, `toBeDefined`, `toBeGreaterThanOrEqual`, `toBeLessThanOrEqual`, `toBeNaN`, `toContainEqual`, `toHaveLength`, `toHaveProperty`, `toMatchObject`, `toStrictEqual`, `toThrow` assertions
+* General: Handle both flat array and `{ apps: [...] }` response in `listApps`, thanks to [emor](https://github.com/emor)
+* Docs: Add troubleshooting guide with `DEBUG=mw:*` and `mobilewright doctor` usage
+* Tests: Add cross-driver integration test suite (`e2e/`)
+* Fix: `LaunchOptions.locale` renamed to `locales` (to match mobilecli server protocol)
+* Fix: `gesture()` now sends `actions` param to match OpenRPC spec (was incorrectly sending `pointers`)
+* Fix: `startRecording` no longer drops `timeLimit: 0`
+* Fix: `disconnect()` now properly awaits WebSocket close
+
+## [0.0.22] (2026-04-16)
+* General: Add `mobilewright install` command to install agents on devices ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* General: Switch `listDevices()` to use mobilecli cli instead of launching server ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* General: Upgrade mobilecli to `mobilecli@0.3.66` ([#29](https://github.com/mobile-next/mobilewright/pull/29))
+* Doctor: Show mobilecli version and detected devices with agent install status ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* Doctor: Show booted iOS simulators with UDIDs ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* Doctor: Remove Homebrew check ([#30](https://github.com/mobile-next/mobilewright/pull/30))
+* CI: Add explicit permissions to docs build workflow ([#28](https://github.com/mobile-next/mobilewright/pull/28))
+
+## [0.0.21] (2026-04-14)
+* General: Support plain value assertions in `expect()` — `toBe`, `toEqual`, `toBeTruthy`, `toBeFalsy`, `toContain`, `toMatch`, and more ([#17](https://github.com/mobile-next/mobilewright/pull/17))
+* CI: Add explicit permissions and `npm audit` to CI workflow ([#19](https://github.com/mobile-next/mobilewright/pull/19))
+* CI: Use `npm ci` instead of `npm install` and add CODEOWNERS ([#20](https://github.com/mobile-next/mobilewright/pull/20))
+
+## [0.0.20] (2026-04-13)
+* General: Add `count()`, `all()`, `first()`, `last()`, `nth()` to Locator for collection operations ([#10](https://github.com/mobile-next/mobilewright/pull/10))
+* General: Add `screen.goBack()` convenience method for Android ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Add `toBeHidden()` assertion ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Rename `toHaveFocus()` to `toBeFocused()` for naming consistency ([#11](https://github.com/mobile-next/mobilewright/pull/11))
+* General: Copy README into mobilewright package before npm publish ([#14](https://github.com/mobile-next/mobilewright/pull/14))
+
+## [0.0.19] (2026-04-13)
+* General: Add `screen.viewTree()` to dump the UI view hierarchy ([#12](https://github.com/mobile-next/mobilewright/pull/12))
+* General: Add `mobilewright screenshot` CLI command ([#9](https://github.com/mobile-next/mobilewright/pull/9))
+* General: Update mobilecli to 0.1.64
+
+## [0.0.18] (2026-04-02)
+* General: Fix mobilecli binary resolution using `createRequire` to work reliably from npx caches, global installs, and local node_modules ([#7](https://github.com/mobile-next/mobilewright/pull/7))
+
+## [0.0.17] (2026-04-02)
+* General: Add `mobilewright init` command to scaffold config and example test ([#2](https://github.com/mobile-next/mobilewright/pull/2))
+* General: Improve html test report template with click-to-fullscreen screenshots ([#6](https://github.com/mobile-next/mobilewright/pull/6))
+* General: Add `getByPlaceholder` locator for matching elements by placeholder text ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* General: Add `toBeDisabled`, `toBeSelected`, `toHaveFocus`, `toBeChecked`, and `toHaveValue` assertions ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* General: Add `isSelected`, `isFocused`, `isChecked`, and `getValue` locator queries ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* General: Support `testId` matching against full Android `resourceId` for Appium migration ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* General: Fix swipe command to convert direction to start/end coordinates for mobilecli RPC ([#5](https://github.com/mobile-next/mobilewright/pull/5))
+* Android: Map React Native view types (ReactViewGroup, ReactTextView, ReactEditText, ReactImageView, ReactScrollView) to semantic roles ([#4](https://github.com/mobile-next/mobilewright/pull/4))
+* Android: Parse `isChecked` state from UI hierarchy ([#4](https://github.com/mobile-next/mobilewright/pull/4))
