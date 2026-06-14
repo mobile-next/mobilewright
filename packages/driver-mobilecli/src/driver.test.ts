@@ -327,3 +327,27 @@ test.describe('MobilecliDriver.webViewBridge', () => {
     expect(await session.title()).toBe('Page Title');
   });
 });
+
+test.describe('MobilecliDriver.clearText()', () => {
+  test('selects all with cmd+a then deletes on iOS', async () => {
+    const driver = createDriverWithSession({ platform: 'ios' });
+    const calls = recordRpc(driver, { 'device.io.keys': {} });
+
+    await driver.clearText();
+
+    expect(calls).toEqual([
+      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['cmd+a', 'backspace'] } },
+    ]);
+  });
+
+  test('selects all with ctrl+a then deletes on Android', async () => {
+    const driver = createDriverWithSession({ platform: 'android' });
+    const calls = recordRpc(driver, { 'device.io.keys': {} });
+
+    await driver.clearText();
+
+    expect(calls).toEqual([
+      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['ctrl+a', 'backspace'] } },
+    ]);
+  });
+});

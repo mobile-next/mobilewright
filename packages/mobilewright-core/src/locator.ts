@@ -195,17 +195,16 @@ export class Locator {
     return node;
   }
 
-  /** Focus the element by tapping it, then select all and delete its contents. */
+  /** Focus the element by tapping it, then clear its contents. */
   private async _tapAndClear(timeout?: number): Promise<void> {
     await this._resolveAndTap(timeout);
-    const selectAll = this.driver.platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.driver.pressKeys([selectAll, 'backspace']);
+    await this.driver.clearText();
 
-    // Verify the select-all + backspace actually emptied the field; if the
-    // selection didn't take, backspace removes a single character and we'd
-    // otherwise silently leave residual text for fill() to append to.
+    // Verify the clear actually emptied the field; if the driver's select-all
+    // didn't take, only a single character is removed and we'd otherwise
+    // silently leave residual text for fill() to append to.
     if ((await this._currentValue()) !== '') {
-      throw new LocatorError('Failed to clear element after select-all and delete', this.strategy);
+      throw new LocatorError('Failed to clear element', this.strategy);
     }
   }
 

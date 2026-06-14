@@ -6,7 +6,6 @@ import type {
   Orientation,
   AppInfo,
   DeviceInfo,
-  Platform,
 } from '@mobilewright/protocol';
 import { Locator, LocatorError } from './locator.js';
 
@@ -28,6 +27,7 @@ type CallTracker = {
   longPressCalls: any[][];
   typeTextCalls: any[][];
   pressKeysCalls: any[][];
+  clearTextCalls: any[][];
   swipeCalls: any[][];
   gestureCalls: any[][];
   pressButtonCalls: any[][];
@@ -39,7 +39,7 @@ type CallTracker = {
   openUrlCalls: any[][];
 };
 
-function createMockDriver(hierarchy: ViewNode[], platform: Platform = 'ios'): MobilewrightDriver & { _tracker: CallTracker, _setHierarchy: (h: ViewNode[]) => void } {
+function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracker: CallTracker, _setHierarchy: (h: ViewNode[]) => void } {
   let currentHierarchy = hierarchy;
   const tracker: CallTracker = {
     tapCalls: [],
@@ -47,6 +47,7 @@ function createMockDriver(hierarchy: ViewNode[], platform: Platform = 'ios'): Mo
     longPressCalls: [],
     typeTextCalls: [],
     pressKeysCalls: [],
+    clearTextCalls: [],
     swipeCalls: [],
     gestureCalls: [],
     pressButtonCalls: [],
@@ -61,8 +62,7 @@ function createMockDriver(hierarchy: ViewNode[], platform: Platform = 'ios'): Mo
   return {
     _tracker: tracker,
     _setHierarchy: (h: ViewNode[]) => { currentHierarchy = h; },
-    platform,
-    connect: async () => ({ deviceId: 'device1', platform }),
+    connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => currentHierarchy,
     tap: async (...args: any[]) => { tracker.tapCalls.push(args); },
@@ -70,6 +70,7 @@ function createMockDriver(hierarchy: ViewNode[], platform: Platform = 'ios'): Mo
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async (...args: any[]) => { tracker.typeTextCalls.push(args); },
     pressKeys: async (...args: any[]) => { tracker.pressKeysCalls.push(args); },
+    clearText: async (...args: any[]) => { tracker.clearTextCalls.push(args); },
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
@@ -161,8 +162,8 @@ test.describe('Locator', () => {
   });
 
   test.describe('clear', () => {
-    test('taps to focus then selects all and deletes on iOS', async () => {
-      const driver = createMockDriver(hierarchy, 'ios');
+    test('taps to focus then asks the driver to clear the field', async () => {
+      const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
         kind: 'testId',
         value: 'emailField',
@@ -171,19 +172,7 @@ test.describe('Locator', () => {
       await locator.clear();
 
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
-      expect(driver._tracker.pressKeysCalls).toEqual([[['cmd+a', 'backspace']]]);
-    });
-
-    test('selects all with ctrl on Android', async () => {
-      const driver = createMockDriver(hierarchy, 'android');
-      const locator = new Locator(driver, {
-        kind: 'testId',
-        value: 'emailField',
-      });
-
-      await locator.clear();
-
-      expect(driver._tracker.pressKeysCalls).toEqual([[['ctrl+a', 'backspace']]]);
+      expect(driver._tracker.clearTextCalls).toHaveLength(1);
     });
 
     test('throws LocatorError when element not found', async () => {
@@ -193,8 +182,8 @@ test.describe('Locator', () => {
       await expect(locator.clear()).rejects.toThrow(LocatorError);
     });
 
-    test('throws when the field still has text after select-all and delete', async () => {
-      // The mock keypress is a no-op, so a field that starts non-empty stays
+    test('throws when the field still has text after clearing', async () => {
+      // The mock clearText is a no-op, so a field that starts non-empty stays
       // non-empty — emulating a select-all that never took effect on the device.
       const fieldWithResidualText: ViewNode[] = [
         node({
@@ -204,7 +193,7 @@ test.describe('Locator', () => {
           bounds: { x: 20, y: 200, width: 350, height: 44 },
         }),
       ];
-      const driver = createMockDriver(fieldWithResidualText, 'android');
+      const driver = createMockDriver(fieldWithResidualText);
       const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
 
       await expect(locator.clear()).rejects.toThrow(LocatorError);
@@ -213,7 +202,7 @@ test.describe('Locator', () => {
 
   test.describe('fill', () => {
     test('clears the field then types text', async () => {
-      const driver = createMockDriver(hierarchy, 'android');
+      const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
         kind: 'testId',
         value: 'emailField',
@@ -223,7 +212,7 @@ test.describe('Locator', () => {
 
       // Field is focused once by the tap, cleared, then typed into.
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
-      expect(driver._tracker.pressKeysCalls).toEqual([[['ctrl+a', 'backspace']]]);
+      expect(driver._tracker.clearTextCalls).toHaveLength(1);
       expect(driver._tracker.typeTextCalls).toEqual([['test@example.com']]);
     });
   });

@@ -228,10 +228,6 @@ export class MobileNextDriver implements MobilewrightDriver {
     this.options = options;
   }
 
-  get platform(): Platform {
-    return this.requireSession().platform;
-  }
-
   // ─── Connection ──────────────────────────────────────────────
 
   async connect(config: ConnectionConfig): Promise<Session> {
@@ -373,6 +369,11 @@ export class MobileNextDriver implements MobilewrightDriver {
 
   async pressKeys(keys: string[]): Promise<void> {
     await this.call('device.io.keys', { keys });
+  }
+
+  async clearText(): Promise<void> {
+    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
+    await this.pressKeys([selectAll, 'backspace']);
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {

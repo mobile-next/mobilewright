@@ -25,7 +25,6 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
 
   return {
     _tracker: tracker,
-    platform: 'ios' as const,
     connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => [],
@@ -34,6 +33,7 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async () => {},
     pressKeys: async () => {},
+    clearText: async () => {},
     swipe: async () => {},
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async () => {},

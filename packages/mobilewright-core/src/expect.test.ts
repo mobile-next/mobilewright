@@ -58,7 +58,6 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
   return {
     _tracker: tracker,
     _setHierarchy: (h: ViewNode[]) => { currentHierarchy = h; },
-    platform: 'ios' as const,
     connect: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
     disconnect: async () => {},
     getViewHierarchy: async () => currentHierarchy,
@@ -67,6 +66,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async (...args: any[]) => { tracker.typeTextCalls.push(args); },
     pressKeys: async () => {},
+    clearText: async () => {},
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
