@@ -185,75 +185,31 @@ class LocatorAssertions {
   }
 
   async toBeEmpty(opts?: ExpectOptions): Promise<void> {
-    return this._wrapAssertion('toBeEmpty', async () => {
-      let lastValue: string | null = null;
-      await this.retryAssertion(
-        async (): Promise<string | null> => {
-          try {
-            lastValue = await this.locator.getValue({ timeout: 0 });
-            return lastValue;
-          } catch (e) {
-            if (!(e instanceof LocatorError)) {
-              throw e;
-            }
-            lastValue = null;
-            return null;
-          }
-        },
-        (value) => {
-          if (value === null) {
-            return false;
-          }
-          const isEmpty = value === '';
-          return this.negated ? !isEmpty : isEmpty;
-        },
-        this.assertionTimeout(opts),
-        () => {
-          if (lastValue === null) {
-            return 'Expected element to be empty, but no matching element was found';
-          }
-          return this.negated
-            ? 'Expected element NOT to be empty, but it was'
-            : `Expected element to be empty, but got "${lastValue}"`;
-        },
-      );
-    });
+    return this._wrapAssertion('toBeEmpty', () =>
+      this.assertStringMatch(
+        () => this.locator.getValue({ timeout: 0 }),
+        (value) => value === '',
+        'Expected element to be empty, but no matching element was found',
+        (value) => this.negated
+          ? 'Expected element NOT to be empty, but it was'
+          : `Expected element to be empty, but got "${value}"`,
+        opts,
+      ),
+    );
   }
 
   async toHaveValue(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
-    return this._wrapAssertion('toHaveValue', async () => {
-      let lastValue: string | null = null;
-      await this.retryAssertion(
-        async (): Promise<string | null> => {
-          try {
-            lastValue = await this.locator.getValue({ timeout: 0 });
-            return lastValue;
-          } catch (e) {
-            if (!(e instanceof LocatorError)) {
-              throw e;
-            }
-            lastValue = null;
-            return null;
-          }
-        },
-        (value) => {
-          if (value === null) {
-            return false;
-          }
-          const matches = expected instanceof RegExp ? expected.test(value) : value === expected;
-          return this.negated ? !matches : matches;
-        },
-        this.assertionTimeout(opts),
-        () => {
-          if (lastValue === null) {
-            return `Expected element to have value "${expected}", but no matching element was found`;
-          }
-          return this.negated
-            ? `Expected element NOT to have value "${expected}", but got "${lastValue}"`
-            : `Expected element to have value "${expected}", but got "${lastValue}"`;
-        },
-      );
-    });
+    return this._wrapAssertion('toHaveValue', () =>
+      this.assertStringMatch(
+        () => this.locator.getValue({ timeout: 0 }),
+        (value) => expected instanceof RegExp ? expected.test(value) : value === expected,
+        `Expected element to have value "${expected}", but no matching element was found`,
+        (value) => this.negated
+          ? `Expected element NOT to have value "${expected}", but got "${value}"`
+          : `Expected element to have value "${expected}", but got "${value}"`,
+        opts,
+      ),
+    );
   }
 
   protected async assertBoolean(
@@ -276,36 +232,50 @@ class LocatorAssertions {
     expected: string | RegExp,
     opts?: ExpectOptions,
   ): Promise<void> {
-    let lastText: string | null = null;
+    await this.assertStringMatch(
+      () => this.locator.getText({ timeout: 0 }),
+      predicate,
+      `Expected element to have text "${expected}", but no matching element was found`,
+      (text) => this.negated
+        ? `Expected element NOT to have text "${expected}", but got "${text}"`
+        : `Expected element to have text "${expected}", but got "${text}"`,
+      opts,
+    );
+  }
+
+  // Poll a string-valued read (getText/getValue) until `matches` holds (honoring
+  // negation), distinguishing a genuinely-absent element from a value mismatch:
+  // a LocatorError means "no matching element" and yields `notFoundMessage`,
+  // while any resolved value that fails the match yields `mismatchMessage`.
+  private async assertStringMatch(
+    read: () => Promise<string>,
+    matches: (value: string) => boolean,
+    notFoundMessage: string,
+    mismatchMessage: (value: string) => string,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    let lastValue: string | null = null;
     await this.retryAssertion(
       async (): Promise<string | null> => {
         try {
-          lastText = await this.locator.getText({ timeout: 0 });
-          return lastText;
+          lastValue = await read();
+          return lastValue;
         } catch (e) {
           if (!(e instanceof LocatorError)) {
             throw e;
           }
-          lastText = null;
+          lastValue = null;
           return null;
         }
       },
-      (text) => {
-        if (text === null) {
+      (value) => {
+        if (value === null) {
           return false;
         }
-        const matches = predicate(text);
-        return this.negated ? !matches : matches;
+        return this.negated ? !matches(value) : matches(value);
       },
       this.assertionTimeout(opts),
-      () => {
-        if (lastText === null) {
-          return `Expected element to have text "${expected}", but no matching element was found`;
-        }
-        return this.negated
-          ? `Expected element NOT to have text "${expected}", but got "${lastText}"`
-          : `Expected element to have text "${expected}", but got "${lastText}"`;
-      },
+      () => lastValue === null ? notFoundMessage : mismatchMessage(lastValue),
     );
   }
 

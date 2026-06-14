@@ -192,6 +192,23 @@ test.describe('Locator', () => {
 
       await expect(locator.clear()).rejects.toThrow(LocatorError);
     });
+
+    test('throws when the field still has text after select-all and delete', async () => {
+      // The mock keypress is a no-op, so a field that starts non-empty stays
+      // non-empty — emulating a select-all that never took effect on the device.
+      const fieldWithResidualText: ViewNode[] = [
+        node({
+          type: 'TextField',
+          identifier: 'emailField',
+          value: 'leftover',
+          bounds: { x: 20, y: 200, width: 350, height: 44 },
+        }),
+      ];
+      const driver = createMockDriver(fieldWithResidualText, 'android');
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
+
+      await expect(locator.clear()).rejects.toThrow(LocatorError);
+    });
   });
 
   test.describe('fill', () => {

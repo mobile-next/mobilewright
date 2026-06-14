@@ -156,9 +156,7 @@ export class Locator {
 
   async tap(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.tap()', async () => {
-      const node = await this.resolveActionable(opts?.timeout);
-      const { x, y } = centerOf(node.bounds);
-      await this.driver.tap(x, y);
+      await this._resolveAndTap(opts?.timeout);
     });
   }
 
@@ -189,13 +187,32 @@ export class Locator {
     });
   }
 
-  /** Focus the element by tapping it, then select all and delete its contents. */
-  private async _tapAndClear(timeout?: number): Promise<void> {
+  /** Resolve the element, tap its center to focus/activate it, and return the node. */
+  private async _resolveAndTap(timeout?: number): Promise<ViewNode> {
     const node = await this.resolveActionable(timeout);
     const { x, y } = centerOf(node.bounds);
     await this.driver.tap(x, y);
+    return node;
+  }
+
+  /** Focus the element by tapping it, then select all and delete its contents. */
+  private async _tapAndClear(timeout?: number): Promise<void> {
+    await this._resolveAndTap(timeout);
     const selectAll = this.driver.platform === 'ios' ? 'cmd+a' : 'ctrl+a';
     await this.driver.pressKeys([selectAll, 'backspace']);
+
+    // Verify the select-all + backspace actually emptied the field; if the
+    // selection didn't take, backspace removes a single character and we'd
+    // otherwise silently leave residual text for fill() to append to.
+    if ((await this._currentValue()) !== '') {
+      throw new LocatorError('Failed to clear element after select-all and delete', this.strategy);
+    }
+  }
+
+  /** Read the element's current value from the latest hierarchy, '' if absent. */
+  private async _currentValue(): Promise<string> {
+    const roots = await this.driver.getViewHierarchy();
+    return queryAll(roots, this.strategy)[0]?.value ?? '';
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
