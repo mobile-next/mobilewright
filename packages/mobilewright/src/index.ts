@@ -12,7 +12,13 @@ export { Device, Screen, Locator, MobileWebViewPage, MobileWebViewLocator, Page,
 export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext } from './config.js';
 
 // Errors
-export { MobilewrightError } from './errors.js';
+export {
+    MobilewrightError,
+    WebViewError,
+    WebViewNotFoundError,
+    WebViewDebugNotEnabledError,
+    WebViewStrictModeViolationError,
+} from './errors.js';
 
 // Internal — used by @mobilewright/test fixtures. Not part of the public API.
 export { createDevicePoolClient } from './device-pool/client-factory.js';
