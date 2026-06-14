@@ -8,7 +8,10 @@ on:
 
 jobs:
   build-amd64:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -39,7 +42,10 @@ jobs:
           build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
 
   build-arm64:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -70,6 +76,10 @@ jobs:
           build-args: MOBILEWRIGHT_VERSION=${{ steps.version.outputs.value }}
 
   manifest:
+    if: >
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
     needs: [build-amd64, build-arm64]
     permissions:
