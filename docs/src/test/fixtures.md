@@ -21,7 +21,7 @@ test('shows welcome message', async ({ screen }) => {
 });
 ```
 
-The `screen` fixture is scoped to each test. It also handles video recording and captures a screenshot on test failure, attaching both to the test report.
+The `screen` fixture is scoped to each test. It also handles video recording and can attach screenshots and accessibility view trees to the test report based on your configured modes.
 
 ### `device`
 
@@ -50,7 +50,8 @@ You can override the following settings per-test or per-project, in addition to 
 | `bundleId` | `string` | App bundle identifier |
 | `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching |
 | `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
-| `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility view tree as JSON to the report when a test fails. Default: `'off'` |
+| `screenshot` | `'on' \| 'on-failure' \| 'off'` | Attach screenshots to the report for every test (`'on'`) or only failed tests (`'on-failure'`). Default: `'on-failure'` |
+| `viewTree` | `'on' \| 'on-failure' \| 'off'` | Attach the accessibility view tree as JSON for every test (`'on'`) or only failed tests (`'on-failure'`). Default: `'off'` |
 
 ```typescript
 import { test } from '@mobilewright/test';

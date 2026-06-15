@@ -92,8 +92,10 @@ export interface MobilewrightConfig {
   installApps?: string | string[];
   /** Automatically launch the app after connecting. Default: true. */
   autoAppLaunch?: boolean;
-  /** Attach the accessibility tree as JSON to the test report. 'on-failure' attaches on test failure, 'off' disables. Default: 'off'. */
-  viewTree?: 'on-failure' | 'off';
+  /** Attach test screenshots to the report. 'on' attaches for every test, 'on-failure' only for failed tests, 'off' disables. Default: 'on-failure'. */
+  screenshot?: 'on' | 'on-failure' | 'off';
+  /** Attach the accessibility tree as JSON to the test report. 'on' attaches for every test, 'on-failure' only for failed tests, 'off' disables. Default: 'off'. */
+  viewTree?: 'on' | 'on-failure' | 'off';
   /** mobilecli server URL (use for remote servers). */
   url?: string;
   /** Path to mobilecli binary (if not on PATH). */

@@ -50,9 +50,30 @@ type MobilewrightTestFixtures = {
   platform: 'ios' | 'android' | undefined;
   deviceName: RegExp | undefined;
   installApps: string | string[] | undefined;
-  viewTree: 'on-failure' | 'off';
+  screenshotMode: ArtifactMode;
+  viewTree: ArtifactMode;
   device: Device;
 };
+
+type ArtifactMode = 'on' | 'on-failure' | 'off';
+
+export function resolveArtifactMode(
+  rawValue: unknown,
+  optionName: 'screenshot' | 'viewTree',
+  defaultValue: ArtifactMode,
+): ArtifactMode {
+  const value = rawValue ?? defaultValue;
+  if (value === 'on' || value === 'on-failure' || value === 'off') {
+    return value;
+  }
+  throw new Error(
+    `Invalid ${optionName} value: "${String(value)}". Must be "on", "on-failure", or "off".`,
+  );
+}
+
+export function shouldAttachArtifact(mode: ArtifactMode, failed: boolean): boolean {
+  return mode === 'on' || (mode === 'on-failure' && failed);
+}
 
 let cachedClient: DevicePoolClient | undefined;
 function getClient(): DevicePoolClient {
@@ -77,14 +98,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
   deviceName: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
 
+  screenshotMode: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    await use(resolveArtifactMode(config.screenshot, 'screenshot', 'on-failure'));
+  }, { option: true }],
+
   viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
-    const value = config.viewTree ?? 'off';
-    if (value !== 'on-failure' && value !== 'off') {
-      throw new Error(`Invalid viewTree value: "${value}". Must be "on-failure" or "off".`);
-    }
-    
-    await use(value);
+    await use(resolveArtifactMode(config.viewTree, 'viewTree', 'off'));
   }, { option: true }],
 
   device: async ({ platform, deviceName, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
@@ -173,7 +194,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
   },
 
-  screen: async ({ device, video, viewTree }, use, testInfo) => {
+  screen: async ({ device, video, screenshotMode, viewTree }, use, testInfo) => {
     const videoMode = typeof video === 'object' ? video.mode : video;
     const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
     const videoPath = shouldRecord
@@ -209,23 +230,28 @@ export const test = base.extend<MobilewrightTestFixtures>({
       }
     }
 
-    if (testInfo.status !== testInfo.expectedStatus) {
+    const failed = testInfo.status !== testInfo.expectedStatus;
+
+    if (shouldAttachArtifact(screenshotMode, failed)) {
       try {
-        const screenshot = await device.screen.screenshot();
-        await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
+        const screenshotBuffer = await device.screen.screenshot();
+        const attachmentName = failed ? 'screenshot-on-failure' : 'screenshot';
+        await testInfo.attach(attachmentName, { body: screenshotBuffer, contentType: 'image/png' });
       } catch {
         // device may be disconnected
       }
-      if (viewTree === 'on-failure') {
-        try {
-          const tree = await device.screen.viewTree();
-          await testInfo.attach('view-tree-on-failure', {
-            body: Buffer.from(JSON.stringify(tree, null, 2)),
-            contentType: 'application/json',
-          });
-        } catch {
-          // device may be disconnected
-        }
+    }
+
+    if (shouldAttachArtifact(viewTree, failed)) {
+      try {
+        const tree = await device.screen.viewTree();
+        const attachmentName = failed ? 'view-tree-on-failure' : 'view-tree';
+        await testInfo.attach(attachmentName, {
+          body: Buffer.from(JSON.stringify(tree, null, 2)),
+          contentType: 'application/json',
+        });
+      } catch {
+        // device may be disconnected
       }
     }
   },
