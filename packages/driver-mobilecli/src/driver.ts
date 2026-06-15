@@ -349,7 +349,7 @@ export class MobilecliDriver implements MobilewrightDriver {
 
   async getViewHierarchy(): Promise<ViewNode[]> {
     const result = await this.call<MobilecliUIDumpResponse>('device.dump.ui');
-    return result.elements.map(elementToViewNode);
+    return (result?.elements ?? []).map(elementToViewNode);
   }
 
   async tap(x: number, y: number): Promise<void> {
