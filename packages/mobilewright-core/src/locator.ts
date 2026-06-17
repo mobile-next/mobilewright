@@ -9,7 +9,6 @@ export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepL
 export interface LocatorOptions {
   timeout?: number;
   pollInterval?: number;
-  stabilityDelay?: number;
   /** Default timeout for expect() assertions on this locator, in ms. */
   expectTimeout?: number;
 }
@@ -34,7 +33,6 @@ export interface ScrollIntoViewOptions {
 
 const DEFAULT_TIMEOUT = 5_000;
 const DEFAULT_POLL_INTERVAL = 100;
-const DEFAULT_STABILITY_DELAY = 50;
 
 export class Locator {
   /** Create a root locator that searches the entire view hierarchy. */
@@ -354,7 +352,7 @@ export class Locator {
     }
   }
 
-  /** Resolve to a single actionable node (visible, enabled, stable bounds) */
+  /** Resolve to a single actionable node (visible, enabled) */
   private async resolveActionable(
     timeout?: number,
   ): Promise<ViewNode> {
@@ -362,11 +360,8 @@ export class Locator {
       timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
     const pollInterval =
       this.options.pollInterval ?? DEFAULT_POLL_INTERVAL;
-    const stabilityDelay =
-      this.options.stabilityDelay ?? DEFAULT_STABILITY_DELAY;
     const deadline = Date.now() + effectiveTimeout;
 
-    let previousBounds: Bounds | null = null;
     let lastReason = 'no matching element found';
 
     while (true) {
@@ -380,16 +375,7 @@ export class Locator {
       } else if (!node.isEnabled) {
         lastReason = 'element found but not enabled';
       } else {
-        // Stability check: bounds haven't changed since last poll
-        if (previousBounds && boundsEqual(previousBounds, node.bounds)) {
-          return node;
-        }
-        previousBounds = { ...node.bounds };
-        if (Date.now() >= deadline) {
-          return node; // accept without stability
-        }
-        await sleep(stabilityDelay);
-        continue;
+        return node;
       }
 
       if (Date.now() >= deadline) {
@@ -446,15 +432,6 @@ function centerOf(bounds: Bounds): { x: number; y: number } {
     x: Math.round(bounds.x + bounds.width / 2),
     y: Math.round(bounds.y + bounds.height / 2),
   };
-}
-
-function boundsEqual(a: Bounds, b: Bounds): boolean {
-  return (
-    a.x === b.x &&
-    a.y === b.y &&
-    a.width === b.width &&
-    a.height === b.height
-  );
 }
 
 function checkState(

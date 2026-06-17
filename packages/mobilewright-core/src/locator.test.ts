@@ -243,7 +243,7 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, {
         kind: 'testId',
         value: 'delayedBtn',
-      }, { timeout: 2000, pollInterval: 10, stabilityDelay: 10 });
+      }, { timeout: 2000, pollInterval: 10 });
 
       await locator.tap();
       expect(driver._tracker.tapCalls.length).toBeGreaterThan(0);
