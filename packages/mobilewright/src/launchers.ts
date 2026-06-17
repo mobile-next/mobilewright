@@ -1,4 +1,4 @@
-import type { Platform, DeviceInfo, DeviceType, MobilewrightDriver } from '@mobilewright/protocol';
+import type { Platform, DeviceInfo, DeviceType, DeviceSettings, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
@@ -20,6 +20,7 @@ export interface LaunchOptions {
   expectTimeout?: number;
   appLaunchTimeout?: number;
   installTimeout?: number;
+  animations?: 'on' | 'off';
 }
 
 interface PlatformLauncher {
@@ -38,6 +39,7 @@ export interface ConnectDeviceParams {
   expectTimeout?: number;
   appLaunchTimeout?: number;
   installTimeout?: number;
+  deviceSettings?: DeviceSettings;
 }
 
 export interface FindDeviceParams {
@@ -78,6 +80,12 @@ export async function connectDevice(params: ConnectDeviceParams): Promise<Device
     deviceType: params.deviceType,
     timeout: params.timeout,
   });
+
+  const settings = params.deviceSettings;
+  if (settings && Object.values(settings).some((value) => value !== undefined)) {
+    await device.applyDeviceSettings(settings);
+  }
+
   return device;
 }
 
@@ -138,6 +146,7 @@ function createLauncher(platform: Platform): PlatformLauncher {
         expectTimeout: opts.expectTimeout,
         appLaunchTimeout: opts.appLaunchTimeout,
         installTimeout: opts.installTimeout,
+        deviceSettings: { animations: opts.animations },
       });
 
       if (serverProcess) {

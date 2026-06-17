@@ -145,6 +145,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       expectTimeout: merged.expect?.timeout,
       appLaunchTimeout: merged.use?.appLaunchTimeout,
       installTimeout: merged.use?.installTimeout,
+      deviceSettings: { animations: merged.use?.animations },
     });
     debug('connected to device %s', handle.deviceId);
 

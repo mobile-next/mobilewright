@@ -21,6 +21,8 @@ export interface MobilewrightUseOptions {
   bundleId?: string;
   /** App paths (APK/IPA) to install for this project. Overrides top-level installApps. */
   installApps?: string | string[];
+  /** System animations on the device: 'on' or 'off'. If omitted, the device is left unchanged. */
+  animations?: 'on' | 'off';
   /** Default timeout for locator actions (tap, fill, etc.) in ms. Default: 5000. */
   actionTimeout?: number;
   /** Timeout waiting for the app to reach foreground after launch, in ms. Default: 20000. */
