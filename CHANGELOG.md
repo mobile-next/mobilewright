@@ -1,3 +1,7 @@
+## [0.0.46] (2026-06-17)
+* Feat: device-level settings with animations toggle ([#201](https://github.com/mobile-next/mobilewright/pull/201))
+* Chore: update bundled mobilecli to 0.3.85 ([#203](https://github.com/mobile-next/mobilewright/pull/203))
+
 ## [0.0.45] (2026-06-15)
 * Feat(Locator): `locator.clear()` empties a text field, and `fill()` now auto-clears before typing ([#195](https://github.com/mobile-next/mobilewright/pull/195))
 * Feat(Agent): automatically update the agent on `install` when versions differ
