@@ -6,6 +6,7 @@ import type {
   Bounds,
   ConnectionConfig,
   DeviceInfo,
+  DeviceSettings,
   DeviceState,
   DeviceType,
   GestureSequence,
@@ -343,6 +344,10 @@ export class MobilecliDriver implements MobilewrightDriver {
   async disconnect(): Promise<void> {
     await this.requireSession().rpc.disconnect();
     this.session = null;
+  }
+
+  async applyDeviceSettings(settings: DeviceSettings): Promise<void> {
+    await this.call('device.settings.apply', { ...settings });
   }
 
   // ─── Element Operations ──────────────────────────────────────

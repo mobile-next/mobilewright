@@ -2,6 +2,7 @@ import type {
   AppInfo,
   ConnectionConfig,
   DeviceInfo,
+  DeviceSettings,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
@@ -52,6 +53,14 @@ export interface MobilewrightDriver {
   connect(config: ConnectionConfig): Promise<Session>;
   /** End the active session and release the device. */
   disconnect(): Promise<void>;
+
+  // Device settings
+  /**
+   * Apply device-level settings (animations, etc.) to the connected device.
+   * Optional — drivers that don't support it omit it and callers no-op.
+   * Fire-and-forget: settings are not restored on disconnect.
+   */
+  applyDeviceSettings?(settings: DeviceSettings): Promise<void>;
 
   // UI hierarchy
   /** Fetch the current on-screen view hierarchy as a forest of nodes. */

@@ -87,6 +87,19 @@ export interface Session {
   platform: Platform;
 }
 
+// ─── Device Settings ─────────────────────────────────────────────
+
+/**
+ * Device-level settings applied to the connected device after connect.
+ *
+ * Applied as a partial update (PATCH semantics): only the keys provided are
+ * touched. Fire-and-forget — settings are not restored on disconnect.
+ */
+export interface DeviceSettings {
+  /** System animations on the device. If omitted, the device is left unchanged. */
+  animations?: 'on' | 'off';
+}
+
 // ─── Input ───────────────────────────────────────────────────────
 
 export type SwipeDirection = 'up' | 'down' | 'left' | 'right';

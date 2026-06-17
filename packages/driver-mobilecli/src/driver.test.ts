@@ -351,3 +351,16 @@ test.describe('MobilecliDriver.clearText()', () => {
     ]);
   });
 });
+
+test.describe('MobilecliDriver.applyDeviceSettings()', () => {
+  test('sends device.settings.apply with the settings and deviceId', async () => {
+    const driver = createDriverWithSession({ platform: 'android' });
+    const calls = recordRpc(driver, { 'device.settings.apply': {} });
+
+    await driver.applyDeviceSettings({ animations: 'off' });
+
+    expect(calls).toEqual([
+      { method: 'device.settings.apply', params: { deviceId: SIMULATOR_DEVICE_ID, animations: 'off' } },
+    ]);
+  });
+});

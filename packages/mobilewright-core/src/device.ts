@@ -2,6 +2,7 @@ import createDebug from 'debug';
 import type {
   AppInfo,
   ConnectionConfig,
+  DeviceSettings,
   LaunchOptions,
   MobilewrightDriver,
   Orientation,
@@ -60,6 +61,15 @@ export class Device {
 
   async disconnect(): Promise<void> {
     await this.driver.disconnect();
+  }
+
+  /**
+   * Apply device-level settings (animations, etc.) to the connected device.
+   * No-ops when the driver doesn't support it. Fire-and-forget: settings are
+   * not restored on disconnect.
+   */
+  async applyDeviceSettings(settings: DeviceSettings): Promise<void> {
+    await this.driver.applyDeviceSettings?.(settings);
   }
 
   /** Full cleanup: disconnect + run any registered cleanup callbacks. */
