@@ -93,10 +93,10 @@ It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and te
 | `@mobilewright/test` | Test fixtures |
 | `@mobilewright/protocol` | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`) |
 | `@mobilewright/driver-mobilecli` | WebSocket JSON-RPC client for mobilecli |
-| `@mobilewright/driver-mobile-use` | WebSocket JSON-RPC client for [mobile-use.com](https://mobile-use.com) cloud devices |
-| `@mobilewright/mobilewright-core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
+| `@mobilewright/driver-mobilenext` | WebSocket JSON-RPC client for [mobile-use.com](https://mobile-use.com) cloud devices |
+| `@mobilewright/core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
 
-Most users only need `mobilewright` (or `@mobilewright/test` for vitest integration).
+Most users only need `mobilewright` (or `@mobilewright/test` for Playwright Test integration).
 
 ## API Reference
 
@@ -120,8 +120,8 @@ const device = await ios.launch({ deviceName: /My.*iPhone/ });
 const device = await ios.launch({ deviceId: '5A5FCFCA-...' });
 
 // List available devices
-const devices = ios.devices();
-const devices = android.devices();
+const devices = await ios.devices();
+const devices = await android.devices();
 ```
 
 `launch()` handles the full lifecycle:
@@ -168,14 +168,38 @@ Lazy, chainable element reference. No queries execute until you call an action o
 await locator.tap()
 await locator.doubleTap()
 await locator.longPress({ duration: 1000 })
-await locator.fill('hello@example.com')              // tap to focus + type text
+await locator.fill('hello@example.com')              // tap to focus, clear, then type text
+await locator.clear()                                // tap to focus + clear the field
 await locator.swipe({ direction: 'left' })           // swipe on a specific element
 await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
+await locator.screenshot()                           // capture just this element (cropped PNG)
+```
+
+**Narrowing & combining** — refine a locator that matches multiple elements:
+
+```typescript
+locator.filter({ hasText: 'In stock' })              // keep matches whose subtree contains text
+locator.filter({ hasNotText: /sold out/i })          // keep matches whose subtree does NOT contain text
+locator.filter({ has: screen.getByRole('button') })  // keep matches containing a child locator
+locator.filter({ hasNot: screen.getByText('Ad') })   // keep matches NOT containing a child locator
+locator.and(screen.getByRole('button'))              // match both this and another locator
+locator.or(screen.getByText('Retry'))                // match either this or another locator
+```
+
+**Multiple matches** — work with locators that resolve to more than one element:
+
+```typescript
+locator.first()                                      // first match
+locator.last()                                       // last match
+locator.nth(2)                                       // match at index (negative counts from the end)
+await locator.count()                                // number of matching elements
+await locator.all()                                  // array of Locators, one per match
 ```
 
 **Queries:**
 
 ```typescript
+await locator.exists()                               // boolean — present in the hierarchy (no wait)
 await locator.isVisible()                            // boolean
 await locator.isEnabled()                            // boolean
 await locator.isSelected()                           // boolean
@@ -183,6 +207,7 @@ await locator.isFocused()                            // boolean
 await locator.isChecked()                            // boolean
 await locator.getText()                              // waits for visibility first
 await locator.getValue()                             // raw value (e.g. text field content)
+await locator.boundingBox()                          // { x, y, width, height }
 ```
 
 **Explicit waiting:**
@@ -206,6 +231,30 @@ const title = await screen.getByType('NavigationBar').getByType('StaticText').ge
 ```
 
 When chaining, child lookups use bounds-based containment: any element whose bounds fit within the parent's bounds is considered a child. This works correctly with mobilecli's flat element lists.
+
+### WebView (hybrid apps)
+
+Apps that embed web content — Cordova, Capacitor, Ionic, or a raw `WKWebView` / Android `WebView` — expose a real DOM behind the native view. `screen.getByWebView()` bridges into that DOM and hands you a **Playwright-compatible** `Page`, so web content is driven with the exact Playwright API you already know.
+
+```typescript
+// Find the web view and resolve its page (Playwright-style)
+const webview = screen.getByWebView();               // optionally { testId: 'checkout-web' }
+const page = await webview.page();
+
+// From here it's the standard Playwright Page / Locator API
+await page.goto('https://example.com/login');
+await page.getByLabel('Email').fill('user@example.com');
+await page.getByRole('button', { name: 'Sign In' }).click();
+
+await expect(page).toHaveURL(/dashboard/);
+await expect(page.getByText('Welcome')).toBeVisible();
+```
+
+**Page** — navigation and lifecycle: `goto`, `reload`, `goBack`, `goForward`, `url`, `title`, `content`, `waitForURL`, `waitForLoadState`, `close`. Locator factories: `locator`, `getByRole`, `getByText`, `getByLabel`, `getByPlaceholder`, `getByTestId`, `getByAltText`, `getByTitle`.
+
+**Web Locator** — actions: `click`, `fill`, `type`, `press`, `focus`, `hover`, `scrollIntoViewIfNeeded`. Queries: `getText`, `getValue`, `textContent`, `innerText`, `innerHTML`, `inputValue`, `getAttribute`, `boundingBox`, `isVisible`, `isHidden`, `isEnabled`, `isDisabled`, `isChecked`. Plus `waitFor`, `first`/`last`/`nth`, `count`, and `all`. Assertions (`expect`) work the same as on native locators.
+
+`MobileWebViewPage` and `MobileWebViewLocator` are exported from `mobilewright` for advanced use (`Page` / `WebLocator` remain as back-compat aliases).
 
 ### Device
 
@@ -242,13 +291,24 @@ import { expect } from 'mobilewright';
 
 await expect(locator).toBeVisible();
 await expect(locator).not.toBeVisible();
+await expect(locator).toBeHidden();
 
 await expect(locator).toBeEnabled();
-await expect(locator).not.toBeEnabled();
+await expect(locator).toBeDisabled();
+
+await expect(locator).toBeSelected();
+await expect(locator).toBeFocused();
+await expect(locator).toBeChecked();
 
 await expect(locator).toHaveText('Welcome back!');
 await expect(locator).toHaveText(/welcome/i);
 await expect(locator).toContainText('back');
+await expect(locator).toBeEmpty();                   // element has no text
+
+await expect(locator).toHaveValue('user@example.com'); // text field / input value
+await expect(locator).toHaveValue(/@example\.com$/);
+
+await expect(locator).toHaveCount(3);                // number of matching elements
 
 await expect(locator).toBeVisible({ timeout: 10_000 });
 ```
@@ -365,6 +425,28 @@ ID                                      Name                     Platform  Type 
 5A5FCFCA-27EC-4D1B-B412-BAE629154EE0    iPhone 17 Pro            ios       simulator   booted
 ```
 
+### `mobilewright screenshot`
+
+Capture a screenshot of a connected device. Auto-starts mobilecli if it isn't running.
+
+```bash
+npx mobilewright screenshot                          # saves screenshot.png
+npx mobilewright screenshot -o home.png              # custom output path
+npx mobilewright screenshot -d <device-id>           # target a specific device
+npx mobilewright screenshot --url ws://host:12000    # remote mobilecli server
+```
+
+### `mobilewright install`
+
+Install the mobilecli agent on a connected device.
+
+```bash
+npx mobilewright install                             # install on the first device
+npx mobilewright install -d <device-id>              # target a specific device
+npx mobilewright install --force                     # force reinstall
+npx mobilewright install --provisioning-profile <p>  # iOS provisioning profile
+```
+
 ### `mobilewright test`
 
 Run your tests. Auto-discovers `mobilewright.config.ts` in the current directory.
@@ -386,6 +468,15 @@ Open the HTML report generated by `--reporter html`.
 ```bash
 npx mobilewright show-report
 npx mobilewright show-report mobilewright-report/
+```
+
+### `mobilewright merge-reports`
+
+Merge blob reports from sharded/parallel CI runs into a single report.
+
+```bash
+npx mobilewright merge-reports ./blob-reports        # merge into an HTML report (default)
+npx mobilewright merge-reports ./blob-reports --reporter json
 ```
 
 ## Run on real devices with mobile-use.com
