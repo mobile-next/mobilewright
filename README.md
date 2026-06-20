@@ -8,7 +8,7 @@ Framework for mobile device automation, inspired by Playwright's architecture an
 
 **Mobilewright** targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
 
-[Get Started](#quick-start) · [API Docs](#api-reference) · [Roadmap](ROADMAP.md) · [Cloud (mobile-use.com)](https://mobile-use.com)
+[Get Started](#quick-start) · [API Docs](#api-reference) · [Roadmap](ROADMAP.md) · [Mobile Next Cloud](https://mobilenext.ai)
 
 ## Why Mobilewright?
 
@@ -21,7 +21,7 @@ If you've used Playwright, you already know Mobilewright.
 | Setup | `npm install mobilewright` | Server + drivers + caps | React Native only | Xcode/AS only |
 | Cross-platform | iOS + Android, one API | Yes, verbose | React Native only | Single platform |
 | AI agent support | First-class (accessibility tree) | Limited | No | No |
-| Real devices in the cloud | Via [mobile-use.com](https://mobile-use.com) | Yes (complex) | Simulators only | Yes |
+| Real devices in the cloud | Via [Mobile Next Cloud](https://mobilenext.ai) | Yes (complex) | Simulators only | Yes |
 | Locators | Semantic roles + labels | XPath, CSS, ID | Test IDs | Native queries |
 
 ## Built for AI agents
@@ -93,7 +93,7 @@ It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and te
 | `@mobilewright/test` | Test fixtures |
 | `@mobilewright/protocol` | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`) |
 | `@mobilewright/driver-mobilecli` | WebSocket JSON-RPC client for mobilecli |
-| `@mobilewright/driver-mobilenext` | WebSocket JSON-RPC client for [mobile-use.com](https://mobile-use.com) cloud devices |
+| `@mobilewright/driver-mobilenext` | WebSocket JSON-RPC client for [Mobile Next Cloud](https://mobilenext.ai) cloud devices |
 | `@mobilewright/core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
 
 Most users only need `mobilewright` (or `@mobilewright/test` for Playwright Test integration).
@@ -126,7 +126,7 @@ const devices = await android.devices();
 
 `launch()` handles the full lifecycle:
 1. Checks if mobilecli is reachable (auto-starts it for local URLs if not running)
-2. Discovers booted devices (prefers simulators over real devices)
+2. Discovers booted devices (picks the first device that matches your criteria)
 3. Connects and optionally launches the app
 4. On `device.close()`, kills the auto-started server
 
@@ -156,6 +156,9 @@ await screen.swipe('up')
 await screen.swipe('down', { distance: 300, duration: 500 })
 await screen.pressButton('HOME')
 await screen.tap(195, 400)                           // raw coordinate tap
+await screen.doubleTap(195, 400)                     // raw coordinate double-tap
+await screen.longPress(195, 400, 1000)               // raw coordinate long-press (optional duration in ms)
+const tree = await screen.viewTree()                 // raw accessibility tree (ViewNode[])
 ```
 
 ### Locator
@@ -265,12 +268,15 @@ Manages the connection lifecycle and exposes device/app-level controls.
 await device.setOrientation('landscape');
 const orientation = await device.getOrientation();
 
+// Screen dimensions and pixel density: { width, height, scale }
+const size = await device.screenSize();
+
 // URLs / deep links (goto is a Playwright-style alias for openUrl)
 await device.goto('myapp://settings');
 await device.openUrl('https://example.com');
 
 // App lifecycle
-await device.launchApp('com.example.app', { locale: 'fr_FR' }); // waits until app is in foreground
+await device.launchApp('com.example.app', { locales: ['fr-FR'] }); // waits until app is in foreground
 await device.launchApp('com.example.app', { noWaitAfter: true }); // skip foreground wait
 await device.terminateApp('com.example.app');
 const apps = await device.listApps();
@@ -359,12 +365,43 @@ All options:
 | `bundleId` | `string` | App bundle ID (optional) |
 | `deviceId` | `string` | Explicit device UDID (optional) |
 | `deviceName` | `RegExp` | RegExp to match device name (optional) |
-| `timeout` | `number` | Global locator timeout in ms (optional) |
+| `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching (optional) |
+| `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
+| `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON to the report on failure. Default: `'off'` |
+| `timeout` | `number` | Per-test timeout in ms (optional) |
+| `globalTimeout` | `number` | Hard cap on the entire test suite run in ms (optional) |
 | `testDir` | `string` | Directory to search for test files (optional) |
 | `testMatch` | `string \| RegExp \| Array` | Glob patterns for test files (optional) |
+| `testIgnore` | `string \| RegExp \| Array` | Glob patterns for files to skip during discovery (optional) |
+| `outputDir` | `string` | Output directory for test artifacts. Default: `test-results` |
 | `reporter` | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional) |
 | `retries` | `number` | Maximum retry count for flaky tests (optional) |
+| `workers` | `number \| string` | Number of concurrent workers (optional) |
+| `fullyParallel` | `boolean` | Run all tests in parallel. Default: `false` |
+| `use` | `MobilewrightUseOptions` | Per-action defaults applied to all tests (optional) |
+| `expect` | `MobilewrightExpectConfig` | Default options for `expect()` assertions (optional) |
+| `globalSetup` | `string \| string[]` | Setup file(s) run once before all tests (optional) |
+| `globalTeardown` | `string \| string[]` | Teardown file(s) run once after all tests (optional) |
 | `projects` | `MobilewrightProjectConfig[]` | Multi-device / multi-platform project matrix (optional) |
+
+The `use` object holds per-action defaults shared by every test:
+
+| `use` option | Type | Description |
+|---|---|---|
+| `platform` | `'ios' \| 'android'` | Platform for the run (optional) |
+| `deviceName` | `RegExp` | RegExp to match device name (optional) |
+| `bundleId` | `string` | App bundle ID (optional) |
+| `installApps` | `string \| string[]` | App paths to install — overrides top-level `installApps` (optional) |
+| `animations` | `'on' \| 'off'` | Toggle system animations on the device; left unchanged if omitted |
+| `actionTimeout` | `number` | Default timeout for locator actions (tap, fill, …) in ms. Default: `5000` |
+| `appLaunchTimeout` | `number` | Timeout waiting for the app to reach foreground after launch, in ms. Default: `20000` |
+| `installTimeout` | `number` | Timeout for app installation in ms (optional) |
+
+The `expect` object sets assertion defaults:
+
+| `expect` option | Type | Description |
+|---|---|---|
+| `timeout` | `number` | Default timeout for assertions (`toBeVisible`, `toHaveText`, …) in ms. Default: `5000` |
 
 Config values are used as defaults — `LaunchOptions` passed to `ios.launch()` always take precedence.
 
@@ -394,6 +431,26 @@ test('can sign in', async ({ device, screen, bundleId }) => {
 ```
 
 The `device` fixture connects once per worker (reading from `mobilewright.config.ts`) and calls `device.close()` after all tests complete. The `screen` fixture provides `device.screen` to each test, with automatic screenshot-on-failure and optional video recording.
+
+**`test.use()` options** — override config per file (or per `test.describe` block):
+
+| Option | Type | Description |
+|---|---|---|
+| `bundleId` | `string` | App bundle ID for these tests |
+| `platform` | `'ios' \| 'android'` | Target platform |
+| `deviceName` | `RegExp` | RegExp to match the device name |
+| `installApps` | `string \| string[]` | App paths (APK/IPA) to install before the tests run |
+| `autoAppLaunch` | `boolean` | Launch the app automatically before each test. Default: `true` |
+| `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON when a test fails. Default: `'off'` |
+| `video` | `'on' \| 'retain-on-failure' \| 'off'` | Record video — always, only on failure, or never. Default: `'off'` |
+
+```typescript
+test.use({
+  bundleId: 'com.example.myapp',
+  video: 'retain-on-failure',
+  viewTree: 'on-failure',
+});
+```
 
 ## CLI
 
@@ -479,11 +536,11 @@ npx mobilewright merge-reports ./blob-reports        # merge into an HTML report
 npx mobilewright merge-reports ./blob-reports --reporter json
 ```
 
-## Run on real devices with mobile-use.com
+## Run on real devices with Mobile Next Cloud
 
-Need real phones in the cloud? [mobile-use.com](https://mobile-use.com) gives you API access to hundreds of real Android and iOS devices. Your Mobilewright scripts run with zero modification — point your config at the mobile-use.com endpoint and go.
+Need real phones in the cloud? [Mobile Next Cloud](https://mobilenext.ai) gives you API access to hundreds of real Android and iOS devices. Your Mobilewright scripts run with zero modification — point your config at the Mobile Next Cloud endpoint and go.
 
-mobile-use.com is the only device cloud with native Mobilewright support.
+Mobile Next Cloud is the only device cloud with native Mobilewright support.
 
 ## Telemetry
 
