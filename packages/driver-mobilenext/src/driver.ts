@@ -414,6 +414,15 @@ export class MobileNextDriver implements MobilewrightDriver {
     await this.call('device.io.button', { button });
   }
 
+  async dismissKeyboard(): Promise<void> {
+    const platform = this.requireSession().platform;
+    if (platform === 'android') {
+      await this.pressButton('BACK');
+    } else {
+      await this.pressKeys(['return']);
+    }
+  }
+
   // ─── Screen ─────────────────────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
