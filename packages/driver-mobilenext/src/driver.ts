@@ -416,10 +416,18 @@ export class MobileNextDriver implements MobilewrightDriver {
 
   async dismissKeyboard(): Promise<void> {
     const platform = this.requireSession().platform;
+
+    // Only dismiss if a text input is currently focused — otherwise the
+    // dismiss action (BACK / Done) could navigate back or submit a form.
+    const roots = await this.getViewHierarchy();
+    if (!focusedTextInputExists(roots)) {
+      return;
+    }
+
     if (platform === 'android') {
-      await this.pressButton('BACK');
+      await this.pressKeys(['back']);
     } else {
-      await this.pressKeys(['return']);
+      await this.pressKeys(['Done']);
     }
   }
 
@@ -602,4 +610,22 @@ export class MobileNextDriver implements MobilewrightDriver {
     }
     return this.session;
   }
+}
+
+/** Recursively scan for a focused text-input element. Returns true when found. */
+function focusedTextInputExists(nodes: ViewNode[]): boolean {
+  for (const node of nodes) {
+    if (node.isFocused && isTextInputType(node.type)) {
+      return true;
+    }
+    if (node.children.length > 0 && focusedTextInputExists(node.children)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isTextInputType(type: string): boolean {
+  const lower = type.toLowerCase();
+  return lower.includes('text') || lower.includes('edit') || lower.includes('search');
 }
