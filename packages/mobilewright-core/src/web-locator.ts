@@ -422,9 +422,13 @@ export class MobileWebViewLocator {
         isNot,
         timeout: 0,
       });
-      lastMatches = result.matches;
+      // The injected matcher can hand back a non-boolean verdict (e.g. no element
+      // matched the selector yet). Coerce to a strict boolean so a stray undefined
+      // never leaks back to Playwright as pass: undefined ("Unexpected return from
+      // a matcher function"); treat anything but true as not-matched and keep polling.
+      lastMatches = result.matches === true;
       received = result.received;
-      return result.matches !== isNot;
+      return lastMatches !== isNot;
     };
 
     let reached = await check();
