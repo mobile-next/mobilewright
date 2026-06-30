@@ -1,3 +1,6 @@
+## [0.0.47] (2026-06-30)
+* Feat: add mobilewright inspect command with browser-based element inspector ([#213](https://github.com/mobile-next/mobilewright/pull/213)), thanks to [@marcomaes](https://github.com/marcomaes)
+
 ## [0.0.46] (2026-06-17)
 * Feat: device-level settings with animations toggle ([#201](https://github.com/mobile-next/mobilewright/pull/201))
 * Chore: update bundled mobilecli to 0.3.85 ([#203](https://github.com/mobile-next/mobilewright/pull/203))
