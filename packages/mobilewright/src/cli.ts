@@ -302,6 +302,35 @@ program
     if (checks.some(c => c.status === 'error')) process.exitCode = 1;
   });
 
+// ── inspect ────────────────────────────────────────────────────────────
+program
+  .command('inspect')
+  .description('open the Mobilewright Inspector in your browser')
+  .option('-p, --port <port>', 'port to listen on', '4621')
+  .action(async (opts: { port: string }) => {
+    const { start } = await import('@mobilewright/inspector');
+    const { default: open } = await import('open');
+    const { ios, android } = await import('./launchers.js');
+
+    const port = Number(opts.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      console.error(`error: --port must be a valid port number, got: ${opts.port}`);
+      process.exit(1);
+    }
+
+    const inspector = await start({ ios, android, port });
+    console.log(`Mobilewright Inspector running at ${inspector.url}`);
+    try { await open(inspector.url); } catch { /* no browser available; URL already printed */ }
+
+    async function shutdown(): Promise<void> {
+      await inspector.close();
+      process.exit(0);
+    }
+
+    process.on('SIGINT', () => { void shutdown(); });
+    process.on('SIGTERM', () => { void shutdown(); });
+  });
+
 // ── init ───────────────────────────────────────────────────────────────
 program
   .command('init')

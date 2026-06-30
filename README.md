@@ -482,6 +482,19 @@ ID                                      Name                     Platform  Type 
 5A5FCFCA-27EC-4D1B-B412-BAE629154EE0    iPhone 17 Pro            ios       simulator   booted
 ```
 
+### `mobilewright inspect`
+
+Open the Mobilewright Inspector — a browser-based UI showing a live screenshot of your connected device alongside every element and its best locator.
+
+```bash
+npx mobilewright inspect
+npx mobilewright inspect --port 4621   # use a specific port (default: 4621)
+```
+
+The Inspector opens automatically in your browser. Select a device from the picker at the top, then click **Refresh** or enable **Auto refresh**. Click any row in the element list to highlight its bounding box on the screenshot. Elements that share a locator with another element get a `dup` badge.
+
+Locator priority matches what mobilewright uses: `getByTestId` > `getByRole` > `getByLabel` > `getByText`.
+
 ### `mobilewright screenshot`
 
 Capture a screenshot of a connected device. Auto-starts mobilecli if it isn't running.

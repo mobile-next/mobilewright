@@ -5,11 +5,9 @@
     "rootDir": "src"
   },
   "include": ["src"],
+  "exclude": ["src/**/*.test.ts"],
   "references": [
     { "path": "../protocol" },
-    { "path": "../mobilewright-core" },
-    { "path": "../driver-mobilecli" },
-    { "path": "../driver-mobilenext" },
-    { "path": "../inspector" }
+    { "path": "../mobilewright-core" }
   ]
 }

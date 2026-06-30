@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mobilewright Inspector</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <header>
+    <h1>Mobilewright Inspector</h1>
+    <div id="device-picker">
+      <select id="device-select" aria-label="Device">
+        <option value="">No devices found</option>
+      </select>
+    </div>
+    <div id="refresh-controls">
+      <button id="refresh-btn">Refresh</button>
+      <label class="auto-refresh-label">
+        <input type="checkbox" id="auto-refresh-toggle" />
+        Auto-refresh
+      </label>
+      <select id="auto-refresh-interval" aria-label="Auto-refresh interval" disabled>
+        <option value="5000">5 s</option>
+        <option value="10000">10 s</option>
+        <option value="20000">20 s</option>
+        <option value="30000">30 s</option>
+        <option value="60000">1 min</option>
+      </select>
+    </div>
+    <div id="theme-controls">
+      <label for="theme-select">Theme</label>
+      <select id="theme-select">
+        <option value="void">Void</option>
+        <option value="aurora">Aurora</option>
+        <option value="crimson">Crimson</option>
+        <option value="arctic">Arctic</option>
+        <option value="synthwave">Synthwave</option>
+      </select>
+    </div>
+    <div id="status-bar" aria-live="polite"></div>
+  </header>
+
+  <main>
+    <section id="screenshot-pane">
+      <div id="screenshot-container">
+        <div id="no-device-msg">
+          <svg class="placeholder-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="14" y="4" width="36" height="56" rx="6" stroke="currentColor" stroke-width="2.5"/>
+            <rect x="20" y="10" width="24" height="36" rx="2" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+            <circle cx="32" cy="54" r="2.5" fill="currentColor" opacity="0.5"/>
+            <line x1="28" y1="7" x2="36" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+          </svg>
+          <p class="placeholder-title" id="placeholder-title">Select a device</p>
+          <p class="placeholder-sub" id="placeholder-sub">Pick a connected device or simulator above</p>
+        </div>
+        <img id="screenshot-img" alt="Device screenshot" hidden />
+        <svg id="highlight-overlay" hidden></svg>
+      </div>
+    </section>
+    <section id="elements-pane">
+      <div id="elements-list"></div>
+    </section>
+  </main>
+
+  <script src="/js/app.js" type="module"></script>
+</body>
+</html>

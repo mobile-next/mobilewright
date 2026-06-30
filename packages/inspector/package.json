@@ -1,7 +1,7 @@
 {
-  "name": "mobilewright",
+  "name": "@mobilewright/inspector",
   "version": "0.0.1",
-  "description": "Mobile device automation framework inspired by Playwright",
+  "description": "Browser-based element inspector for mobilewright",
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
@@ -18,34 +18,25 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "prepublishOnly": "tsc -b"
-  },
-  "bin": {
-    "mobilewright": "./dist/cli.js"
+    "prepublishOnly": "tsc -b",
+    "test": "playwright test --config=../../tests/mobilewright.config.ts"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mobile-next/mobilewright.git",
-    "directory": "packages/mobilewright"
+    "directory": "packages/inspector"
   },
   "files": [
     "dist",
-    "assets",
-    "templates"
+    "public"
   ],
   "dependencies": {
     "@mobilewright/core": "^0.0.1",
-    "@mobilewright/driver-mobilecli": "^0.0.1",
-    "@mobilewright/driver-mobilenext": "^0.0.1",
-    "@mobilewright/inspector": "^0.0.1",
     "@mobilewright/protocol": "^0.0.1",
-    "commander": "^14.0.3",
-    "open": "^10.2.0",
-    "debug": "^4.4.3",
-    "playwright": "1.58.2",
-    "ws": "^8.18.0"
+    "express": "^5.2.1",
+    "open": "^10.2.0"
   },
   "devDependencies": {
-    "@types/ws": "^8.5.0"
+    "@types/express": "^5.0.6"
   }
 }
