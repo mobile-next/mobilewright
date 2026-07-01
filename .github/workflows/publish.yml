@@ -11,6 +11,9 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    env:
+      # Publish order respects dependencies: inspector before mobilewright, etc.
+      PACKAGES: protocol mobilewright-core inspector driver-mobilecli driver-mobilenext mobilewright test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -22,22 +25,22 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm audit
       - run: npm run build
-      - run: npm publish --access public --provenance
-        working-directory: packages/protocol
-      - run: npm publish --access public --provenance
-        working-directory: packages/mobilewright-core
-      - run: npm publish --access public --provenance
-        working-directory: packages/driver-mobilecli
-      - run: npm publish --access public --provenance
-        working-directory: packages/driver-mobilenext
-      - run: cp ../../README.md .
-        working-directory: packages/mobilewright
-      - run: npm publish --access public --provenance
-        working-directory: packages/mobilewright
-      - run: cp ../../README.md .
-        working-directory: packages/test
-      - run: npm publish --access public --provenance
-        working-directory: packages/test
+      - run: cp README.md packages/mobilewright/README.md
+      - run: cp README.md packages/test/README.md
+      - name: Dry run all packages (gate — abort if any fails)
+        run: |
+          for pkg in $PACKAGES; do
+            echo "::group::dry-run $pkg"
+            npm publish --access public --dry-run --workspace "packages/$pkg"
+            echo "::endgroup::"
+          done
+      - name: Publish all packages
+        run: |
+          for pkg in $PACKAGES; do
+            echo "::group::publish $pkg"
+            npm publish --access public --provenance --workspace "packages/$pkg"
+            echo "::endgroup::"
+          done
       - name: Create or update GitHub release
         run: |
           VERSION=${GITHUB_REF_NAME#v}

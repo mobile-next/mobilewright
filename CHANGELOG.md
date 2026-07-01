@@ -1,3 +1,7 @@
+## [0.0.48] (2026-07-01)
+* Fix(ci): fixed publishing of @mobilewright/inspector
+* Fix(ci): run "npm publish --dry-run" on all packages prior to publishing any
+
 ## [0.0.47] (2026-06-30)
 * Feat: add mobilewright inspect command with browser-based element inspector ([#213](https://github.com/mobile-next/mobilewright/pull/213)), thanks to [@marcomaes](https://github.com/marcomaes)
 
