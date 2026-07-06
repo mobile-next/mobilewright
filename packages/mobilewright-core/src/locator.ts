@@ -481,12 +481,12 @@ function isWithinViewport(bounds: Bounds, screen: ScreenSize): boolean {
 }
 
 function swipeDirectionToReveal(bounds: Bounds, screen: ScreenSize): SwipeDirection {
-  const centerY = bounds.y + bounds.height / 2;
-  // Element is below the viewport → swipe up to reveal it
-  if (centerY > screen.height) {
+  const bottomY = bounds.y + bounds.height;
+  // Element extends below the viewport → swipe up (scroll down) to reveal it
+  if (bottomY > screen.height) {
     return 'up';
   }
-  // Element is above the viewport → swipe down to reveal it
+  // Element is above the viewport → swipe down (scroll up) to reveal it
   return 'down';
 }
 
