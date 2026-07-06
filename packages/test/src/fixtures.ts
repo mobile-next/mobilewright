@@ -89,11 +89,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
   device: async ({ platform, deviceName, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    const project = config.projects?.find(p => p.name === testInfo.project.name);
+    const projectUse = { ...config.use, ...project?.use };
     const merged = {
       ...config,
       ...(platform && { platform }),
       ...(deviceName && { deviceName }),
       ...(installApps !== undefined && { installApps }),
+      use: projectUse,
     };
     
     if (merged.platform !== 'ios' && merged.platform !== 'android') {
