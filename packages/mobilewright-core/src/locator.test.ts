@@ -669,7 +669,7 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'label', value: 'Far' });
       await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
 
-      // centerY of belowBounds = 900 + 22 = 922 > 844, so swipeDirectionToReveal returns 'up'
+      // bottomY of belowBounds = 900 + 44 = 944 > 844, so swipeDirectionToReveal returns 'up'
       expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
     });
 
@@ -689,7 +689,7 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'label', value: 'Far' });
       await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
 
-      // centerY of aboveBounds = -200 + 22 = -178, not > 844, so swipeDirectionToReveal returns 'down'
+      // bottomY of aboveBounds = -200 + 44 = -156, not > 844, so swipeDirectionToReveal returns 'down'
       expect(driver._tracker.swipeCalls[0]).toEqual(['down']);
     });
 
@@ -701,6 +701,28 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'label', value: 'Far' });
 
       await expect(locator.scrollIntoViewIfNeeded({ maxSwipes: 1 })).rejects.toThrow(LocatorError);
+    });
+
+    test('swipes up when element bottom exceeds viewport even when center is within viewport', async () => {
+      // Edge case: element center (822) is within viewport but bottom (866) exceeds screen height (844)
+      const partiallyBelowBounds = { x: 0, y: 822, width: 390, height: 44 };
+      const inViewBounds = { x: 0, y: 400, width: 390, height: 44 };
+      const belowTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: partiallyBelowBounds })] })];
+      const inViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: inViewBounds })] })];
+
+      const driver = createMockDriver(belowTree);
+      let callCount = 0;
+      driver.getViewHierarchy = async () => {
+        callCount++;
+        return callCount >= 2 ? inViewTree : belowTree;
+      };
+
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+      await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
+
+      // Old code used centerY (822), which is not > 844, so it returned 'down' (wrong).
+      // Fixed code uses bottomY (866), which is > 844, so it returns 'up' (correct).
+      expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
     });
   });
 
