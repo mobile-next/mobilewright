@@ -1,3 +1,6 @@
+## [0.0.49] (2026-07-11)
+* Fix(driver): do not fall back to accessibility name for testId identifier ([#224](https://github.com/mobile-next/mobilewright/pull/224))
+
 ## [0.0.48] (2026-07-01)
 * Fix(ci): fixed publishing of @mobilewright/inspector
 * Fix(ci): run "npm publish --dry-run" on all packages prior to publishing any
