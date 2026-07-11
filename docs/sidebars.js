@@ -33,7 +33,10 @@ const sidebars = {
       items: [
         'guides/assertions',
         'guides/auto-waiting',
+        'guides/deep-links',
         'guides/docker',
+        'guides/inspector',
+        'guides/locators',
         'guides/screenshots',
         'guides/troubleshooting',
         'guides/webviews',

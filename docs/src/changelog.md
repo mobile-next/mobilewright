@@ -7,6 +7,29 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.48] (2026-07-01)
+* Fix(ci): fixed publishing of @mobilewright/inspector
+* Fix(ci): run "npm publish --dry-run" on all packages prior to publishing any
+
+## [0.0.47] (2026-06-30)
+* Feat: add mobilewright inspect command with browser-based element inspector ([#213](https://github.com/mobile-next/mobilewright/pull/213)), thanks to [@marcomaes](https://github.com/marcomaes)
+
+## [0.0.46] (2026-06-17)
+* Feat: device-level settings with animations toggle ([#201](https://github.com/mobile-next/mobilewright/pull/201))
+* Chore: update bundled mobilecli to 0.3.85 ([#203](https://github.com/mobile-next/mobilewright/pull/203))
+
+## [0.0.45] (2026-06-15)
+* Feat(Locator): `locator.clear()` empties a text field, and `fill()` now auto-clears before typing ([#195](https://github.com/mobile-next/mobilewright/pull/195))
+* Feat(Agent): automatically update the agent on `install` when versions differ
+* Feat(Android): add placeholder field to Android `dump ui`
+* Fix(Android): restore missing Android EditText if it had no value, no hint, no id (but was clickable)
+* Feat: return installed app metadata from `apps install`
+* Feat(Android): Android `list apps` now includes version and versionCode
+* Fix: scale press-keys RPC timeout by key count
+* Fix(iOS): match agent bundle id by suffix to support re-signed runner
+* Chore: update npm packages for security ([#193](https://github.com/mobile-next/mobilewright/pull/193))
+* Chore: update bundled mobilecli to 0.3.84 ([#199](https://github.com/mobile-next/mobilewright/pull/199))
+
 ## [0.0.44] (2026-06-12)
 * Feat: add `activity` to `LaunchOptions` ([#182](https://github.com/mobile-next/mobilewright/pull/182))
 * Feat(driver-mobilenext): upload test report by default unless `uploadReport` is off ([#188](https://github.com/mobile-next/mobilewright/pull/188))
