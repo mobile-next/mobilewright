@@ -495,6 +495,8 @@ The Inspector opens automatically in your browser. Select a device from the pick
 
 Locator priority matches what mobilewright uses: `getByTestId` > `getByRole` > `getByLabel` > `getByText`.
 
+![Mobilewright Inspector](docs/src/images/inspector.png)
+
 ### `mobilewright screenshot`
 
 Capture a screenshot of a connected device. Auto-starts mobilecli if it isn't running.
