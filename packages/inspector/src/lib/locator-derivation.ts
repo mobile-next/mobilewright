@@ -43,40 +43,48 @@ function deriveRole(node: ViewNode): string | null {
 }
 
 /**
- * Derive the best mobilewright locator for a single ViewNode.
- * Returns null when no supported locator field is present.
+ * Derive all matching mobilewright locators for a single ViewNode.
+ * Returns array ordered by priority: testId > role > label > text.
+ * Empty array when no supported locator field is present.
  */
-export function deriveLocator(node: ViewNode): Locator | null {
+export function deriveLocators(node: ViewNode): Locator[] {
+  const locators: Locator[] = [];
+
   const testId = node.identifier || node.resourceId;
-  if (testId) return { kind: 'testId', value: testId };
+  if (testId) locators.push({ kind: 'testId', value: testId });
 
   const role = deriveRole(node);
   if (role) {
     const name = node.label || node.text || undefined;
-    return { kind: 'role', value: role, name };
+    locators.push({ kind: 'role', value: role, name });
   }
 
-  if (node.label) return { kind: 'label', value: node.label };
+  if (node.label) locators.push({ kind: 'label', value: node.label });
 
   const text = node.text ?? (node.value != null ? String(node.value) : undefined);
-  if (text) return { kind: 'text', value: text };
+  if (text) locators.push({ kind: 'text', value: text });
 
-  return null;
+  return locators;
+}
+
+/** Keep single-locator derive for backward compat — returns highest priority match or null. */
+export function deriveLocator(node: ViewNode): Locator | null {
+  return deriveLocators(node)[0] ?? null;
 }
 
 /**
- * Flatten a ViewNode tree depth-first and annotate each node with its best locator.
- * Nodes with no locatable field are included with locator: null.
+ * Flatten a ViewNode tree depth-first and annotate each node with its locators.
+ * Nodes with no locatable field are included with locators: [].
  */
 export function deriveElementList(
   roots: ViewNode[],
-): Array<{ node: ViewNode; locator: Locator | null }> {
-  const result: Array<{ node: ViewNode; locator: Locator | null }> = [];
+): Array<{ node: ViewNode; locator: Locator | null; locators: Locator[] }> {
+  const result: Array<{ node: ViewNode; locator: Locator | null; locators: Locator[] }> = [];
 
-  /** Depth-first recursive walk, pushing each visited node to result. */
   function walk(nodes: ViewNode[]): void {
     for (const node of nodes) {
-      result.push({ node, locator: deriveLocator(node) });
+      const nodeLocators = deriveLocators(node);
+      result.push({ node, locator: nodeLocators[0] ?? null, locators: nodeLocators });
       if (node.children?.length) walk(node.children);
     }
   }

@@ -704,7 +704,7 @@ test.describe('Locator', () => {
     });
 
     test('swipes up when element bottom exceeds viewport even when center is within viewport', async () => {
-      // Edge case: element center (822) is within viewport but bottom (866) exceeds screen height (844)
+      // Edge case: element top at y=822 (center at y=844) is within viewport but bottom (866) exceeds screen height (844)
       const partiallyBelowBounds = { x: 0, y: 822, width: 390, height: 44 };
       const inViewBounds = { x: 0, y: 400, width: 390, height: 44 };
       const belowTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: partiallyBelowBounds })] })];
@@ -720,7 +720,7 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'label', value: 'Far' });
       await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
 
-      // Old code used centerY (822), which is not > 844, so it returned 'down' (wrong).
+      // Old code used centerY (844), which is not > 844, so it returned 'down' (wrong).
       // Fixed code uses bottomY (866), which is > 844, so it returns 'up' (correct).
       expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
     });

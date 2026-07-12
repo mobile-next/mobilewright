@@ -153,6 +153,171 @@ class ScreenshotPane {
   }
 }
 
+// ---- DetailPane ----
+// Shows element properties, all locator strategies, raw attributes.
+
+class DetailPane {
+  #pane
+  #typeEl
+  #locatorsEl
+  #propsEl
+  #rawEl
+  #closeBtn
+  #onCloseCb = null
+
+  constructor() {
+    this.#pane = document.getElementById('detail-pane')
+    this.#typeEl = document.getElementById('detail-type')
+    this.#locatorsEl = document.getElementById('detail-locators')
+    this.#propsEl = document.getElementById('detail-properties')
+    this.#rawEl = document.getElementById('detail-raw')
+    this.#closeBtn = document.getElementById('detail-close')
+    this.#closeBtn.addEventListener('click', () => {
+      this.hide()
+      this.#onCloseCb?.()
+    })
+  }
+
+  onClose(cb) { this.#onCloseCb = cb }
+
+  show(el) {
+    if (!el) { this.hide(); return }
+
+    this.#typeEl.textContent = el.type ?? 'unknown'
+
+    // Locators
+    this.#locatorsEl.innerHTML = ''
+    if (el.locators?.length) {
+      const label = document.createElement('div')
+      label.className = 'detail-section-label'
+      label.textContent = 'Locator Strategies'
+      this.#locatorsEl.appendChild(label)
+
+      for (const loc of el.locators) {
+        const row = document.createElement('div')
+        row.className = 'detail-locator-row'
+        row.title = 'Click to copy'
+
+        const badge = document.createElement('span')
+        badge.className = `locator-badge badge-${loc.kind}`
+        badge.textContent = loc.kind
+        row.appendChild(badge)
+
+        const val = document.createElement('span')
+        val.className = 'locator-value'
+        val.textContent = locatorLabel(loc)
+        row.appendChild(val)
+
+        const copyBtn = document.createElement('button')
+        copyBtn.className = 'copy-btn'
+        copyBtn.textContent = '📋'
+        copyBtn.title = 'Copy locator'
+        copyBtn.addEventListener('click', e => {
+          e.stopPropagation()
+          navigator.clipboard.writeText(locatorLabel(loc)).then(() => {
+            copyBtn.textContent = '✓'
+            copyBtn.classList.add('copied')
+            setTimeout(() => { copyBtn.textContent = '📋'; copyBtn.classList.remove('copied') }, 1500)
+          }).catch(() => {})
+        })
+        row.appendChild(copyBtn)
+
+        row.addEventListener('click', () => {
+          navigator.clipboard.writeText(locatorLabel(loc)).catch(() => {})
+        })
+
+        this.#locatorsEl.appendChild(row)
+      }
+    } else {
+      const row = document.createElement('div')
+      row.className = 'detail-locator-row'
+      row.style.opacity = '0.5'
+      row.textContent = '(no locator available)'
+      this.#locatorsEl.appendChild(row)
+    }
+
+    // Properties
+    this.#propsEl.innerHTML = ''
+    const propLabel = document.createElement('div')
+    propLabel.className = 'detail-section-label'
+    propLabel.textContent = 'Properties'
+    this.#propsEl.appendChild(propLabel)
+
+    const props = [
+      { key: 'type', value: el.type },
+      { key: 'label', value: el.label },
+      { key: 'text', value: el.text },
+      { key: 'identifier', value: el.identifier },
+      { key: 'resourceId', value: el.resourceId },
+      { key: 'placeholder', value: el.placeholder },
+      { key: 'value', value: el.value },
+      { key: 'bounds', value: el.bounds ? `${el.bounds.x},${el.bounds.y} ${el.bounds.width}×${el.bounds.height}` : null },
+      { key: 'visible', value: el.isVisible },
+      { key: 'enabled', value: el.isEnabled },
+      { key: 'selected', value: el.isSelected },
+      { key: 'focused', value: el.isFocused },
+      { key: 'checked', value: el.isChecked },
+    ]
+
+    for (const p of props) {
+      if (p.value === null || p.value === undefined) continue
+      const row = document.createElement('div')
+      row.className = 'detail-prop-row'
+
+      const key = document.createElement('span')
+      key.className = 'detail-prop-key'
+      key.textContent = p.key
+      row.appendChild(key)
+
+      const val = document.createElement('span')
+      val.className = 'detail-prop-value'
+      if (typeof p.value === 'boolean') {
+        val.className += p.value ? ' boolean-true' : ' boolean-false'
+        val.textContent = String(p.value)
+      } else {
+        val.textContent = String(p.value)
+      }
+      row.appendChild(val)
+
+      this.#propsEl.appendChild(row)
+    }
+
+    // Raw attributes (collapsible)
+    if (el.raw && typeof el.raw === 'object' && Object.keys(el.raw).length > 0) {
+      this.#rawEl.hidden = false
+      this.#rawEl.innerHTML = ''
+
+      const toggle = document.createElement('button')
+      toggle.className = 'detail-raw-toggle'
+      toggle.textContent = `▶ Raw Attributes (${Object.keys(el.raw).length})`
+      this.#rawEl.appendChild(toggle)
+
+      const content = document.createElement('div')
+      content.className = 'detail-raw-content'
+      content.hidden = true
+      content.textContent = JSON.stringify(el.raw, null, 2)
+
+      toggle.addEventListener('click', () => {
+        const isHidden = content.hidden
+        content.hidden = !isHidden
+        toggle.textContent = isHidden
+          ? `▼ Raw Attributes (${Object.keys(el.raw).length})`
+          : `▶ Raw Attributes (${Object.keys(el.raw).length})`
+      })
+
+      this.#rawEl.appendChild(content)
+    } else {
+      this.#rawEl.hidden = true
+    }
+
+    this.#pane.hidden = false
+  }
+
+  hide() {
+    this.#pane.hidden = true
+  }
+}
+
 // ---- ElementsPane ----
 // Owns the element list: rendering rows, selection state, visibility toggles.
 
@@ -245,6 +410,14 @@ class ElementsPane {
       row.appendChild(warn)
     }
 
+    if (el.locators && el.locators.length > 1) {
+      const more = document.createElement('span')
+      more.className = 'locator-more'
+      more.textContent = `+${el.locators.length - 1} more`
+      more.title = el.locators.slice(1).map(l => locatorLabel(l)).join('\n')
+      row.appendChild(more)
+    }
+
     const type = document.createElement('span')
     type.className = 'element-type'
     type.textContent = el.type ?? ''
@@ -297,6 +470,7 @@ class Inspector {
 
   #screenshotPane = new ScreenshotPane()
   #elementsPane = new ElementsPane()
+  #detailPane = new DetailPane()
   #deviceSelect = document.getElementById('device-select')
   #refreshBtn = document.getElementById('refresh-btn')
   #autoRefreshToggle = document.getElementById('auto-refresh-toggle')
@@ -307,6 +481,7 @@ class Inspector {
     this.#screenshotPane.onElementClick(i => this.#selectElement(i))
     this.#elementsPane.onElementClick(i => this.#selectElement(i))
     this.#elementsPane.onToggleHidden(i => this.#toggleHidden(i))
+    this.#detailPane.onClose(() => { this.#state.selectedIndex = null; this.#screenshotPane.setSelectedIndex(null); this.#elementsPane.setSelectedIndex(null) })
 
     this.#refreshBtn.addEventListener('click', () => this.refresh())
     this.#deviceSelect.addEventListener('change', () => {
@@ -353,6 +528,7 @@ class Inspector {
       const data = await res.json()
       this.#state.elements = data.elements ?? []
       this.#state.selectedIndex = null
+      this.#detailPane.hide()
       this.#state.logicalWidth = data.screen?.width ?? 0
       this.#state.logicalHeight = data.screen?.height ?? 0
 
@@ -485,6 +661,8 @@ class Inspector {
     this.#state.selectedIndex = index
     this.#screenshotPane.setSelectedIndex(index)
     this.#elementsPane.setSelectedIndex(index)
+    const el = this.#state.elements.find(e => e.index === index)
+    this.#detailPane.show(el ?? null)
   }
 
   #toggleHidden(index) {
