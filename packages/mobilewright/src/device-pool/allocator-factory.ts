@@ -23,10 +23,8 @@ export async function createAllocator(config: MobilewrightConfig): Promise<Alloc
   if (driverType === 'mobilenext' || driverType === 'mobile-use') {
     const mobileNextConfig = config.driver as DriverConfigMobileNext;
     const allocator = new MobileNextAllocator({
-      driverOptions: {
-        region: mobileNextConfig.region,
-        apiKey: mobileNextConfig.apiKey,
-      },
+      apiKey: mobileNextConfig.apiKey ?? '',
+      allocationTimeout: mobileNextConfig.allocationTimeout,
     });
     return { allocator };
   }
