@@ -13,8 +13,13 @@ function toDeviceType(value?: string): DeviceType | undefined {
 }
 
 function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
+  // The fleet API requires exactly one platform filter, so a missing platform is a caller error —
+  // fail loudly instead of silently constraining every allocation to iOS.
+  if (!criteria.platform) {
+    throw new Error('MobileNextAllocator requires a platform ("ios" or "android") to allocate a device');
+  }
   const filters: DeviceFilter[] = [
-    { attribute: 'platform', operator: 'EQUALS', value: criteria.platform ?? 'ios' },
+    { attribute: 'platform', operator: 'EQUALS', value: criteria.platform },
   ];
   if (criteria.deviceNamePattern) {
     filters.push({ attribute: 'name', operator: 'CONTAINS', value: criteria.deviceNamePattern });
@@ -49,12 +54,20 @@ export class MobileNextAllocator implements DeviceAllocator {
     });
   }
 
-  async allocate(criteria: AllocationCriteria): Promise<AllocateResult> {
-    const sessionId = await this.getSession();
+  // takenDeviceIds is unused: the fleet allocates a fresh device server-side per call and the
+  // filter DSL has no "exclude id" operator, so the pool's local set is both redundant and
+  // inexpressible here. signal is threaded through so a pool shutdown or allocation timeout
+  // cancels an in-flight provisioning wait.
+  async allocate(
+    criteria: AllocationCriteria,
+    takenDeviceIds: ReadonlySet<string>,
+    signal?: AbortSignal,
+  ): Promise<AllocateResult> {
     const filters = buildFilters(criteria);
+    const sessionId = await this.getSession();
     debug('allocating device (session=%s, filters=%o)', sessionId, filters);
 
-    const device = await this.client.allocateDevice(sessionId, filters);
+    const device = await this.client.allocateDevice(sessionId, filters, signal);
     const serial = device.info.serial;
     if (!serial) {
       throw new Error(`Device allocation ${device.id} became in_use without a serial`);
@@ -84,9 +97,13 @@ export class MobileNextAllocator implements DeviceAllocator {
   }
 
   // Cache the promise, not the id, so concurrent first allocations share a single createSession.
+  // On failure, clear the cache so a later allocate() can retry instead of inheriting the rejection.
   private getSession(): Promise<string> {
     if (!this.sessionPromise) {
-      this.sessionPromise = this.client.createSession();
+      this.sessionPromise = this.client.createSession().catch((err: unknown) => {
+        this.sessionPromise = null;
+        throw err;
+      });
     }
     return this.sessionPromise;
   }

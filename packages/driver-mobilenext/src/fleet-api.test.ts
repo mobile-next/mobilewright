@@ -124,6 +124,32 @@ test('releaseDevice targets the device by serial', async () => {
   expect(calls[0].path).toBe('/api/v1/sessions/sess-1/devices/SERIAL-A/release');
 });
 
+// A fetch that never resolves on its own; it only settles by rejecting when its signal aborts —
+// which is exactly how a real stalled connection behaves once the client's controller fires.
+function stallingFetch(): typeof fetch {
+  return (async (_url: string, init: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init.signal as AbortSignal;
+      signal.addEventListener('abort', () => reject(new Error('aborted')));
+    })) as unknown as typeof fetch;
+}
+
+test('a stalled request aborts and is reported as a timeout', async () => {
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn: stallingFetch(), requestTimeout: 20 });
+
+  await expect(client.createSession()).rejects.toThrow(/timed out after 20ms/);
+});
+
+test('an external abort signal cancels an in-flight allocation', async () => {
+  const controller = new AbortController();
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn: stallingFetch() });
+
+  const pending = client.allocateDevice('sess-1', [{ attribute: 'platform', operator: 'EQUALS', value: 'ios' }], controller.signal);
+  controller.abort();
+
+  await expect(pending).rejects.toThrow(/aborted/);
+});
+
 test('a failed request surfaces the API error code and message', async () => {
   const { fetchFn } = stubFetch([
     { status: 402, json: { error: { code: 'insufficient_credits', message: 'Not enough credits' } } },
