@@ -327,6 +327,45 @@ test.describe('React Native Android role mapping', () => {
   });
 });
 
+test.describe('fully-qualified native types from real device dumps', () => {
+  // mobilecli reports the platform's raw native type: Android keeps the full
+  // package path (android.widget.EditText), and iOS may keep the XCUIElementType
+  // prefix. getByRole must resolve both to the same cross-platform role so a single
+  // test works on both platforms.
+  const androidScreen: ViewNode[] = [
+    node({ type: 'android.widget.EditText', label: 'text_field', text: 'Text Field' }),
+    node({ type: 'android.widget.EditText', label: 'password_field', text: 'Password' }),
+    node({ type: 'android.widget.EditText', label: 'multiline_text', text: 'Multiline text' }),
+    node({ type: 'android.widget.Switch', label: 'toggle' }),
+    node({ type: 'android.widget.Button', text: 'RESET COUNTER' }),
+    node({ type: 'android.widget.ImageButton', label: 'Navigate up' }),
+  ];
+
+  test('fully-qualified android EditTexts match the textfield role', () => {
+    const results = queryAll(androidScreen, { kind: 'role', value: 'textfield' });
+    expect(results).toHaveLength(3);
+  });
+
+  test('fully-qualified android Switch matches the switch role', () => {
+    const results = queryAll(androidScreen, { kind: 'role', value: 'switch' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('fully-qualified android Button and ImageButton match the button role', () => {
+    const results = queryAll(androidScreen, { kind: 'role', value: 'button' });
+    expect(results).toHaveLength(2);
+  });
+
+  test('XCUIElementType-prefixed iOS TextField matches the textfield role', () => {
+    const iosScreen: ViewNode[] = [
+      node({ type: 'XCUIElementTypeTextField', label: 'Email' }),
+      node({ type: 'XCUIElementTypeSecureTextField', label: 'Password' }),
+    ];
+    const results = queryAll(iosScreen, { kind: 'role', value: 'textfield' });
+    expect(results).toHaveLength(2);
+  });
+});
+
 test.describe('placeholder strategy', () => {
   const tree: ViewNode[] = [
     node({ type: 'TextField', placeholder: 'Enter email' }),

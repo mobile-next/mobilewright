@@ -194,8 +194,23 @@ const ROLE_TYPE_MAP: Record<string, string[]> = {
   header: ['navigationbar', 'toolbar', 'header'],
 };
 
+/**
+ * Reduce a raw native type to the bare name ROLE_TYPE_MAP is keyed on, so a single
+ * getByRole works across platforms. mobilecli reports types verbatim: Android keeps
+ * the full package path ("android.widget.EditText") and iOS may keep the
+ * "XCUIElementType" prefix ("XCUIElementTypeTextField"). getByType still matches the
+ * raw type — only role resolution normalizes.
+ */
+function bareTypeName(type: string): string {
+  const lower = type.toLowerCase();
+  const afterPackage = lower.includes('.') ? lower.slice(lower.lastIndexOf('.') + 1) : lower;
+  return afterPackage.startsWith('xcuielementtype')
+    ? afterPackage.slice('xcuielementtype'.length)
+    : afterPackage;
+}
+
 function matchesRole(node: ViewNode, role: string): boolean {
-  const normalizedType = node.type.toLowerCase();
+  const normalizedType = bareTypeName(node.type);
   const roleTypes = ROLE_TYPE_MAP[role.toLowerCase()];
 
   // React Native's ReactViewGroup is used for everything — only treat it as a
