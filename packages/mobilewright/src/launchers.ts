@@ -55,7 +55,6 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
     return new MobileNextDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
-      allocationTimeout: driverConfig.allocationTimeout,
     });
   }
   return new MobilecliDriver({ url });

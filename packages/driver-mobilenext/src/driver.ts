@@ -93,8 +93,6 @@ interface MobileNextDevicesResponse {
 export interface MobileNextDriverOptions {
   region?: string;
   apiKey?: string;
-  /** Timeout waiting for cloud device allocation in ms. Default: 300000 (5 min). */
-  allocationTimeout?: number;
 }
 
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
@@ -154,36 +152,6 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^0-9a-zA-Z_.]/g, '_');
 }
 
-interface FleetAllocateResponse {
-  sessionId: string;
-  provisionId?: string;
-  state?: string;
-  device?: {
-    id: string;
-    name: string;
-    platform: string;
-    state: string;
-    model: string;
-    type: string;
-    version: string;
-  };
-}
-
-interface DevicesListDevice {
-  id: string;
-  name: string;
-  platform: string;
-  state: string;
-  model: string;
-  type: string;
-  version: string;
-  provider?: { type: string; sessionId?: string };
-}
-
-interface DevicesListResponse {
-  devices: DevicesListDevice[];
-}
-
 interface UploadCreateResponse {
   uploadId: string;
   uploadUrl: string;
@@ -193,36 +161,13 @@ interface ActiveSession {
   deviceId: string;
   platform: Platform;
   rpc: RpcClient;
-  model?: string;
-  osVersion?: string;
-  type?: DeviceType;
 }
-
-export interface MobileNextDeviceInfo {
-  model?: string;
-  osVersion?: string;
-  type?: DeviceType;
-}
-
-type DeviceFilter =
-  | { attribute: 'platform'; operator: 'EQUALS'; value: 'ios' | 'android' }
-  | { attribute: 'type'; operator: 'EQUALS'; value: 'real' }
-  | { attribute: 'name'; operator: 'EQUALS' | 'STARTS_WITH' | 'CONTAINS'; value: string }
-  | { attribute: 'version'; operator: 'EQUALS' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUALS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUALS'; value: string };
 
 const debug = createDebug('mw:driver-mobilenext');
 
 export class MobileNextDriver implements MobilewrightDriver {
   private session: ActiveSession | null = null;
   private readonly options: MobileNextDriverOptions;
-  private ownsLease = false;
-
-  get deviceInfo(): MobileNextDeviceInfo | null {
-    if (!this.session) {
-      return null;
-    }
-    return { model: this.session.model, osVersion: this.session.osVersion, type: this.session.type };
-  }
 
   constructor(options: MobileNextDriverOptions = {}) {
     this.options = options;
@@ -230,115 +175,32 @@ export class MobileNextDriver implements MobilewrightDriver {
 
   // ─── Connection ──────────────────────────────────────────────
 
+  // The device must already be allocated via the fleet sessions API (see FleetApiClient); this
+  // driver only opens the RPC channel to drive it. deviceId is the physical serial the device
+  // tools accept.
   async connect(config: ConnectionConfig): Promise<Session> {
+    if (!config.deviceId) {
+      throw new Error('MobileNextDriver.connect requires a deviceId — allocate a device via the fleet sessions API first');
+    }
+
     const baseUrl = config.url ?? DEFAULT_URL;
     const url = this.options.apiKey
       ? appendQueryParam(baseUrl, 'token', this.options.apiKey)
       : baseUrl;
-    debug('connecting to %s', baseUrl);
+    debug('connecting to %s (device=%s)', baseUrl, config.deviceId);
     const rpc = new RpcClient(url, config.timeout);
     await rpc.connect();
     debug('websocket connected');
 
-    const platform = config.platform;
-
-    // When deviceId is provided the device is already allocated by the pool
-    // coordinator. Connect directly without fleet.allocate; this instance
-    // does not own the lease and must not call fleet.release on disconnect.
-    if (config.deviceId) {
-      debug('reusing pre-allocated device %s', config.deviceId);
-      this.ownsLease = false;
-      this.session = { deviceId: config.deviceId, platform, rpc };
-      return { deviceId: config.deviceId, platform };
-    }
-
-    this.ownsLease = true;
-
-    const filters = this.buildFilters(config);
-    debug('allocating device with filters %o', filters);
-    const result = await rpc.call<FleetAllocateResponse>('fleet.allocate', { filters });
-
-    let deviceId: string;
-    let model: string | undefined;
-    let osVersion: string | undefined;
-    let type: DeviceType | undefined;
-    if (result?.state === 'allocating' && result.sessionId) {
-      debug('device is provisioning, waiting for allocation (session=%s)', result.sessionId);
-      const device = await this.waitForAllocation(rpc, result.sessionId);
-      debug('allocated device %s (session=%s, model=%s)', device.id, result.sessionId, device.model);
-      deviceId = device.id;
-      model = device.model;
-      osVersion = device.version;
-      type = toDeviceType(device.type);
-    } else if (result?.device?.id) {
-      debug('allocated device %s (session=%s, model=%s)', result.device.id, result.sessionId, result.device.model);
-      deviceId = result.device.id;
-      model = result.device.model;
-      osVersion = result.device.version;
-      type = toDeviceType(result.device.type);
-    } else {
-      throw new Error(`Device allocation failed: ${JSON.stringify(result)}`);
-    }
-
-    this.session = { deviceId, platform, rpc, model, osVersion, type };
-    return { deviceId, platform };
-  }
-
-  private async waitForAllocation(
-    rpc: RpcClient,
-    sessionId: string,
-  ): Promise<DevicesListDevice> {
-    const timeout = this.options.allocationTimeout ?? 300_000;
-    const pollInterval = 5_000;
-    const deadline = Date.now() + timeout;
-
-    while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-      const elapsed = Math.round((timeout - (deadline - Date.now())) / 1000);
-      debug('waiting for device allocation, session=%s (%ds elapsed)', sessionId, elapsed);
-
-      const result = await rpc.call<DevicesListResponse>('devices.list', {});
-      const device = result.devices.find((d) => d.provider?.sessionId === sessionId);
-      if (!device) {
-        continue;
-      }
-      if (device.state !== 'allocating') {
-        return device;
-      }
-    }
-
-    throw new Error(`Timed out waiting for device allocation after ${timeout / 1000}s (session=${sessionId})`);
+    this.session = { deviceId: config.deviceId, platform: config.platform, rpc };
+    return { deviceId: config.deviceId, platform: config.platform };
   }
 
   async disconnect(): Promise<void> {
     const session = this.requireSession();
-    if (this.ownsLease) {
-      debug('releasing device %s', session.deviceId);
-      await session.rpc.call('fleet.release', { deviceId: session.deviceId });
-    }
     await session.rpc.disconnect();
     this.session = null;
-    this.ownsLease = false;
     debug('disconnected');
-  }
-
-  private buildFilters(config: ConnectionConfig): DeviceFilter[] {
-    const filters: DeviceFilter[] = [
-      { attribute: 'platform', operator: 'EQUALS', value: config.platform },
-    ];
-
-    if (config.deviceName) {
-      const name = typeof config.deviceName === 'string'
-        ? config.deviceName
-        : config.deviceName.source;
-      filters.push({ attribute: 'name', operator: 'CONTAINS', value: name });
-    }
-
-    if (config.osVersion) {
-      filters.push({ attribute: 'version', operator: 'EQUALS', value: config.osVersion });
-    }
-
-    return filters;
   }
 
   // ─── UI hierarchy ───────────────────────────────────────────
