@@ -27,6 +27,12 @@ test('allocate throws when no platform is given instead of silently defaulting t
   await expect(allocator.allocate({}, new Set())).rejects.toThrow(/requires a platform/);
 });
 
+test('allocate rejects a pinned deviceId instead of silently allocating a different device', async () => {
+  const allocator = allocatorWithSession(async () => 'sess-1');
+
+  await expect(allocator.allocate({ platform: 'ios', deviceId: 'UDID-123' }, new Set())).rejects.toThrow(/cannot pin a specific deviceId/);
+});
+
 test('a failed session creation can be retried by a later allocate', async () => {
   let attempts = 0;
   const allocator = allocatorWithSession(async () => {

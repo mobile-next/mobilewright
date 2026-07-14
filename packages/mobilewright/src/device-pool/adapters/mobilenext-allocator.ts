@@ -18,6 +18,14 @@ function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
   if (!criteria.platform) {
     throw new Error('MobileNextAllocator requires a platform ("ios" or "android") to allocate a device');
   }
+  // The fleet filter DSL has no exact-device selector (only platform/type/name/version), so a
+  // pinned deviceId cannot be honored. Reject it rather than silently allocating a different
+  // device — deviceId is for local drivers; select a cloud device by deviceName instead.
+  if (criteria.deviceId) {
+    throw new Error(
+      `MobileNextAllocator cannot pin a specific deviceId ("${criteria.deviceId}"): the fleet does not support exact-device selection. Remove deviceId or filter by deviceName.`,
+    );
+  }
   const filters: DeviceFilter[] = [
     { attribute: 'platform', operator: 'EQUALS', value: criteria.platform },
   ];
