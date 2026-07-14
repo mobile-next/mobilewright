@@ -32,14 +32,24 @@ export function createInspectRouter(deviceManager: DeviceManager) {
     try {
       const { screenshotBuffer, tree, size } = await attemptWithRetry(device);
 
-      const elements = deriveElementList(tree).map(({ node, locator }, index) => ({
+      const elements = deriveElementList(tree).map(({ node, locator, locators }, index) => ({
         index,
         type: node.type,
         label: node.label ?? null,
         text: node.text ?? null,
         bounds: node.bounds,
         isVisible: node.isVisible,
+        identifier: node.identifier ?? null,
+        resourceId: node.resourceId ?? null,
+        placeholder: node.placeholder ?? null,
+        value: node.value ?? null,
+        isEnabled: node.isEnabled ?? true,
+        isSelected: node.isSelected ?? null,
+        isFocused: node.isFocused ?? null,
+        isChecked: node.isChecked ?? null,
+        raw: node.raw ?? null,
         locator,
+        locators,
       }));
 
       res.json({
