@@ -80,11 +80,15 @@ export interface ConnectionConfig {
   osVersion?: string;
   /** Connection timeout in ms */
   timeout?: number;
+  /** Attach to an existing driver session instead of allocating a new device (Sauce Labs only). */
+  sessionId?: string;
 }
 
 export interface Session {
   deviceId: string;
   platform: Platform;
+  /** Driver-specific session identifier, present when the driver supports attaching via `ConnectionConfig.sessionId`. */
+  sessionId?: string;
 }
 
 // ─── Device Settings ─────────────────────────────────────────────

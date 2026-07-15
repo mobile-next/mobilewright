@@ -2,9 +2,10 @@ import type { Platform, DeviceInfo, DeviceType, DeviceSettings, MobilewrightDriv
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
+import { SauceLabsDriver } from '@mobilewright/driver-saucelabs';
 import { ensureMobilecliReachable } from './server.js';
 import { toArray } from './config.js';
-import type { DriverConfig } from './config.js';
+import type { DriverConfig, DriverConfigSauceLabs } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
@@ -40,6 +41,8 @@ export interface ConnectDeviceParams {
   appLaunchTimeout?: number;
   installTimeout?: number;
   deviceSettings?: DeviceSettings;
+  /** Attach to an existing driver session instead of allocating a new device (Sauce Labs only). */
+  sessionId?: string;
 }
 
 export interface FindDeviceParams {
@@ -55,6 +58,17 @@ export function createDriver(driverConfig?: DriverConfig, url?: string): Mobilew
     return new MobileNextDriver({
       region: driverConfig.region,
       apiKey: driverConfig.apiKey,
+    });
+  }
+  if (driverConfig?.type === 'saucelabs') {
+    const slConfig = driverConfig as DriverConfigSauceLabs;
+    return new SauceLabsDriver({
+      username: slConfig.username,
+      accessKey: slConfig.accessKey,
+      region: slConfig.region,
+      allocationTimeout: slConfig.allocationTimeout,
+      sessionDuration: slConfig.sessionDuration,
+      iosWdaBundleId: slConfig.iosWdaBundleId,
     });
   }
   return new MobilecliDriver({ url });
@@ -78,6 +92,7 @@ export async function connectDevice(params: ConnectDeviceParams): Promise<Device
     deviceId: params.deviceId,
     deviceType: params.deviceType,
     timeout: params.timeout,
+    sessionId: params.sessionId,
   });
 
   const settings = params.deviceSettings;

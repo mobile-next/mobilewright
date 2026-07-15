@@ -198,6 +198,40 @@ test.describe('Locator', () => {
 
       await expect(locator.clear()).rejects.toThrow(LocatorError);
     });
+
+    test('does not throw when the cleared field reports its placeholder as the value (WDA on iOS)', async () => {
+      // Some platforms (iOS/WDA) report an empty field's value as its
+      // placeholder text rather than an empty string.
+      const emptyFieldReportingPlaceholder: ViewNode[] = [
+        node({
+          type: 'TextField',
+          identifier: 'emailField',
+          value: 'Coupon code',
+          placeholder: 'Coupon code',
+          bounds: { x: 20, y: 200, width: 350, height: 44 },
+        }),
+      ];
+      const driver = createMockDriver(emptyFieldReportingPlaceholder);
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
+
+      await expect(locator.clear()).resolves.toBeUndefined();
+    });
+
+    test('still throws when the field has residual text different from its placeholder', async () => {
+      const fieldWithResidualText: ViewNode[] = [
+        node({
+          type: 'TextField',
+          identifier: 'emailField',
+          value: 'leftover',
+          placeholder: 'Coupon code',
+          bounds: { x: 20, y: 200, width: 350, height: 44 },
+        }),
+      ];
+      const driver = createMockDriver(fieldWithResidualText);
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
+
+      await expect(locator.clear()).rejects.toThrow(LocatorError);
+    });
   });
 
   test.describe('fill', () => {

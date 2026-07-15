@@ -1,7 +1,7 @@
 {
-  "name": "mobilewright",
+  "name": "@mobilewright/driver-saucelabs",
   "version": "0.0.1",
-  "description": "Mobile device automation framework inspired by Playwright",
+  "description": "Sauce Labs Real Device Access driver for Mobilewright",
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
@@ -20,33 +20,23 @@
     "build": "tsc -b",
     "prepublishOnly": "tsc -b"
   },
-  "bin": {
-    "mobilewright": "./dist/cli.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mobile-next/mobilewright.git",
-    "directory": "packages/mobilewright"
+    "directory": "packages/driver-saucelabs"
   },
   "files": [
-    "dist",
-    "assets",
-    "templates"
+    "dist"
   ],
   "dependencies": {
-    "@mobilewright/core": "^0.0.1",
-    "@mobilewright/driver-mobilecli": "^0.0.1",
-    "@mobilewright/driver-mobilenext": "^0.0.1",
-    "@mobilewright/driver-saucelabs": "^0.0.1",
-    "@mobilewright/inspector": "^0.0.1",
     "@mobilewright/protocol": "^0.0.1",
-    "commander": "^14.0.3",
-    "open": "^10.2.0",
+    "adm-zip": "^0.5.16",
     "debug": "^4.4.3",
-    "playwright": "1.58.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/debug": "^4.1.13",
     "@types/ws": "^8.5.0"
   }
 }

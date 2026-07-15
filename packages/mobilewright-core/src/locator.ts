@@ -35,6 +35,9 @@ export interface ScrollIntoViewOptions {
 const DEFAULT_TIMEOUT = 5_000;
 const DEFAULT_POLL_INTERVAL = 100;
 const DEFAULT_STABILITY_DELAY = 50;
+// Grace window for the post-clear value check: the accessibility snapshot can lag
+// briefly behind the actual on-device UI state right after a clearText() call.
+const CLEAR_VERIFY_TIMEOUT = 1_000;
 
 export class Locator {
   /** Create a root locator that searches the entire view hierarchy. */
@@ -201,17 +204,28 @@ export class Locator {
     await this.driver.clearText();
 
     // Verify the clear actually emptied the field; if the driver's select-all
-    // didn't take, only a single character is removed and we'd otherwise
-    // silently leave residual text for fill() to append to.
-    if ((await this._currentValue()) !== '') {
-      throw new LocatorError('Failed to clear element', this.strategy);
+    // didn't take, only a single character is removed, and we'd otherwise
+    // silently leave residual text for fill() to append to. Some platforms
+    // (iOS/WDA) report an empty field's value as its placeholder text rather
+    // than an empty string, so treat that as cleared too. The accessibility
+    // snapshot can also lag briefly behind the actual UI state right after
+    // clearText(), so poll for a short grace window before failing.
+    const deadline = Date.now() + CLEAR_VERIFY_TIMEOUT;
+    while (true) {
+      const node = await this._currentNode();
+      const value = node?.value ?? '';
+      if (value === '' || value === node?.placeholder) return;
+      if (Date.now() >= deadline) {
+        throw new LocatorError('Failed to clear element', this.strategy);
+      }
+      await sleep(DEFAULT_POLL_INTERVAL);
     }
   }
 
-  /** Read the element's current value from the latest hierarchy, '' if absent. */
-  private async _currentValue(): Promise<string> {
+  /** Read the element's current node from the latest hierarchy, null if absent. */
+  private async _currentNode(): Promise<ViewNode | null> {
     const roots = await this.driver.getViewHierarchy();
-    return queryAll(roots, this.strategy)[0]?.value ?? '';
+    return queryAll(roots, this.strategy)[0] ?? null;
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {

@@ -27,6 +27,8 @@ export interface AllocateResult {
   model?: string;
   osVersion?: string;
   type?: DeviceType;
+  /** Driver-specific session identifier to attach to via `ConnectionConfig.sessionId` (Sauce Labs only). */
+  sessionId?: string;
 }
 
 /**
@@ -52,6 +54,8 @@ export interface AllocationHandle {
   model?: string;
   osVersion?: string;
   type?: DeviceType;
+  /** Driver-specific session identifier to attach to via `ConnectionConfig.sessionId` (Sauce Labs only). */
+  sessionId?: string;
 }
 
 /**

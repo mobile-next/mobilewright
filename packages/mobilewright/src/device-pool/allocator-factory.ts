@@ -2,7 +2,8 @@ import { DEFAULT_URL, MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { ensureMobilecliReachable } from '../server.js';
 import { MobilecliAllocator } from './adapters/mobilecli-allocator.js';
 import { MobileNextAllocator } from './adapters/mobilenext-allocator.js';
-import type { MobilewrightConfig, DriverConfigMobileNext } from '../config.js';
+import { SauceLabsAllocator } from './adapters/saucelabs-allocator.js';
+import type { MobilewrightConfig, DriverConfigMobileNext, DriverConfigSauceLabs } from '../config.js';
 import type { DeviceAllocator } from './application/ports.js';
 
 export interface AllocatorResult {
@@ -29,5 +30,20 @@ export async function createAllocator(config: MobilewrightConfig): Promise<Alloc
     return { allocator };
   }
 
-  throw new Error(`Unsupported driver type: "${driverType}". Supported types: "mobilecli", "mobilenext".`);
+  if (driverType === 'saucelabs') {
+    const slConfig = config.driver as DriverConfigSauceLabs;
+    const allocator = new SauceLabsAllocator({
+      driverOptions: {
+        username: slConfig.username,
+        accessKey: slConfig.accessKey,
+        region: slConfig.region,
+        allocationTimeout: slConfig.allocationTimeout,
+        sessionDuration: slConfig.sessionDuration,
+        iosWdaBundleId: slConfig.iosWdaBundleId,
+      },
+    });
+    return { allocator };
+  }
+
+  throw new Error(`Unsupported driver type: "${driverType}". Supported types: "mobilecli", "mobilenext", "saucelabs".`);
 }

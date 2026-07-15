@@ -143,6 +143,7 @@ export class DevicePool {
       model: slot.model,
       osVersion: slot.osVersion,
       type: slot.type,
+      sessionId: slot.sessionId,
     });
   }
 
@@ -197,7 +198,7 @@ export class DevicePool {
       this.allocator.release(result.deviceId).catch(() => {});
       return;
     }
-    slot.markAvailable(result.deviceId, result.platform, result.driver, result.model, result.osVersion, result.type);
+    slot.markAvailable(result.deviceId, result.platform, result.driver, result.model, result.osVersion, result.type, result.sessionId);
     this.waiters.unshift(waiter);
     this.pump();
   }

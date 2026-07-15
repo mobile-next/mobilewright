@@ -18,6 +18,7 @@ export class DeviceSlot {
   private _model?: string;
   private _osVersion?: string;
   private _type?: DeviceType;
+  private _sessionId?: string;
   private readonly _installedApps = new Set<string>();
 
   get state(): DeviceSlotState {
@@ -52,7 +53,11 @@ export class DeviceSlot {
     return this._type;
   }
 
-  markAvailable(deviceId: string, platform: Platform, driver?: string, model?: string, osVersion?: string, type?: DeviceType): void {
+  get sessionId(): string | undefined {
+    return this._sessionId;
+  }
+
+  markAvailable(deviceId: string, platform: Platform, driver?: string, model?: string, osVersion?: string, type?: DeviceType, sessionId?: string): void {
     if (this._state !== 'allocating') {
       throw new DeviceSlotStateError(
         `markAvailable requires state 'allocating', got '${this._state}'`,
@@ -65,6 +70,7 @@ export class DeviceSlot {
     this._model = model;
     this._osVersion = osVersion;
     this._type = type;
+    this._sessionId = sessionId;
   }
 
   claim(allocationId: string): void {

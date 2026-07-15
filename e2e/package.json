@@ -7,6 +7,7 @@
   "scripts": {
     "test:mobilecli": "MOBILEWRIGHT_DRIVER=mobilecli node ../packages/mobilewright/dist/cli.js test",
     "test:mobilenext": "MOBILEWRIGHT_DRIVER=mobilenext node ../packages/mobilewright/dist/cli.js test",
+    "test:saucelabs": "MOBILEWRIGHT_DRIVER=saucelabs node ../packages/mobilewright/dist/cli.js test",
     "test:playwright": "playwright test"
   },
   "dependencies": {

@@ -29,6 +29,10 @@ export interface MobilewrightUseOptions {
   appLaunchTimeout?: number;
   /** Timeout for app installation (installApps) in ms. Default: none. */
   installTimeout?: number;
+  /** Record a video of each test. Default: 'off'. */
+  video?: 'off' | 'on' | 'retain-on-failure' | 'on-first-retry';
+  /** Capture screenshots. Default: 'off'. */
+  screenshot?: 'off' | 'on' | 'only-on-failure';
 }
 
 export interface MobilewrightExpectConfig {
@@ -78,7 +82,22 @@ export interface DriverConfigMobileNext {
   uploadTimeout?: number;
 }
 
-export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext;
+export interface DriverConfigSauceLabs {
+  type: 'saucelabs';
+  /** Falls back to SAUCE_USERNAME env var when omitted. */
+  username?: string;
+  /** Falls back to SAUCE_ACCESS_KEY env var when omitted. */
+  accessKey?: string;
+  region?: 'us-west-1' | 'eu-central-1' | 'us-east-4';
+  /** Timeout waiting for a cloud device to be allocated, in ms. Default: 300000 (5 min). */
+  allocationTimeout?: number;
+  /** ISO-8601 duration for max session length e.g. 'PT1H'. */
+  sessionDuration?: string;
+  /** Custom WDA fork bundle ID for iOS. Omit to use the Sauce Labs default WDA. */
+  iosWdaBundleId?: string;
+}
+
+export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext | DriverConfigSauceLabs;
 
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────

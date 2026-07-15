@@ -9,7 +9,7 @@ export { expect } from '@mobilewright/core';
 export { Device, Screen, Locator, MobileWebViewPage, MobileWebViewLocator, Page, WebLocator } from '@mobilewright/core';
 
 // Configuration
-export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext } from './config.js';
+export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext, type DriverConfigSauceLabs } from './config.js';
 
 // Errors
 export { MobilewrightError } from './errors.js';
