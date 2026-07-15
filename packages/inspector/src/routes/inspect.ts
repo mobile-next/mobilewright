@@ -7,7 +7,7 @@ import { DeviceManager } from '../lib/device-manager.js';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
-const ATTEMPT_TIMEOUT_MS = 10_000;
+const OP_TIMEOUT_MS = 10_000;
 
 /**
  * Express router for the inspect endpoint.
@@ -68,35 +68,67 @@ export function createInspectRouter(deviceManager: DeviceManager) {
   return router;
 }
 
-/** Run screenshot + viewTree + screenSize together, retrying up to MAX_RETRIES times on failure. */
+/**
+ * Run screenshot + viewTree + screenSize, retrying up to MAX_RETRIES.
+ *
+ * Strategy: first attempt runs all 3 in parallel for speed.  Retries
+ * run only the failed ops sequentially (1 at a time) so that abandoned
+ * RPCs from timed-out attempts never stack up more than 2 concurrent
+ * mobilecli worker slots per retry cycle.
+ */
 async function attemptWithRetry(device: Device): Promise<{ screenshotBuffer: Buffer; tree: ViewNode[]; size: ScreenSize }> {
-  let lastErr: unknown;
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    try {
-      return await withTimeout(
-        Promise.all([device.screen.screenshot(), device.screen.viewTree(), device.screenSize()]).then(
-          ([screenshotBuffer, tree, size]) => ({ screenshotBuffer, tree, size }),
-        ),
-        ATTEMPT_TIMEOUT_MS,
-        `Device operation timed out after ${ATTEMPT_TIMEOUT_MS}ms`,
-      );
-    } catch (err) {
-      lastErr = err;
-      logger.warn(`Inspect attempt ${i + 1}/${MAX_RETRIES} failed: ${(err as Error).message}`);
-      if (i < MAX_RETRIES - 1) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+  const ops = [
+    { key: 'screenshotBuffer' as const, run: () => device.screen.screenshot() },
+    { key: 'tree' as const, run: () => device.screen.viewTree() },
+    { key: 'size' as const, run: () => device.screenSize() },
+  ];
+
+  const results: Partial<Record<'screenshotBuffer' | 'tree' | 'size', unknown>> = {};
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const pending = ops.filter(op => !(op.key in results));
+    if (pending.length === 0) break;
+
+    if (attempt === 0) {
+      const settled = await Promise.allSettled(pending.map(op => timeoutAfter(op.run() as Promise<unknown>, OP_TIMEOUT_MS)));
+      for (let i = 0; i < settled.length; i++) {
+        const result = settled[i];
+        if (result.status === 'fulfilled') results[pending[i].key] = result.value;
+      }
+    } else {
+      for (const op of pending) {
+        try {
+          results[op.key] = await timeoutAfter(op.run() as Promise<unknown>, OP_TIMEOUT_MS);
+        } catch (err) {
+          logger.warn(`Inspect ${op.key} attempt ${attempt + 1}/${MAX_RETRIES} failed: ${(err as Error).message}`);
+        }
+      }
+    }
+
+    const stillPending = ops.filter(op => !(op.key in results));
+    if (stillPending.length > 0 && attempt < MAX_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
     }
   }
-  throw lastErr;
+
+  const missing = ops.filter(op => !(op.key in results));
+  if (missing.length > 0) {
+    throw new Error(`Inspect failed: ${missing.map(o => o.key).join(', ')} did not complete`);
+  }
+
+  return {
+    screenshotBuffer: results.screenshotBuffer as Buffer,
+    tree: results.tree as ViewNode[],
+    size: results.size as ScreenSize,
+  };
 }
 
-/**
- * Race promise against a ms deadline. Rejects with message on timeout.
- * Note: cannot cancel the underlying promise; it continues running until the driver times out.
- */
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+/** Reject a promise if it doesn't settle within ms. */
+function timeoutAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
+  if (ms <= 0) return Promise.reject(new Error('Deadline exceeded'));
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([
     promise,
-    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); }),
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms); }),
   ]).finally(() => clearTimeout(timer));
 }
