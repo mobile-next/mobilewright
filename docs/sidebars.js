@@ -17,6 +17,7 @@ const sidebars = {
       label: 'Mobilewright Test',
       collapsed: false,
       items: [
+        'test/configuration',
         'test/cli',
         'test/fixtures',
         'test/parallelism',
@@ -31,6 +32,7 @@ const sidebars = {
       label: 'Guides',
       collapsed: false,
       items: [
+        'guides/actions',
         'guides/assertions',
         'guides/auto-waiting',
         'guides/deep-links',
