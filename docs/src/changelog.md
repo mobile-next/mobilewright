@@ -7,6 +7,16 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.50] (2026-07-15)
+* Feat(driver-mobilenext): allocate devices via the sessions REST API ([#228](https://github.com/mobile-next/mobilewright/pull/228))
+* Feat(inspector): add element attributes in sidebar ([#227](https://github.com/mobile-next/mobilewright/pull/227)), thanks to [@sarang-code2](https://github.com/sarang-code2)
+* Fix(inspector): per-op timeouts + partial retry to prevent mobilecli worker pool deadlock ([#229](https://github.com/mobile-next/mobilewright/pull/229)), thanks to [@sarang-code2](https://github.com/sarang-code2)
+* Fix: resolve fully-qualified native types in getByRole ([#196](https://github.com/mobile-next/mobilewright/pull/196))
+* Fix(test): merge project-level use into config for actionTimeout and other options ([#227](https://github.com/mobile-next/mobilewright/pull/227)), thanks to [@sarang-code2](https://github.com/sarang-code2)
+
+## [0.0.49] (2026-07-11)
+* Fix(driver): do not fall back to accessibility name for testId identifier ([#224](https://github.com/mobile-next/mobilewright/pull/224))
+
 ## [0.0.48] (2026-07-01)
 * Fix(ci): fixed publishing of @mobilewright/inspector
 * Fix(ci): run "npm publish --dry-run" on all packages prior to publishing any
