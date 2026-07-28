@@ -12,6 +12,16 @@ export interface ExpectOptions {
   timeout?: number;
 }
 
+// Playwright accepts either a bare string or `{ message }` as expect()'s second
+// argument. Its object form also carries `timeout`, which we do not support yet.
+export type ExpectMessage = string | { message?: string };
+
+// Carries the custom message from the expect() Proxy down to wrapAssertion, so a
+// message also renames the reporter step (as Playwright does).
+interface MessageCarrier {
+  _message?: string;
+}
+
 /**
  * Playwright-style expect for mobile locators, web locators, pages, and plain values.
  *
@@ -20,18 +30,72 @@ export interface ExpectOptions {
  *   expect(page).toHaveURL(/dashboard/)
  *   expect(webLocator).toHaveText('Hello')
  *   expect(42).toBe(42)
+ *   expect(locator, 'checkout button should appear').toBeVisible()
  */
-export function expect(actual: Page): PageAssertions;
-export function expect(actual: WebLocator): WebLocatorAssertions;
-export function expect(actual: Locator): LocatorAssertions;
-export function expect<T>(actual: T): ValueAssertions<T>;
-export function expect(actual: unknown): any {
+export function expect(actual: Page, message?: ExpectMessage): PageAssertions;
+export function expect(actual: WebLocator, message?: ExpectMessage): WebLocatorAssertions;
+export function expect(actual: Locator, message?: ExpectMessage): LocatorAssertions;
+export function expect<T>(actual: T, message?: ExpectMessage): ValueAssertions<T>;
+export function expect(actual: unknown, message?: ExpectMessage): any {
+  const assertions = createAssertions(actual);
+  const resolved = typeof message === 'string' ? message : message?.message;
+  if (resolved === undefined) {
+    return assertions;
+  }
+  return withMessage(assertions, resolved);
+}
+
+function createAssertions(actual: unknown): object {
   if (actual instanceof Page) { return new PageAssertions(actual, false); }
   if (actual instanceof WebLocator) { return new WebLocatorAssertions(actual, false); }
   if (actual && typeof actual === 'object' && 'tap' in actual && 'getText' in actual) {
     return new LocatorAssertions(actual as Locator, false);
   }
   return new ValueAssertions(actual, false);
+}
+
+// Every failure funnels through ExpectError, so a single Proxy over the assertions
+// object can prefix the custom message without touching any individual matcher.
+// Matchers are a mix of sync (ValueAssertions) and async (everything else), hence
+// both the try/catch and the promise catch.
+function withMessage<T extends object>(assertions: T, message: string): T {
+  // Fresh instance per expect() call (and per `.not`), so tagging it is safe and
+  // lets wrapAssertion use the message as the step title.
+  (assertions as MessageCarrier)._message = message;
+
+  return new Proxy(assertions, {
+    get(target, prop, receiver): unknown {
+      const value = Reflect.get(target, prop, receiver);
+
+      // `.not` returns another assertions object — re-wrap so the message survives chaining.
+      if (value !== null && typeof value === 'object') {
+        return withMessage(value, message);
+      }
+
+      if (typeof value !== 'function') {
+        return value;
+      }
+
+      return (...args: unknown[]): unknown => {
+        try {
+          const result = Reflect.apply(value, target, args);
+          if (result instanceof Promise) {
+            return result.catch((e: unknown) => { throw prefixMessage(e, message); });
+          }
+          return result;
+        } catch (e) {
+          throw prefixMessage(e, message);
+        }
+      };
+    },
+  });
+}
+
+function prefixMessage(error: unknown, message: string): unknown {
+  if (error instanceof ExpectError) {
+    return new ExpectError(`${message}\n\n${error.message}`);
+  }
+  return error;
 }
 
 // Minimal interface satisfied by both Locator and WebLocator (after getText/getValue aliases).
@@ -55,9 +119,10 @@ function wrapAssertion<T>(
   negated: boolean,
   method: string,
   fn: () => Promise<T>,
+  message?: string,
 ): Promise<T> {
-  const title = negated ? `expect.not.${method}()` : `expect.${method}()`;
-  return runStep(stepFn, title, fn);
+  const defaultTitle = negated ? `expect.not.${method}()` : `expect.${method}()`;
+  return runStep(stepFn, message ?? defaultTitle, fn);
 }
 
 // Poll until `predicate` holds (or the timeout elapses), re-raising any failure
@@ -81,6 +146,9 @@ class LocatorAssertions {
     protected readonly negated: boolean,
   ) {}
 
+  // Set by withMessage() when expect() was given a custom message.
+  _message?: string;
+
   get not(): LocatorAssertions {
     return new LocatorAssertions(this.locator, !this.negated);
   }
@@ -90,7 +158,7 @@ class LocatorAssertions {
   }
 
   protected _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    return wrapAssertion(this.locator._stepFn, this.negated, method, fn);
+    return wrapAssertion(this.locator._stepFn, this.negated, method, fn, this._message);
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
@@ -443,12 +511,15 @@ class PageAssertions {
     private readonly negated: boolean,
   ) {}
 
+  // Set by withMessage() when expect() was given a custom message.
+  _message?: string;
+
   get not(): PageAssertions {
     return new PageAssertions(this.page, !this.negated);
   }
 
   private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    return wrapAssertion(this.page._stepFn, this.negated, method, fn);
+    return wrapAssertion(this.page._stepFn, this.negated, method, fn, this._message);
   }
 
   // Applies negation so callers pass the plain "does it match?" predicate.
@@ -492,6 +563,9 @@ class WebLocatorAssertions {
     private readonly negated: boolean,
   ) {}
 
+  // Set by withMessage() when expect() was given a custom message.
+  _message?: string;
+
   get not(): WebLocatorAssertions {
     return new WebLocatorAssertions(this.webLocator, !this.negated);
   }
@@ -526,7 +600,7 @@ class WebLocatorAssertions {
             : `Expected ${method} to match, but it did not (received ${got})`;
         },
       );
-    });
+    }, this._message);
   }
 
   toBeVisible(opts?: ExpectOptions): Promise<void> {

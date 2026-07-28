@@ -314,3 +314,12 @@ test.describe('Page step instrumentation', () => {
     playwrightExpect(gotoCalls).toEqual(['https://example.com/login']);
   });
 });
+
+test('a custom message prefixes a page assertion failure', async () => {
+  const { session } = sessionWithUrl('https://example.com/home');
+  const page = await Page.attach(session);
+
+  await playwrightExpect(
+    expect(page, 'login should redirect to the dashboard').toHaveURL(/dashboard/, { timeout: 200 }),
+  ).rejects.toThrow(/^login should redirect to the dashboard\n\n/);
+});
