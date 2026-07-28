@@ -18,14 +18,15 @@ This is a living document of planned and in-progress features. Items are roughly
 | ✅ App lifecycle | `launchApp()`, `terminateApp()`, `installApp()`, `uninstallApp()` |
 | ✅ Device control | `setOrientation()`, `openUrl()`, `listApps()`, `getForegroundApp()` |
 | ✅ Video recording | Attached to the HTML report (`on`, `on failure`, `off`) |
+| ✅ WebView support | `getByWebView().getByRole('button')` — full locator API inside WebViews |
 | ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
-| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot` |
+| ✅ Inspector | `mobilewright inspect` — browse the live view hierarchy and copy locators |
+| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect` |
 
 ## What's coming
 
 | Feature | Description | Status |
 |---|---|---|
-| **WebView Support** | Inspect and interact with WebView content inside an app or a full mobile browser session using the standard Mobilewright locator API. | In Progress |
 | **Flutter Support** | Full locator support for Flutter apps via the Dart VM Service driver. Flutter renders via Skia/Impeller rather than native views, requiring a dedicated driver. | In Progress |
 | **Crashes** | Retrieve all crashes (or crashes specific to one app) from device | In Progress | 
 | **Filesystem** | Access filesystem on device, or within app container | Planned |
@@ -35,7 +36,12 @@ This is a living document of planned and in-progress features. Items are roughly
 | **Codegen** | Record interactions on a real device or simulator and automatically generate Mobilewright TypeScript test code. Similar to `playwright codegen`. | Planned |
 | **Tracing** | Step-by-step execution traces with per-action logs, screenshots, and timing attached to a visual timeline. Open with `mobilewright show-trace`. | Planned |
 | **Network Capture** | Record `.har` files and inspect HTTP/HTTPS traffic during test runs. | Planned |
+| **Network Interception** | Stub, modify, or block HTTP/HTTPS requests in flight to test error states and offline behavior without a live backend. | Planned |
 | **Device Settings** | Prepare device system settings before a test — dark mode, high contrast, font size, locale, and permissions. | Planned |
+| **Device PIN / Passcode** | Set a device lock PIN once before a test run and keep it persisted across all tests, for apps that require a passcode. | Planned |
+| **Biometrics** | Enroll a biometric on the device and match or reject a Face ID / Touch ID / fingerprint prompt from within a test. | Planned |
+| **Push Notifications** | Deliver a push notification to the app under test and assert on or interact with the resulting banner. | Planned |
+| **Apple Pay / Google Pay** | Drive the system payment sheet in a sandbox environment to test wallet-based checkout flows. | Planned |
 | **App Launch Options** | Launch an app with custom environment variables and locale overrides, without modifying the app binary. | Planned |
 | **Visual Screenshot Comparison** | Pixel-level screenshot diffing to catch unintended UI regressions across commits. | Planned |
 | **Camera & Photo Injection** | Mock the photo or video returned by the system camera API during a test. | Planned |
