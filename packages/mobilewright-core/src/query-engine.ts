@@ -208,7 +208,7 @@ export type Role = keyof typeof ROLE_TYPE_MAP;
  * "XCUIElementType" prefix ("XCUIElementTypeTextField"). getByType still matches the
  * raw type — only role resolution normalizes.
  */
-function bareTypeName(type: string): string {
+export function bareTypeName(type: string): string {
   const lower = type.toLowerCase();
   const afterPackage = lower.includes('.') ? lower.slice(lower.lastIndexOf('.') + 1) : lower;
   return afterPackage.startsWith('xcuielementtype')

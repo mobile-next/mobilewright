@@ -146,6 +146,30 @@ test.describe('deriveLocator — role type mapping', () => {
   });
 });
 
+// mobilecli reports native types verbatim, so a real Android dump is full of
+// fully-qualified names and iOS may keep the XCUIElementType prefix. Derivation
+// must normalize them the same way core's getByRole matching does, otherwise the
+// Inspector suggests no role for nodes getByRole would happily match.
+test.describe('deriveLocator — fully-qualified native types', () => {
+  const fullyQualifiedCases: [string, string][] = [
+    ['android.widget.Button',                                                    'button'],
+    ['android.widget.EditText',                                                  'textfield'],
+    ['android.widget.TextView',                                                  'text'],
+    ['androidx.appcompat.widget.AppCompatTextView',                              'text'],
+    ['com.google.android.material.floatingactionbutton.FloatingActionButton',    'button'],
+    ['XCUIElementTypeButton',                                                    'button'],
+    ['XCUIElementTypeSecureTextField',                                           'textfield'],
+  ];
+
+  for (const [type, expectedRole] of fullyQualifiedCases) {
+    test(`${type} -> ${expectedRole}`, () => {
+      const result = deriveLocator(node({ type }));
+      expect(result?.kind).toBe('role');
+      expect(result?.value).toBe(expectedRole);
+    });
+  }
+});
+
 // ---- Case-insensitive type ----
 
 test.describe('deriveLocator — case insensitive type', () => {

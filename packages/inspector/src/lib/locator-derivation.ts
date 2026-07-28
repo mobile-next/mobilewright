@@ -1,24 +1,19 @@
 // Derives the best mobilewright locator for every node in a ViewNode tree.
-// Priority: Test ID > Role > Label > Text. Mirrors @mobilewright/core query-engine.ts.
-// If mobilewright changes matching rules, update ROLE_TYPE_MAP below to stay in sync.
+// Priority: Test ID > Role > Label > Text. Mirrors @mobilewright/core query-engine.ts,
+// and reuses its ROLE_TYPE_MAP so role derivation cannot drift from role matching.
 
 import type { ViewNode } from '@mobilewright/protocol';
+import { ROLE_TYPE_MAP, bareTypeName } from '@mobilewright/core';
 
-/** Maps mobilewright role names to the node type strings that resolve to each role. */
-const ROLE_TYPE_MAP: Record<string, string[]> = {
-  button:   ['button', 'imagebutton'],
-  textfield: ['textfield', 'securetextfield', 'edittext', 'searchfield', 'reactedittext'],
-  text:     ['statictext', 'textview', 'text', 'reacttextview'],
-  image:    ['image', 'imageview', 'reactimageview'],
-  switch:   ['switch', 'toggle'],
-  checkbox: ['checkbox'],
-  slider:   ['slider', 'seekbar'],
-  list:     ['table', 'collectionview', 'listview', 'recyclerview', 'scrollview', 'reactscrollview'],
-  listitem: ['cell', 'linearlayout', 'relativelayout'],
-  tab:      ['tab', 'tabbar'],
-  link:     ['link'],
-  header:   ['navigationbar', 'toolbar', 'header'],
-};
+// core declares ROLE_TYPE_MAP `as const`, so each value is a readonly tuple of
+// string literals. Widen to plain strings once, here, so membership can be tested
+// against an arbitrary node type.
+const ROLE_TYPES: [string, readonly string[]][] = Object.entries(ROLE_TYPE_MAP);
+
+// Types that ROLE_TYPE_MAP matches on purpose but that must not be *suggested*:
+// iOS reports generic containers as "other", so deriving getByRole('listitem')
+// from one would hand the user a locator matching much of the tree.
+const TYPES_TOO_GENERIC_TO_SUGGEST = new Set(['other']);
 
 /** Discriminated union of the four locator strategies mobilewright supports. */
 export type Locator =
@@ -29,15 +24,23 @@ export type Locator =
 
 /** Map node.type to a mobilewright role string. Returns null for unmapped types. */
 function deriveRole(node: ViewNode): string | null {
-  const type = (node.type ?? '').toLowerCase();
+  // Same normalization core applies before matching: strips the Android package
+  // path ("android.widget.EditText") and the iOS "XCUIElementType" prefix.
+  const type = bareTypeName(node.type ?? '');
 
   if (type === 'reactviewgroup') {
     const isClickable = node.raw?.['clickable'] === 'true' || node.raw?.['accessible'] === 'true';
     return isClickable ? 'button' : null;
   }
 
-  for (const [role, types] of Object.entries(ROLE_TYPE_MAP)) {
-    if (types.includes(type)) return role;
+  if (TYPES_TOO_GENERIC_TO_SUGGEST.has(type)) {
+    return null;
+  }
+
+  for (const [role, types] of ROLE_TYPES) {
+    if (types.includes(type)) {
+      return role;
+    }
   }
   return null;
 }
