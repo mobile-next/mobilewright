@@ -11,6 +11,7 @@ import type {
 } from '@mobilewright/protocol';
 import { Locator, type LocatorOptions, type StepFn } from './locator.js';
 import { WebViewLocator } from './webview-locator.js';
+import type { Role } from './query-engine.js';
 
 export interface GetByWebViewOptions {
   /** Match a web view whose native testId (accessibility id / resource-id) equals this. */
@@ -49,7 +50,7 @@ export class Screen {
     return this.root.getByType(type);
   }
 
-  getByRole(role: string, opts?: { name?: string | RegExp }): Locator {
+  getByRole(role: Role, opts?: { name?: string | RegExp }): Locator {
     return this.root.getByRole(role, opts);
   }
 

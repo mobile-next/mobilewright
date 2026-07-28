@@ -366,6 +366,36 @@ test.describe('fully-qualified native types from real device dumps', () => {
   });
 });
 
+// The Material / AppCompat widget aliases added alongside these roles: base
+// android.widget.* types are covered above, these are the vendor subclasses.
+test.describe('material and appcompat widget aliases', () => {
+  test('Material FloatingActionButton matches the button role', () => {
+    const tree = [node({
+      type: 'com.google.android.material.floatingactionbutton.FloatingActionButton',
+      label: 'Create contact',
+    })];
+    const results = queryAll(tree, { kind: 'role', value: 'button', name: 'Create contact' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('AppCompatTextView matches the text role', () => {
+    const tree = [node({ type: 'androidx.appcompat.widget.AppCompatTextView', text: 'Hi' })];
+    const results = queryAll(tree, { kind: 'role', value: 'text' });
+    expect(results).toHaveLength(1);
+  });
+
+  test('short iOS type names keep matching unchanged', () => {
+    const tree = [
+      node({ type: 'Button', label: 'OK' }),
+      node({ type: 'StaticText', text: 'Hi' }),
+      node({ type: 'TextField', label: 'Email' }),
+    ];
+    expect(queryAll(tree, { kind: 'role', value: 'button' })).toHaveLength(1);
+    expect(queryAll(tree, { kind: 'role', value: 'text' })).toHaveLength(1);
+    expect(queryAll(tree, { kind: 'role', value: 'textfield' })).toHaveLength(1);
+  });
+});
+
 test.describe('placeholder strategy', () => {
   const tree: ViewNode[] = [
     node({ type: 'TextField', placeholder: 'Enter email' }),

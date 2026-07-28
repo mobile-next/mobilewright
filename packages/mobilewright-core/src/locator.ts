@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy } from './query-engine.js';
+import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
 import { runStep, type StepLocation } from './stackTrace.js';
 
@@ -76,7 +76,7 @@ export class Locator {
     return this.child({ kind: 'type', value: type });
   }
 
-  getByRole(role: string, opts?: { name?: string | RegExp }): Locator {
+  getByRole(role: Role, opts?: { name?: string | RegExp }): Locator {
     return this.child({ kind: 'role', value: role, name: opts?.name });
   }
 

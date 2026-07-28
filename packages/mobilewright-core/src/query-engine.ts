@@ -179,11 +179,11 @@ function matchesStrategy(
   }
 }
 
-const ROLE_TYPE_MAP: Record<string, string[]> = {
-  button: ['button', 'imagebutton'],
-  textfield: ['textfield', 'securetextfield', 'edittext', 'searchfield', 'reactedittext'],
-  text: ['statictext', 'textview', 'text', 'reacttextview'],
-  image: ['image', 'imageview', 'reactimageview'],
+export const ROLE_TYPE_MAP = {
+  button: ['button', 'imagebutton', 'floatingactionbutton', 'materialbutton', 'appcompatbutton'],
+  textfield: ['textfield', 'securetextfield', 'searchfield', 'edittext', 'appcompatedittext', 'textinputedittext', 'reactedittext'],
+  text: ['statictext', 'textview', 'appcompattextview', 'materialtextview', 'text', 'reacttextview'],
+  image: ['image', 'imageview', 'appcompatimageview', 'shapeableimageview', 'reactimageview'],
   switch: ['switch', 'toggle'],
   checkbox: ['checkbox'],
   slider: ['slider', 'seekbar'],
@@ -192,7 +192,14 @@ const ROLE_TYPE_MAP: Record<string, string[]> = {
   tab: ['tab', 'tabbar'],
   link: ['link'],
   header: ['navigationbar', 'toolbar', 'header'],
-};
+} as const satisfies Record<string, readonly string[]>;
+
+/**
+ * Semantic UI roles understood by mobilewright. Inspired by ARIA but adapted
+ * for native iOS / Android / RN widget vocabularies — not a 1:1 subset of W3C
+ * ARIA (e.g. mobilewright uses `textfield`, not ARIA's `textbox`).
+ */
+export type Role = keyof typeof ROLE_TYPE_MAP;
 
 /**
  * Reduce a raw native type to the bare name ROLE_TYPE_MAP is keyed on, so a single
@@ -211,7 +218,10 @@ function bareTypeName(type: string): string {
 
 function matchesRole(node: ViewNode, role: string): boolean {
   const normalizedType = bareTypeName(node.type);
-  const roleTypes = ROLE_TYPE_MAP[role.toLowerCase()];
+  // ROLE_TYPE_MAP is `as const`, so its keys are a closed union; widen for the
+  // arbitrary caller-supplied role, and keep `| undefined` explicit because
+  // noUncheckedIndexedAccess is off.
+  const roleTypes: readonly string[] | undefined = (ROLE_TYPE_MAP as Record<string, readonly string[]>)[role.toLowerCase()];
 
   // React Native's ReactViewGroup is used for everything — only treat it as a
   // button when the element is explicitly marked clickable or accessible.
