@@ -7,6 +7,7 @@ import type {
   DeviceInfo,
 } from '@mobilewright/protocol';
 import { Locator } from './locator.js';
+import type { StepFn } from './locator.js';
 import { expect as mwExpect, ExpectError } from './expect.js';
 
 function node(
@@ -797,4 +798,141 @@ test('per-call timeout overrides expectTimeout from locator options', async () =
   const elapsed = Date.now() - start;
 
   expect(elapsed).toBeLessThan(1_000);
+});
+
+test.describe('custom message', () => {
+  test('prefixes the failure of a sync value assertion', () => {
+    expect(() => mwExpect(false, 'hello world').toBe(true))
+      .toThrow(/^hello world\n\n/);
+  });
+
+  test('prefixes the failure of an async locator assertion', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'hiddenBtn' });
+
+    await expect(mwExpect(locator, 'submit should appear').toBeVisible({ timeout: 200 }))
+      .rejects.toThrow(/^submit should appear\n\n/);
+  });
+
+  test('survives negation via not', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    await expect(mwExpect(locator, 'submit should be gone').not.toBeVisible({ timeout: 200 }))
+      .rejects.toThrow(/^submit should be gone\n\n/);
+  });
+
+  test('keeps the original failure text after the message', () => {
+    expect(() => mwExpect(1, 'counts must match').toBe(2))
+      .toThrow(/counts must match\n\nExpected 2, but received 1/);
+  });
+
+  test('does not affect passing assertions', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    await mwExpect(locator, 'submit should appear').toBeVisible();
+  });
+});
+
+test.describe('custom message details', () => {
+  test('still throws an ExpectError, so instanceof checks keep working', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'hiddenBtn' });
+
+    await expect(mwExpect(locator, 'submit should appear').toBeVisible({ timeout: 200 }))
+      .rejects.toThrow(ExpectError);
+  });
+
+  test('prefixes the message exactly once when chained through not', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    const error = await mwExpect(locator, 'unique-marker').not.toBeVisible({ timeout: 200 })
+      .then(() => null, (e: Error) => e);
+
+    expect(error).not.toBeNull();
+    expect(error!.message.split('unique-marker').length - 1).toBe(1);
+  });
+
+  test('reports the underlying driver failure alongside the message', async () => {
+    const driver = createMockDriver(hierarchy);
+    driver.getViewHierarchy = async () => { throw new TypeError('driver exploded'); };
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    await expect(mwExpect(locator, 'submit should appear').toBeVisible({ timeout: 200 }))
+      .rejects.toThrow(/^submit should appear\n\ndriver exploded/);
+  });
+
+  test('leaves the failure untouched when no message is given', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'hiddenBtn' });
+
+    await expect(mwExpect(locator).toBeVisible({ timeout: 200 }))
+      .rejects.toThrow(/^Expected element to be visible/);
+  });
+
+  test('applies to value matchers other than toBe', () => {
+    expect(() => mwExpect([1, 2], 'list must contain 3').toContain(3))
+      .toThrow(/^list must contain 3\n\n/);
+  });
+});
+
+// A step function that records the title of every step it wraps, then runs the body.
+function recordingStepFn(): { stepFn: StepFn; titles: string[] } {
+  const titles: string[] = [];
+  const stepFn: StepFn = (title, body) => {
+    titles.push(title);
+    return body();
+  };
+  return { stepFn, titles };
+}
+
+test.describe('custom message as an object', () => {
+  test('accepts the { message } form like Playwright', () => {
+    expect(() => mwExpect(false, { message: 'hello world' }).toBe(true))
+      .toThrow(/^hello world\n\n/);
+  });
+
+  test('behaves as if no message was given when the object omits one', () => {
+    expect(() => mwExpect(1, {}).toBe(2))
+      .toThrow(/^Expected 2, but received 1/);
+  });
+});
+
+test.describe('custom message as the step title', () => {
+  test('replaces the default matcher title', async () => {
+    const { stepFn, titles } = recordingStepFn();
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+    locator._stepFn = stepFn;
+
+    await mwExpect(locator, 'submit button is on screen').toBeVisible();
+
+    expect(titles).toContain('submit button is on screen');
+    expect(titles).not.toContain('expect.toBeVisible()');
+  });
+
+  test('falls back to the matcher title when no message is given', async () => {
+    const { stepFn, titles } = recordingStepFn();
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+    locator._stepFn = stepFn;
+
+    await mwExpect(locator).toBeVisible();
+
+    expect(titles).toContain('expect.toBeVisible()');
+  });
+
+  test('replaces the negated matcher title too', async () => {
+    const { stepFn, titles } = recordingStepFn();
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'hiddenBtn' });
+    locator._stepFn = stepFn;
+
+    await mwExpect(locator, 'hidden button stays hidden').not.toBeVisible();
+
+    expect(titles).toContain('hidden button stays hidden');
+    expect(titles).not.toContain('expect.not.toBeVisible()');
+  });
 });

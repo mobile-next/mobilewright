@@ -104,3 +104,11 @@ test.describe('web assertions route through the injected expect()', () => {
     playwrightExpect(titles).toContain('expect.toBeVisible()');
   });
 });
+
+test('a custom message prefixes a web assertion failure', async () => {
+  const { session } = sessionMatching({ matches: false, received: 'hidden' });
+
+  await playwrightExpect(
+    expect(webLocator(session), 'the cart badge should be visible').toBeVisible({ timeout: 200 }),
+  ).rejects.toThrow(/^the cart badge should be visible\n\n/);
+});
