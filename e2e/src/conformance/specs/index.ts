@@ -3,6 +3,7 @@ import { actionsSpec } from './actions.spec.js';
 import { stateAssertionsSpec } from './assertions-state.spec.js';
 import { textAssertionsSpec } from './assertions-text.spec.js';
 import { webAssertionsSpec } from './assertions-web.spec.js';
+import { missingElementAssertionsSpec } from './assertions-missing.spec.js';
 import { locatorsSpec } from './locators.spec.js';
 import { realNavigationSpec } from './real-navigation.spec.js';
 
@@ -19,6 +20,7 @@ export const conformanceSpecs: ConformanceCase[] = [
   { name: 'state assertions match Playwright', run: stateAssertionsSpec },
   { name: 'text assertions match Playwright (incl. whitespace normalization)', run: textAssertionsSpec },
   { name: 'web-only assertions match Playwright', run: webAssertionsSpec },
+  { name: 'assertions on a missing element behave like Playwright', run: missingElementAssertionsSpec },
   { name: 'locator factories resolve like Playwright', run: locatorsSpec },
   { name: 'navigates to a live page and drives it like Playwright', run: realNavigationSpec },
 ];

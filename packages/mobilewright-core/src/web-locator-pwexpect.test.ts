@@ -39,3 +39,28 @@ test('expect(locator).toBeVisible() throws when the injected matcher does not ma
   }
   pwExpect(threw).toBe(true);
 });
+
+// Regression: a malformed verdict (matches is undefined, e.g. no element matched
+// the selector) must NOT leak back to Playwright as pass: undefined, which it
+// rejects with "Unexpected return from a matcher function". We coerce to false.
+function webLocatorWithMalformedVerdict(): Locator {
+  const { session } = fakeWebViewSession({ evaluateAlways: { received: undefined } });
+  return new WebLocator(session, 'internal:role=button') as unknown as Locator;
+}
+
+test('expect(locator).toBeVisible() fails cleanly when the verdict has no matches field', async () => {
+  const locator = webLocatorWithMalformedVerdict();
+  let error: Error | undefined;
+  try {
+    await pwExpect(locator).toBeVisible({ timeout: 0 });
+  } catch (e) {
+    error = e as Error;
+  }
+  pwExpect(error).toBeTruthy();
+  pwExpect(error!.message).not.toContain('Unexpected return from a matcher function');
+});
+
+test('expect(locator).not.toBeVisible() passes when the verdict has no matches field', async () => {
+  const locator = webLocatorWithMalformedVerdict();
+  await pwExpect(locator).not.toBeVisible({ timeout: 0 });
+});
