@@ -38,6 +38,26 @@ test('should save screenshot to file', async ({ screen }) => {
   }
 });
 
+test('should take a screenshot of an element', async ({ device, screen }) => {
+  await device.terminateApp('com.apple.Preferences').catch(() => {});
+  await device.launchApp('com.apple.Preferences');
+  await wait(3000);
+
+  const general = screen.getByLabel('General');
+  await expect(general).toBeVisible();
+
+  const bounds = await general.boundingBox();
+
+  // screenshots come back in device pixels, bounds in points
+  const screenSize = await device.driver.getScreenSize();
+
+  const elementScreenshot = await general.screenshot();
+  const size = readPngSize(elementScreenshot);
+
+  expect(size.width).toBe(Math.round(bounds.width * screenSize.scale));
+  expect(size.height).toBe(Math.round(bounds.height * screenSize.scale));
+});
+
 // ─── Find, Tap, Swipe ───────────────────────────────────────
 
 test('should swipe a list and tap an element', async ({ device, screen }) => {
@@ -131,6 +151,11 @@ test('should tap into Settings > General and verify navigation', async ({ device
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// PNG IHDR: width and height are big-endian uint32 at offsets 16 and 20
+function readPngSize(png: Buffer): { width: number; height: number } {
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
 
 function verifyFileExists(path: string): void {
