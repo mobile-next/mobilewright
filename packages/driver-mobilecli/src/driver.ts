@@ -48,6 +48,9 @@ interface MobilecliElement {
   children?: MobilecliElement[];
   visible?: boolean;
   enabled?: boolean;
+  selected?: boolean;
+  checked?: boolean;
+  focused?: boolean;
 }
 
 interface MobilecliAppEntry {
@@ -145,6 +148,9 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
     placeholder: el.placeholder || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
+    isSelected: typeof el.selected === 'boolean' ? el.selected : undefined,
+    isChecked: typeof el.checked === 'boolean' ? el.checked : undefined,
+    isFocused: typeof el.focused === 'boolean' ? el.focused : undefined,
     bounds,
     children: el.children?.map(elementToViewNode) ?? [],
     raw: { ...el },
