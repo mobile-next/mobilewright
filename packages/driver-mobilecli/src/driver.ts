@@ -33,6 +33,13 @@ import { resolveMobilecliBinary } from './resolve-binary.js';
 
 export const DEFAULT_URL = 'ws://localhost:12000/ws';
 
+/**
+ * Device IDs whose agent has already been verified in this process. connect()
+ * runs once per test, but the agent doesn't come and go during a run, so the
+ * `mobilecli agent status` subprocess only needs to be spawned once per device.
+ */
+const agentVerified = new Set<string>();
+
 // ─── mobilecli RPC response types ─────────────────────────────
 
 /** Element shape returned by mobilecli's device.dump.ui JSON response */
@@ -318,12 +325,17 @@ export class MobilecliDriver implements MobilewrightDriver {
   }
 
   private ensureAgentInstalled(device: DeviceInfo): void {
+    if (agentVerified.has(device.id)) {
+      debug('agent already verified on %s, skipping status check', device.id);
+      return;
+    }
     const binary = resolveMobilecliBinary();
     debug('running: %s agent status --device %s', binary, device.id);
     const statusOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
     debug('agent status output: %s', statusOutput.trim());
     const statusResponse = JSON.parse(statusOutput) as MobilecliAgentStatusResponse;
     if (statusResponse.status === 'ok') {
+      agentVerified.add(device.id);
       return;
     }
     if (device.type === 'simulator' || device.type === 'emulator') {
@@ -336,6 +348,7 @@ export class MobilecliDriver implements MobilewrightDriver {
       if (verifyResponse.status !== 'ok') {
         throw new Error(`agent install failed on ${device.type} ${device.id}: ${verifyResponse.data?.message ?? 'unknown error'}`);
       }
+      agentVerified.add(device.id);
       return;
     }
     throw new Error(`agent not installed, run \`npx mobilewright install --device ${device.id}\` to get started`);
