@@ -1,8 +1,9 @@
-## [0.0.51] (2026-07-28)
+## [0.0.51] (2026-07-29)
 * Feat(expect): support a custom message argument, like Playwright ([#241](https://github.com/mobile-next/mobilewright/pull/241))
 * Fix(core): match Android fully-qualified widget types in getByRole and export the Role type ([#186](https://github.com/mobile-next/mobilewright/pull/186)), thanks to [@Dhakshath11](https://github.com/Dhakshath11)
 * Fix(web-locator): coerce a non-boolean injected verdict so expect() fails cleanly ([#243](https://github.com/mobile-next/mobilewright/pull/243))
 * Refactor(inspector): share core's role map and type normalization, so role suggestions match getByRole on Android ([#244](https://github.com/mobile-next/mobilewright/pull/244))
+* Chore: update mobilecli to 0.3.88 which fixes app installation timeouts over jsonrpc
 
 ## [0.0.50] (2026-07-15)
 * Feat(driver-mobilenext): allocate devices via the sessions REST API ([#228](https://github.com/mobile-next/mobilewright/pull/228))
