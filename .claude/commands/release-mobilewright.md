@@ -44,12 +44,16 @@ Use the existing CHANGELOG.md format:
 - Omit chore/ci/docs commits that are not user-facing unless they are significant
 - Prepend the new entry at the top of CHANGELOG.md, above the previous `## [...]` line
 
-### 6. Show
+### 6. Sync with docs directory
+
+The file `docs/src/changelog.md` is a human readable version of the CHANGELOG.md file you just updated. It has to be in sync with it. Make sure you update it as well.
+
+### 7. Show
 
 Display the new CHANGELOG.md entries and ask the human to review. Present two options: 1. Looks good to me, and 2. Let me edit.
 If the user chooses option 1, then continue to step 7, otherwise stop.
 
-### 7. Create branch
+### 8. Create branch
 
 User approved, create a new branch called "docs-changelog-$major-$minor-$patch" and commit CHANGELOG.md on it, then create a pr.
 
