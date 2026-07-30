@@ -337,6 +337,7 @@ test.describe('fully-qualified native types from real device dumps', () => {
     node({ type: 'android.widget.EditText', label: 'password_field', text: 'Password' }),
     node({ type: 'android.widget.EditText', label: 'multiline_text', text: 'Multiline text' }),
     node({ type: 'android.widget.Switch', label: 'toggle' }),
+    node({ type: 'android.widget.ToggleButton', label: 'Wi-Fi' }),
     node({ type: 'android.widget.Button', text: 'RESET COUNTER' }),
     node({ type: 'android.widget.ImageButton', label: 'Navigate up' }),
   ];
@@ -346,9 +347,9 @@ test.describe('fully-qualified native types from real device dumps', () => {
     expect(results).toHaveLength(3);
   });
 
-  test('fully-qualified android Switch matches the switch role', () => {
+  test('fully-qualified android Switch and ToggleButton match the switch role', () => {
     const results = queryAll(androidScreen, { kind: 'role', value: 'switch' });
-    expect(results).toHaveLength(1);
+    expect(results).toHaveLength(2);
   });
 
   test('fully-qualified android Button and ImageButton match the button role', () => {

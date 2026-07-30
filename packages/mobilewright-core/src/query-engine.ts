@@ -184,7 +184,7 @@ export const ROLE_TYPE_MAP = {
   textfield: ['textfield', 'securetextfield', 'searchfield', 'edittext', 'appcompatedittext', 'textinputedittext', 'reactedittext'],
   text: ['statictext', 'textview', 'appcompattextview', 'materialtextview', 'text', 'reacttextview'],
   image: ['image', 'imageview', 'appcompatimageview', 'shapeableimageview', 'reactimageview'],
-  switch: ['switch', 'toggle'],
+  switch: ['switch', 'toggle', 'togglebutton'],
   checkbox: ['checkbox'],
   slider: ['slider', 'seekbar'],
   list: ['table', 'collectionview', 'listview', 'recyclerview', 'scrollview', 'reactscrollview'],

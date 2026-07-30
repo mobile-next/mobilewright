@@ -47,6 +47,23 @@ the app uses `AppCompatEditText`).
 | `android.widget.RelativeLayout` | `listitem` |
 | `android.widget.Toolbar` | `header` |
 
+### AndroidX / Material Components
+
+Some dumps surface the AndroidX or Material Components subclass name directly instead
+of the collapsed framework class above — these are also recognized:
+
+| Native class | `getByRole()` |
+| --- | --- |
+| `androidx.appcompat.widget.AppCompatButton` | `button` |
+| `com.google.android.material.button.MaterialButton` | `button` |
+| `com.google.android.material.floatingactionbutton.FloatingActionButton` | `button` |
+| `androidx.appcompat.widget.AppCompatEditText` | `textfield` |
+| `com.google.android.material.textfield.TextInputEditText` | `textfield` |
+| `androidx.appcompat.widget.AppCompatTextView` | `text` |
+| `com.google.android.material.textview.MaterialTextView` | `text` |
+| `androidx.appcompat.widget.AppCompatImageView` | `image` |
+| `com.google.android.material.imageview.ShapeableImageView` | `image` |
+
 ### React Native (Android)
 
 | Native class | `getByRole()` |
@@ -89,9 +106,9 @@ the app uses `AppCompatEditText`).
 
 - **iOS source filtering.** mobilecli currently surfaces only a subset of iOS
   classes — `Button`, `TextField`, `SecureTextField`, `SearchField`, `Switch`,
-  `StaticText`, `Image`, `Icon`, `WebView`. Other rows in the iOS table
-  (`Slider`, `Table`, `CollectionView`, `Cell`, `Tab`, `NavigationBar`, `Link`,
-  `TextView`) are filtered out before they reach the query engine, so `getByRole()`
+  `StaticText`, `Image`, `Icon`, `WebView`, `TextView`. Other rows in the iOS table
+  (`Slider`, `Table`, `CollectionView`, `Cell`, `Tab`, `NavigationBar`, `Link`)
+  are filtered out before they reach the query engine, so `getByRole()`
   cannot match them yet even though the mapping exists.
 
 - **`TextView` is platform-ambiguous.** On Android, `TextView` is a static label
