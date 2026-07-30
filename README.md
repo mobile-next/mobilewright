@@ -264,6 +264,9 @@ await expect(page.getByText('Welcome')).toBeVisible();
 Manages the connection lifecycle and exposes device/app-level controls.
 
 ```typescript
+// Resolved device identifier (Android serial / iOS UDID) — useful for out-of-band adb/xcrun calls
+console.log(device.id);
+
 // Orientation
 await device.setOrientation('landscape');
 const orientation = await device.getOrientation();
@@ -389,6 +392,7 @@ The `use` object holds per-action defaults shared by every test:
 | `use` option | Type | Description |
 |---|---|---|
 | `platform` | `'ios' \| 'android'` | Platform for the run (optional) |
+| `deviceId` | `string` | Specific device identifier (local drivers only) — overrides the top-level `deviceId` for this project (optional) |
 | `deviceName` | `RegExp` | RegExp to match device name (optional) |
 | `bundleId` | `string` | App bundle ID (optional) |
 | `installApps` | `string \| string[]` | App paths to install — overrides top-level `installApps` (optional) |
@@ -438,6 +442,7 @@ The `device` fixture connects once per worker (reading from `mobilewright.config
 |---|---|---|
 | `bundleId` | `string` | App bundle ID for these tests |
 | `platform` | `'ios' \| 'android'` | Target platform |
+| `deviceId` | `string` | Specific device identifier (local drivers only) |
 | `deviceName` | `RegExp` | RegExp to match the device name |
 | `installApps` | `string \| string[]` | App paths (APK/IPA) to install before the tests run |
 | `autoAppLaunch` | `boolean` | Launch the app automatically before each test. Default: `true` |

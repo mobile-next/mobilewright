@@ -134,4 +134,4 @@ export default defineConfig({
 });
 ```
 
-The project `use` block accepts `platform`, `deviceName`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.
+The project `use` block accepts `platform`, `deviceId`, `deviceName`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.

@@ -57,6 +57,7 @@ The `use` block inside each project accepts the same options as the top-level co
 | `platform` | `'ios'` or `'android'` |
 | `bundleId` | App bundle identifier |
 | `installApps` | APK or IPA/ZIP path(s) to install before tests run |
+| `deviceId` | Exact device ID to pin this project to (local drivers only) |
 | `deviceName` | Regex to match a specific device |
 
 A common pattern is to share `bundleId` and `timeout` at the top level, and only specify `platform` and `installApps` per project:

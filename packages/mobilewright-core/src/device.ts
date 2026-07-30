@@ -41,6 +41,7 @@ export class Device {
   readonly driver: MobilewrightDriver;
   private cleanupCallbacks: Array<() => Promise<void>> = [];
   private _screen: Screen | null = null;
+  private session: Session | null = null;
   private readonly opts: DeviceOptions;
 
   constructor(driver: MobilewrightDriver, opts: DeviceOptions = {}) {
@@ -56,7 +57,8 @@ export class Device {
   // ─── Connection lifecycle ────────────────────────────────────
 
   async connect(config: ConnectionConfig): Promise<Session> {
-    return this.driver.connect(config);
+    this.session = await this.driver.connect(config);
+    return this.session;
   }
 
   async disconnect(): Promise<void> {
@@ -84,6 +86,14 @@ export class Device {
   get screen(): Screen {
     this._screen ??= new Screen(this.driver, this.opts.locatorDefaults);
     return this._screen;
+  }
+
+  /** The physical device identifier (Android serial / iOS UDID) this device connected to. */
+  get id(): string {
+    if (!this.session) {
+      throw new Error('Device.id: not connected yet');
+    }
+    return this.session.deviceId;
   }
 
   // ─── Device control ──────────────────────────────────────────

@@ -15,6 +15,8 @@ const _require = createRequire(import.meta.url);
 export interface MobilewrightUseOptions {
   /** Platform for this project. */
   platform?: 'ios' | 'android';
+  /** Specific device identifier (local drivers only). Overrides the top-level deviceId for this project. */
+  deviceId?: string;
   /** Regex to match device name. */
   deviceName?: RegExp;
   /** App bundle ID for this project. */

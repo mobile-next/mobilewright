@@ -48,6 +48,7 @@ type MobilewrightTestFixtures = {
   bundleId: string | undefined;
   autoAppLaunch: boolean | undefined;
   platform: 'ios' | 'android' | undefined;
+  deviceId: string | undefined;
   deviceName: RegExp | undefined;
   installApps: string | string[] | undefined;
   viewTree: 'on-failure' | 'off';
@@ -74,6 +75,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
   }, { option: true }],
 
   platform: [undefined, { option: true }],
+  deviceId: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
 
@@ -87,13 +89,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(value);
   }, { option: true }],
 
-  device: async ({ platform, deviceName, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
+  device: async ({ platform, deviceId, deviceName, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const project = config.projects?.find(p => p.name === testInfo.project.name);
     const projectUse = { ...config.use, ...project?.use };
     const merged = {
       ...config,
       ...(platform && { platform }),
+      ...(deviceId !== undefined && { deviceId }),
       ...(deviceName && { deviceName }),
       ...(installApps !== undefined && { installApps }),
       use: projectUse,

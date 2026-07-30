@@ -41,6 +41,13 @@ test('defineConfig with project use.installApps is preserved', () => {
   expect(config.projects![0].use!.installApps).toBe('per-project.apk');
 });
 
+test('defineConfig with project use.deviceId is preserved', () => {
+  const config = defineConfig({
+    projects: [{ name: 'android', use: { deviceId: 'emulator-5554' } }],
+  });
+  expect(config.projects![0].use!.deviceId).toBe('emulator-5554');
+});
+
 test('toArray returns empty array for undefined', () => {
   expect(toArray(undefined)).toEqual([]);
 });

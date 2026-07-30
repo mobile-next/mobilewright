@@ -72,3 +72,21 @@ test.describe('Device.applyDeviceSettings', () => {
     await expect(device.applyDeviceSettings({ animations: 'off' })).resolves.toBeUndefined();
   });
 });
+
+test.describe('Device.id', () => {
+  test('returns the deviceId from the connected session', async () => {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    const device = new Device(driver);
+
+    await device.connect({ platform: 'ios' });
+
+    expect(device.id).toBe('device1');
+  });
+
+  test('throws when read before connect()', () => {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    const device = new Device(driver);
+
+    expect(() => device.id).toThrow(/not connected yet/);
+  });
+});
