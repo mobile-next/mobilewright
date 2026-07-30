@@ -264,7 +264,6 @@ await expect(page.getByText('Welcome')).toBeVisible();
 Manages the connection lifecycle and exposes device/app-level controls.
 
 ```typescript
-// Resolved device identifier (Android serial / iOS UDID) — useful for out-of-band adb/xcrun calls
 console.log(device.id);
 
 // Orientation
