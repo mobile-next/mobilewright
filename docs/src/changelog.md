@@ -7,6 +7,17 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.52] (2026-08-01)
+* Feat: add per-project `deviceId` and expose the resolved `device.id` ([#257](https://github.com/mobile-next/mobilewright/pull/257))
+* Feat(driver-mobilecli): surface selected, checked, and focused state from UI dumps ([#252](https://github.com/mobile-next/mobilewright/pull/252), [mobilecli#320](https://github.com/mobile-next/mobilecli/pull/320)), thanks to [@sjy](https://github.com/sjy)
+* Fix(Android): map `ToggleButton` elements to the `switch` role ([#256](https://github.com/mobile-next/mobilewright/pull/256))
+* Perf(driver-mobilecli): check agent status once per device instead of once per test ([#251](https://github.com/mobile-next/mobilewright/pull/251))
+* Chore: update bundled mobilecli to 1.0.0 ([#258](https://github.com/mobile-next/mobilewright/pull/258))
+* Fix(iOS): select the correct certificate for the given provisioning profile ([mobilecli#325](https://github.com/mobile-next/mobilecli/pull/325))
+* Fix(iOS): correct UI element positions inside nested windows ([mobilecli#321](https://github.com/mobile-next/mobilecli/pull/321))
+* Fix(iOS): restore Xcode 26.5 testing and simulator agent version checks and upgrades ([mobilecli#324](https://github.com/mobile-next/mobilecli/pull/324))
+* Fix(Android): prevent device detection from hanging when `adbd` needs a 'kill-server' ([mobilecli#322](https://github.com/mobile-next/mobilecli/pull/322))
+
 ## [0.0.51] (2026-07-29)
 * Feat(expect): support a custom message argument, like Playwright ([#241](https://github.com/mobile-next/mobilewright/pull/241))
 * Fix(core): match Android fully-qualified widget types in getByRole and export the Role type ([#186](https://github.com/mobile-next/mobilewright/pull/186)), thanks to [@Dhakshath11](https://github.com/Dhakshath11)
