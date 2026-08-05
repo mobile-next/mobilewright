@@ -156,13 +156,17 @@ export class DevicePool {
     const abortController = new AbortController();
     const timer = setTimeout(() => abortController.abort(), this.allocationTimeoutMs);
 
+    // Raced independently of `signal`: a driver that ignores the abort signal (hangs or
+    // resolves anyway) must not keep the waiter/slot alive past allocationTimeoutMs.
+    const allocatePromise = this.driver.allocate(waiter.criteria, this.takenDeviceIds(), abortController.signal);
+    const timeoutError = new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`);
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      abortController.signal.addEventListener('abort', () => reject(timeoutError), { once: true });
+    });
+
     let result;
     try {
-      result = await this.driver.allocate(
-        waiter.criteria,
-        this.takenDeviceIds(),
-        abortController.signal,
-      );
+      result = await Promise.race([allocatePromise, timeoutPromise]);
     } catch (err) {
       clearTimeout(timer);
       if (!this.inFlightWaiters.delete(waiter)) {
@@ -170,9 +174,12 @@ export class DevicePool {
         return;
       }
       this.slots.splice(slotIndex, 1);
-      if (abortController.signal.aborted) {
-        waiter.reject(new Error(`device allocation timed out after ${this.allocationTimeoutMs}ms`));
+      if (err === timeoutError) {
+        waiter.reject(timeoutError);
         this.pump();
+        // The driver may still resolve after the timeout despite the abort — release
+        // whatever it returns instead of leaking it or publishing it to a moved-on waiter.
+        allocatePromise.then((late) => this.driver.release(late.deviceId).catch(() => {})).catch(() => {});
         return;
       }
       // NoDeviceAvailableError is a temporary condition: all matching devices

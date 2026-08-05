@@ -146,7 +146,7 @@ function injectDriverReporters(config: MobilewrightConfig): MobilewrightConfig {
 
   return {
     ...config,
-    ...(extra.captureGitInfo && { captureGitInfo: { commit: true } }),
+    ...(extra.captureGitInfo && { captureGitInfo: { ...config.captureGitInfo, commit: true } }),
     reporter: [...normalizeReporters(config.reporter), ...extra.reporters],
   };
 }

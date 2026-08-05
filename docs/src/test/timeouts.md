@@ -141,6 +141,7 @@ These timeouts apply only when using the `mobilenext` driver.
 Cloud devices are allocated from a shared pool. Under load, a device may not be immediately available. This timeout limits how long Mobilewright waits before giving up.
 
 ```ts
+import { defineConfig } from 'mobilewright';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 
 export default defineConfig({
@@ -156,6 +157,7 @@ export default defineConfig({
 When `testResult` is configured, Mobilewright uploads the test report to mobilenext.ai after the run. This timeout limits how long that upload may take.
 
 ```ts
+import { defineConfig } from 'mobilewright';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 
 export default defineConfig({

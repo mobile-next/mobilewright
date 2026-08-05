@@ -171,7 +171,10 @@ export interface MobilewrightDriver {
    * needed by drivers that enumerate devices locally (e.g. mobilecli), since
    * cloud drivers already guarantee exclusivity per allocation call and can
    * ignore it. Throws `NoDeviceAvailableError` when nothing currently
-   * matches (a temporary condition the pool will retry).
+   * matches (a temporary condition the pool will retry). Drivers should
+   * honor `signal` and abort promptly, but the pool also enforces its own
+   * timeout independently of signal handling and will release any device
+   * returned after that timeout instead of publishing it.
    */
   allocate(
     criteria: AllocationCriteria,

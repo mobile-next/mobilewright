@@ -214,6 +214,9 @@ export class MobileNextDriver implements MobilewrightDriver {
   private readonly fleetSessionBySerial = new Map<string, string>();
 
   constructor(options: MobileNextDriverOptions = {}) {
+    if (options.apiKey && options.apiUrl && !options.apiUrl.startsWith('https://')) {
+      throw new Error(`MobileNextDriver apiUrl must use https when apiKey is set, got: ${options.apiUrl}`);
+    }
     this.options = options;
     this.fleetClient = new FleetApiClient({
       apiKey: options.apiKey ?? '',
@@ -529,9 +532,9 @@ export class MobileNextDriver implements MobilewrightDriver {
     if (!sessionId) {
       return;
     }
-    this.fleetSessionBySerial.delete(deviceId);
     debug('releasing device %s (session=%s)', deviceId, sessionId);
     await this.fleetClient.releaseDevice(sessionId, deviceId);
+    this.fleetSessionBySerial.delete(deviceId);
     debug('released device %s', deviceId);
   }
 
