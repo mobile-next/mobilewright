@@ -150,7 +150,6 @@ export class DevicePool {
   private async startAllocationForWaiter(waiter: Waiter): Promise<void> {
     const slot = new DeviceSlot();
     this.slots.push(slot);
-    const slotIndex = this.slots.length - 1;
     this.inFlightWaiters.add(waiter);
 
     const abortController = new AbortController();
@@ -173,7 +172,12 @@ export class DevicePool {
         // Shutdown already rejected this waiter.
         return;
       }
-      this.slots.splice(slotIndex, 1);
+      // Splice by current identity, not a captured index — concurrent allocations for
+      // other waiters may have already spliced this.slots and shifted positions.
+      const currentIndex = this.slots.indexOf(slot);
+      if (currentIndex !== -1) {
+        this.slots.splice(currentIndex, 1);
+      }
       if (err === timeoutError) {
         waiter.reject(timeoutError);
         this.pump();

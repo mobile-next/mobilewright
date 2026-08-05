@@ -277,27 +277,43 @@ export class MobilecliDriver implements MobilewrightDriver {
   async connect(config: ConnectionConfig): Promise<Session> {
     const url = config.url ?? this.serverUrl;
     const ensured = await ensureMobilecliReachable(url, { autoStart: this.autoStart, binaryPath: this.mobilecliPath });
-    this.ownedServerProcess = ensured.serverProcess;
-    debug('connecting to %s', url);
-    const rpc = new RpcClient(url, config.timeout);
-    await rpc.connect();
-    debug('websocket connected');
-
-    const platform = config.platform;
-    let device: DeviceInfo;
-    if (config.deviceId && config.deviceType) {
-      device = { id: config.deviceId, name: '', platform, type: config.deviceType, state: 'online' };
-    } else if (config.deviceId) {
-      device = await this.findDeviceById(config.deviceId);
-    } else {
-      device = await this.resolveDevice(platform, config.deviceName);
+    // Only this call's own server (if it started one) is ours to track/clean up here —
+    // an undefined serverProcess means the server was already running (e.g. from prepare()),
+    // so any existing handle must be left alone.
+    const startedServerProcess = ensured.serverProcess;
+    if (startedServerProcess) {
+      this.ownedServerProcess = startedServerProcess;
     }
-    debug('resolved device %s (platform=%s, type=%s)', device.id, platform, device.type);
+    debug('connecting to %s', url);
+    try {
+      const rpc = new RpcClient(url, config.timeout);
+      await rpc.connect();
+      debug('websocket connected');
 
-    this.ensureAgentInstalled(device);
+      const platform = config.platform;
+      let device: DeviceInfo;
+      if (config.deviceId && config.deviceType) {
+        device = { id: config.deviceId, name: '', platform, type: config.deviceType, state: 'online' };
+      } else if (config.deviceId) {
+        device = await this.findDeviceById(config.deviceId);
+      } else {
+        device = await this.resolveDevice(platform, config.deviceName);
+      }
+      debug('resolved device %s (platform=%s, type=%s)', device.id, platform, device.type);
 
-    this.session = { deviceId: device.id, deviceName: device.name, platform, deviceType: device.type, rpc };
-    return { deviceId: device.id, platform };
+      this.ensureAgentInstalled(device);
+
+      this.session = { deviceId: device.id, deviceName: device.name, platform, deviceType: device.type, rpc };
+      return { deviceId: device.id, platform };
+    } catch (err) {
+      if (startedServerProcess) {
+        await startedServerProcess.kill().catch(() => {});
+        if (this.ownedServerProcess === startedServerProcess) {
+          this.ownedServerProcess = undefined;
+        }
+      }
+      throw err;
+    }
   }
 
   private async findDeviceById(deviceId: string): Promise<DeviceInfo> {
