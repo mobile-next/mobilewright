@@ -2,6 +2,8 @@ import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
 import { openSync, readSync, closeSync } from 'node:fs';
 import type {
+  AllocatedDevice,
+  AllocationCriteria,
   AppInfo,
   Bounds,
   ConnectionConfig,
@@ -28,10 +30,21 @@ import type {
   WebViewInfo,
   WebViewSession,
 } from '@mobilewright/protocol';
+import { NoDeviceAvailableError } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
+import { ensureMobilecliReachable, type ServerHandle } from './server.js';
 
 export const DEFAULT_URL = 'ws://localhost:12000/ws';
+
+export interface MobilecliDriverOptions {
+  /** mobilecli server URL (use for remote servers). Default: ws://localhost:12000/ws */
+  url?: string;
+  /** Path to the mobilecli binary, if not resolvable via the npm package. */
+  mobilecliPath?: string;
+  /** Auto-start the mobilecli server if not running (local URLs only). Default: true. */
+  autoStart?: boolean;
+}
 
 /**
  * Device IDs whose agent has already been verified in this process. connect()
@@ -248,15 +261,23 @@ class MobilecliWebViewSession implements WebViewSession {
 export class MobilecliDriver implements MobilewrightDriver {
   private session: { deviceId: string; deviceName: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
   private readonly serverUrl: string;
+  private readonly mobilecliPath?: string;
+  private readonly autoStart: boolean;
+  /** Set only when this instance's own prepare()/connect() call started the server — that's the instance responsible for killing it. */
+  private ownedServerProcess: ServerHandle | undefined;
 
-  constructor(opts?: { url?: string }) {
+  constructor(opts?: MobilecliDriverOptions) {
     this.serverUrl = opts?.url ?? DEFAULT_URL;
+    this.mobilecliPath = opts?.mobilecliPath;
+    this.autoStart = opts?.autoStart ?? true;
   }
 
   // ─── Connection ──────────────────────────────────────────────
 
   async connect(config: ConnectionConfig): Promise<Session> {
     const url = config.url ?? this.serverUrl;
+    const ensured = await ensureMobilecliReachable(url, { autoStart: this.autoStart, binaryPath: this.mobilecliPath });
+    this.ownedServerProcess = ensured.serverProcess;
     debug('connecting to %s', url);
     const rpc = new RpcClient(url, config.timeout);
     await rpc.connect();
@@ -335,7 +356,7 @@ export class MobilecliDriver implements MobilewrightDriver {
       debug('agent already verified on %s, skipping status check', device.id);
       return;
     }
-    const binary = resolveMobilecliBinary();
+    const binary = resolveMobilecliBinary(this.mobilecliPath);
     debug('running: %s agent status --device %s', binary, device.id);
     const statusOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
     debug('agent status output: %s', statusOutput.trim());
@@ -363,6 +384,53 @@ export class MobilecliDriver implements MobilewrightDriver {
   async disconnect(): Promise<void> {
     await this.requireSession().rpc.disconnect();
     this.session = null;
+    if (this.ownedServerProcess) {
+      await this.ownedServerProcess.kill();
+      this.ownedServerProcess = undefined;
+    }
+  }
+
+  /** Pre-warm a locally-spawned server before any device-pool workers connect(). No-op for remote URLs already reachable. */
+  async prepare(): Promise<void> {
+    const ensured = await ensureMobilecliReachable(this.serverUrl, { autoStart: this.autoStart, binaryPath: this.mobilecliPath });
+    this.ownedServerProcess = ensured.serverProcess;
+  }
+
+  /** Kill the server started by prepare(), if any. */
+  async dispose(): Promise<void> {
+    if (this.ownedServerProcess) {
+      await this.ownedServerProcess.kill();
+      this.ownedServerProcess = undefined;
+    }
+  }
+
+  // ─── Allocation ────────────────────────────────────────────────
+
+  async allocate(
+    criteria: AllocationCriteria,
+    takenDeviceIds: ReadonlySet<string>,
+  ): Promise<AllocatedDevice> {
+    const devices = await this.listDevices(criteria.platform ? { platform: criteria.platform } : undefined);
+
+    const namePattern = criteria.deviceNamePattern ? new RegExp(criteria.deviceNamePattern) : undefined;
+
+    const match = devices
+      .filter((d) => d.state === 'online')
+      .filter((d) => !takenDeviceIds.has(d.id))
+      .filter((d) => !criteria.deviceId || d.id === criteria.deviceId)
+      .filter((d) => !namePattern || namePattern.test(d.name))
+      .at(0);
+
+    if (!match) {
+      throw new NoDeviceAvailableError(
+        `no online device available matching criteria ${JSON.stringify(criteria)}`,
+      );
+    }
+    return { deviceId: match.id, platform: match.platform, driver: 'mobilecli', model: match.model, osVersion: match.osVersion, type: match.type };
+  }
+
+  async release(_deviceId: string): Promise<void> {
+    // mobilecli devices are local; nothing to release.
   }
 
   async applyDeviceSettings(settings: DeviceSettings): Promise<void> {
@@ -575,7 +643,7 @@ export class MobilecliDriver implements MobilewrightDriver {
   // ─── Device Operations ───────────────────────────────────────
 
   async listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]> {
-    const binary = resolveMobilecliBinary();
+    const binary = resolveMobilecliBinary(this.mobilecliPath);
     debug('listing devices');
     const output = execFileSync(binary, ['devices'], { encoding: 'utf8' });
     const response = JSON.parse(output) as MobilecliDevicesResponse;

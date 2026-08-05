@@ -7,6 +7,8 @@
   "include": ["src"],
   "references": [
     { "path": "../packages/mobilewright" },
-    { "path": "../packages/test" }
+    { "path": "../packages/test" },
+    { "path": "../packages/driver-mobilecli" },
+    { "path": "../packages/driver-mobilenext" }
   ]
 }

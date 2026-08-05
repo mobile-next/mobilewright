@@ -1,10 +1,7 @@
 import type { Platform, DeviceInfo, DeviceType, DeviceSettings, MobilewrightDriver } from '@mobilewright/protocol';
 import { Device } from '@mobilewright/core';
 import { MobilecliDriver, DEFAULT_URL } from '@mobilewright/driver-mobilecli';
-import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
-import { ensureMobilecliReachable } from './server.js';
 import { toArray } from './config.js';
-import type { DriverConfig } from './config.js';
 
 export interface LaunchOptions {
   bundleId?: string;
@@ -12,10 +9,12 @@ export interface LaunchOptions {
   autoAppLaunch?: boolean;
   deviceId?: string;
   deviceName?: RegExp;
+  /** mobilecli server URL. Ignored when `driver` is set — construct the driver with its own url instead. */
   url?: string;
   timeout?: number;
+  /** Auto-start the mobilecli server if not running. Ignored when `driver` is set. Default: true. */
   autoStart?: boolean;
-  driver?: DriverConfig;
+  driver?: MobilewrightDriver;
   actionTimeout?: number;
   expectTimeout?: number;
   appLaunchTimeout?: number;
@@ -32,7 +31,7 @@ export interface ConnectDeviceParams {
   platform: Platform;
   deviceId: string;
   deviceType?: DeviceType;
-  driverConfig?: DriverConfig;
+  driver?: MobilewrightDriver;
   url?: string;
   timeout?: number;
   actionTimeout?: number;
@@ -46,25 +45,12 @@ export interface FindDeviceParams {
   platform: Platform;
   deviceId?: string;
   deviceName?: RegExp;
-  driverConfig?: DriverConfig;
+  driver?: MobilewrightDriver;
   url?: string;
 }
 
-export function createDriver(driverConfig?: DriverConfig, url?: string): MobilewrightDriver {
-  if (driverConfig?.type === 'mobilenext' || driverConfig?.type === 'mobile-use') {
-    return new MobileNextDriver({
-      region: driverConfig.region,
-      apiKey: driverConfig.apiKey,
-    });
-  }
-  return new MobilecliDriver({ url });
-}
-
 export async function connectDevice(params: ConnectDeviceParams): Promise<Device> {
-  // URL is baked into the driver at construction time; don't override it here.
-  // Passing mobilecli's default URL into MobileNextDriver.connect() would send
-  // requests to the wrong server.
-  const driver = createDriver(params.driverConfig, params.url);
+  const driver = params.driver ?? new MobilecliDriver({ url: params.url });
   const device = new Device(driver, {
     locatorDefaults: {
       ...(params.actionTimeout !== undefined && { timeout: params.actionTimeout }),
@@ -99,8 +85,7 @@ export async function installAndLaunchApps(device: Device, opts: LaunchOptions):
 }
 
 export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> {
-  const url = params.url ?? DEFAULT_URL;
-  const driver = createDriver(params.driverConfig, url);
+  const driver = params.driver ?? new MobilecliDriver({ url: params.url ?? DEFAULT_URL });
   const devices = await driver.listDevices({ platform: params.platform });
 
   const match = devices
@@ -118,28 +103,22 @@ export async function findDevice(params: FindDeviceParams): Promise<DeviceInfo> 
 function createLauncher(platform: Platform): PlatformLauncher {
   return {
     async launch(opts: LaunchOptions = {}): Promise<Device> {
-      const driverConfig = opts.driver;
-      const url = opts.url ?? DEFAULT_URL;
-
-      let serverProcess: { kill: () => void } | undefined;
-      if (!driverConfig || driverConfig.type === 'mobilecli') {
-        const ensured = await ensureMobilecliReachable(url, { autoStart: opts.autoStart ?? true });
-        serverProcess = ensured.serverProcess ?? undefined;
-      }
+      // One driver instance shared across find + connect: mobilecli's own
+      // connect() handles server auto-start/reachability internally, and
+      // owns killing any server it started when the device disconnects.
+      const driver = opts.driver ?? new MobilecliDriver({ url: opts.url, autoStart: opts.autoStart });
 
       const found = await findDevice({
         platform,
         deviceId: opts.deviceId,
         deviceName: opts.deviceName,
-        driverConfig,
-        url,
+        driver,
       });
 
       const device = await connectDevice({
         platform,
         deviceId: found.id,
-        driverConfig,
-        url,
+        driver,
         timeout: opts.timeout,
         actionTimeout: opts.actionTimeout,
         expectTimeout: opts.expectTimeout,
@@ -147,11 +126,6 @@ function createLauncher(platform: Platform): PlatformLauncher {
         installTimeout: opts.installTimeout,
         deviceSettings: { animations: opts.animations },
       });
-
-      if (serverProcess) {
-        const proc = serverProcess;
-        device.onClose(() => Promise.resolve(proc.kill()).then(() => undefined));
-      }
 
       await installAndLaunchApps(device, opts);
       return device;

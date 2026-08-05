@@ -4,8 +4,14 @@ import { createRequire } from 'node:module';
 /**
  * Resolve the mobilecli binary using Node's module resolution so it works
  * from npx caches, global installs, and local node_modules alike.
+ *
+ * @param explicitPath Use this path directly instead of resolving one.
  */
-export function resolveMobilecliBinary(): string {
+export function resolveMobilecliBinary(explicitPath?: string): string {
+  if (explicitPath) {
+    return explicitPath;
+  }
+
   let binary: string;
   switch (`${process.platform}-${process.arch}`) {
     case 'darwin-arm64':

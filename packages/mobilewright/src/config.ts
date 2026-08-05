@@ -2,11 +2,7 @@ import { access } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import os from 'node:os';
-import { randomUUID } from 'node:crypto';
-import type { MobileNextTestResultConfig } from '@mobilewright/driver-mobilenext';
-
-export type { MobileNextTestResultConfig };
+import type { MobilewrightDriver } from '@mobilewright/protocol';
 
 const _require = createRequire(import.meta.url);
 
@@ -65,23 +61,6 @@ export interface MobilewrightProjectConfig {
 
 // ─── Config ───────────────────────────────────────────────────────
 
-export interface DriverConfigMobilecli {
-  type: 'mobilecli';
-}
-
-export interface DriverConfigMobileNext {
-  type: 'mobilenext' | 'mobile-use';
-  region?: string;
-  apiKey?: string;
-  testResult?: MobileNextTestResultConfig;
-  /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 300000 (5 min). */
-  allocationTimeout?: number;
-  /** Timeout for uploading test results to mobilenext.ai, in ms. Default: none. */
-  uploadTimeout?: number;
-}
-
-export type DriverConfig = DriverConfigMobilecli | DriverConfigMobileNext;
-
 export interface MobilewrightConfig {
   // ── Mobile-specific ─────────────────────────────────────────
   /** Default platform. */
@@ -98,14 +77,8 @@ export interface MobilewrightConfig {
   autoAppLaunch?: boolean;
   /** Attach the accessibility tree as JSON to the test report. 'on-failure' attaches on test failure, 'off' disables. Default: 'off'. */
   viewTree?: 'on-failure' | 'off';
-  /** mobilecli server URL (use for remote servers). */
-  url?: string;
-  /** Path to mobilecli binary (if not on PATH). */
-  mobilecliPath?: string;
-  /** Auto-start mobilecli server if not running. Default: true. */
-  autoStart?: boolean;
-  /** Driver to use. Default: { type: 'mobilecli' }. */
-  driver?: DriverConfig;
+  /** Driver instance to use, e.g. `new MobileNextDriver({ apiKey })`. Default: `new MobilecliDriver()`. */
+  driver?: MobilewrightDriver;
 
   // ── Test runner ─────────────────────────────────────────────
   /** Directory to search for test files. Default: config file directory. */
@@ -164,37 +137,17 @@ function normalizeReporters(
   return reporter;
 }
 
-function injectUploadReporter(config: MobilewrightConfig): MobilewrightConfig {
-  const driver = config.driver;
-  if (!driver || (driver.type !== 'mobilenext' && driver.type !== 'mobile-use')) {
+/** Auto-injects reporter entries the configured driver wants (e.g. mobile-next's results upload). */
+function injectDriverReporters(config: MobilewrightConfig): MobilewrightConfig {
+  const extra = config.driver?.configureReporting?.();
+  if (!extra) {
     return config;
   }
-  const mobileNextDriver = driver as DriverConfigMobileNext;
-  const testResult = mobileNextDriver.testResult;
-  if (testResult?.uploadReport === 'off') {
-    return config;
-  }
-
-  const jsonResultsPath = join(
-    os.tmpdir(),
-    `mobilewright-results-${randomUUID()}.json`,
-  );
-  const uploadReporterPath = _require.resolve('@mobilewright/driver-mobilenext/reporter');
-  const reporters = normalizeReporters(config.reporter);
 
   return {
     ...config,
-    captureGitInfo: { commit: true },
-    reporter: [
-      ...reporters,
-      ['json', { outputFile: jsonResultsPath }],
-      [uploadReporterPath, {
-        apiKey: mobileNextDriver.apiKey ?? '',
-        jsonResultsPath,
-        testResult: mobileNextDriver.testResult ?? {},
-        uploadTimeout: mobileNextDriver.uploadTimeout,
-      }],
-    ],
+    ...(extra.captureGitInfo && { captureGitInfo: { commit: true } }),
+    reporter: [...normalizeReporters(config.reporter), ...extra.reporters],
   };
 }
 
@@ -212,7 +165,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
 
-  return injectUploadReporter(base);
+  return injectDriverReporters(base);
 }
 
 const CONFIG_FILES = [

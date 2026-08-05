@@ -1,48 +1,7 @@
-import type { DeviceType, Platform } from '@mobilewright/protocol';
+import type { AllocatedDevice, AllocationCriteria, DeviceType, Platform } from '@mobilewright/protocol';
 
-/**
- * Thrown by a DeviceAllocator when no device is currently available but one
- * may become available later (e.g. all matching devices are already taken).
- * DevicePool treats this as a temporary condition and re-queues the waiter
- * rather than rejecting it outright.
- */
-export class NoDeviceAvailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'NoDeviceAvailableError';
-  }
-}
-
-export interface AllocationCriteria {
-  platform?: Platform;
-  /** Serialized regex source — `RegExp.prototype.source`. The allocator reconstructs `new RegExp(...)`. */
-  deviceNamePattern?: string;
-  deviceId?: string;
-}
-
-export interface AllocateResult {
-  deviceId: string;
-  platform: Platform;
-  driver?: string;
-  model?: string;
-  osVersion?: string;
-  type?: DeviceType;
-}
-
-/**
- * Driver-specific allocator. Implementations are at the outer adapter layer.
- * `takenDeviceIds` lets the allocator avoid handing out devices the pool already has.
- */
-export interface DeviceAllocator {
-  allocate(
-    criteria: AllocationCriteria,
-    takenDeviceIds: ReadonlySet<string>,
-    signal?: AbortSignal,
-  ): Promise<AllocateResult>;
-
-  /** Called at pool shutdown for every slot in `available` or `allocated` state. */
-  release(deviceId: string): Promise<void>;
-}
+export { NoDeviceAvailableError } from '@mobilewright/protocol';
+export type { AllocatedDevice, AllocationCriteria };
 
 export interface AllocationHandle {
   allocationId: string;

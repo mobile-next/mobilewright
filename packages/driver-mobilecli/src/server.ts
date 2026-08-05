@@ -1,12 +1,14 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import WebSocket from 'ws';
-import { sleep } from '@mobilewright/core';
-import { DEFAULT_URL, resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
-import { MobilewrightError } from './errors.js';
+import { resolveMobilecliBinary } from './resolve-binary.js';
 
 const HEALTH_CHECK_TIMEOUT = 5_000;
 const SERVER_START_TIMEOUT = 10_000;
 const SERVER_POLL_INTERVAL = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // ─── URL helpers ───────────────────────────────────────────────
 
@@ -74,7 +76,7 @@ export async function startMobilecliServer(opts?: {
   }
 
   proc.kill('SIGTERM');
-  throw new MobilewrightError(
+  throw new Error(
     `mobilecli server did not become ready within ${SERVER_START_TIMEOUT / 1000}s.\n` +
       `Try starting it manually with: ${binary} server start`,
   );
@@ -83,20 +85,20 @@ export async function startMobilecliServer(opts?: {
 // ─── Health check ──────────────────────────────────────────────
 
 export async function ensureMobilecliReachable(
-  url: string = DEFAULT_URL,
-  opts?: { autoStart?: boolean },
+  url: string,
+  opts?: { autoStart?: boolean; binaryPath?: string },
 ): Promise<{ serverProcess?: ServerHandle }> {
   if (await checkWebSocket(url, HEALTH_CHECK_TIMEOUT)) return {};
 
   if (!isLocalUrl(url)) {
-    throw new MobilewrightError(
+    throw new Error(
       `Cannot reach mobilecli server at ${url}.\n\n` +
         'Ensure the remote server is running and accessible.',
     );
   }
 
   let binaryPath: string | null;
-  try { binaryPath = resolveMobilecliBinary(); } catch { binaryPath = null; }
+  try { binaryPath = resolveMobilecliBinary(opts?.binaryPath); } catch { binaryPath = null; }
 
   if (opts?.autoStart && binaryPath) {
     let port = 12000;
@@ -110,7 +112,7 @@ export async function ensureMobilecliReachable(
     : 'Install mobilecli from:\n  https://github.com/mobile-next/mobilecli\n\n' +
       'Then start the server with:\n  mobilecli server start';
 
-  throw new MobilewrightError(
+  throw new Error(
     `mobilecli server is not running at ${url}.\n\n${hint}`,
   );
 }

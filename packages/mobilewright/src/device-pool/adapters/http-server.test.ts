@@ -1,17 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { request as httpRequest } from 'node:http';
 import { DevicePool } from '../application/device-pool.js';
-import type { DeviceAllocator, AllocateResult } from '../application/ports.js';
+import type { MobilewrightDriver } from '@mobilewright/protocol';
+import type { AllocatedDevice } from '../application/ports.js';
 import { DevicePoolHttpServer } from './http-server.js';
 
-function makeAllocator(devices: AllocateResult[]): DeviceAllocator {
+function makeDriver(devices: AllocatedDevice[]): MobilewrightDriver {
   let i = 0;
   return {
     async allocate() {
       return devices[i++ % devices.length];
     },
     async release() {},
-  };
+  } as unknown as MobilewrightDriver;
 }
 
 interface ServerHandle {
@@ -49,7 +50,7 @@ function postAllocateAndReadFirstLine(url: string, body: string): Promise<string
 
 test('POST /allocate returns a JSON line with allocationId, deviceId, platform', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const server = await startServer(pool);
@@ -78,7 +79,7 @@ function postReleaseRequest(url: string, allocationId: string): Promise<number> 
 
 test('POST /release frees the slot for the next allocate', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const server = await startServer(pool);
@@ -128,7 +129,7 @@ function startAllocateRequest(url: string, body: string): Promise<{
 
 test('closing the /allocate socket releases the allocation', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const server = await startServer(pool);
@@ -149,7 +150,7 @@ test('closing the /allocate socket releases the allocation', async () => {
 
 test('POST /release with unknown allocationId returns 200 (idempotent)', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([]),
+    driver: makeDriver([]),
     maxSlots: 1,
   });
   const server = await startServer(pool);
@@ -179,7 +180,7 @@ function postJson(url: string, path: string, body: unknown): Promise<{ status: n
 
 test('/installed/is-installed and /installed/record round-trip', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const server = await startServer(pool);
@@ -212,7 +213,7 @@ test('/installed/is-installed and /installed/record round-trip', async () => {
 
 test('/shutdown drains the pool and rejects subsequent allocates', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const server = await startServer(pool);

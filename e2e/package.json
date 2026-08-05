@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "mobilewright": "^0.0.1",
-    "@mobilewright/test": "^0.0.1"
+    "@mobilewright/test": "^0.0.1",
+    "@mobilewright/driver-mobilecli": "^0.0.1",
+    "@mobilewright/driver-mobilenext": "^0.0.1"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",

@@ -43,34 +43,41 @@ Which device to run on and which app to drive.
 
 ## Driver
 
-The driver decides where tests run — a local device via mobilecli, or a cloud device.
+The driver decides where tests run — a local device via mobilecli, or a cloud device. Pass an
+instance constructed from a `@mobilewright/driver-*` package (or your own, implementing
+`MobilewrightDriver` from `@mobilewright/protocol`). Each driver has its own constructor options —
+there's no shared config shape to look up.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `driver` | `DriverConfig` | `{ type: 'mobilecli' }` | Which driver to use (see below) |
-| `url` | `string` | — | mobilecli server URL (for a remote server) |
-| `mobilecliPath` | `string` | — | Path to the mobilecli binary if it's not on `PATH` |
-| `autoStart` | `boolean` | `true` | Auto-start the mobilecli server if it isn't running |
+| `driver` | `MobilewrightDriver` | `new MobilecliDriver()` | Driver instance to use (see below) |
 
 **Local (mobilecli):**
 
 ```ts
-driver: { type: 'mobilecli' }
+import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
+
+// omit `driver` entirely to use these same defaults
+driver: new MobilecliDriver({
+  url: 'ws://localhost:12000/ws', // mobilecli server URL (for a remote server)
+  autoStart: true,                // auto-start the mobilecli server if it isn't running
+  mobilecliPath: undefined,       // path to the mobilecli binary, if not on PATH
+})
 ```
 
 **Cloud (Mobile Next):**
 
 ```ts
-driver: {
-  type: 'mobilenext',
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
+
+driver: new MobileNextDriver({
   apiKey: process.env.MOBILENEXT_API_KEY,
-  region: 'us',
   allocationTimeout: 300_000, // wait for a cloud device, ms (default: 5 min)
   uploadTimeout: 60_000,      // upload test results, ms (default: none)
-}
+})
 ```
 
-With the `mobilenext` driver, test results are uploaded to mobilenext.ai automatically unless you set `testResult: { uploadReport: 'off' }`.
+With the `MobileNextDriver`, test results are uploaded to mobilenext.ai automatically unless you set `testResult: { uploadReport: 'off' }`.
 
 ## Test runner
 

@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
+import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { defineConfig, toArray } from './config.js';
 
 test('defineConfig injects globalSetup pointing at device-pool/setup.js', () => {
@@ -62,39 +64,27 @@ test('toArray returns the array unchanged when already an array', () => {
 
 test('defineConfig injects upload reporter by default when testResult is set without uploadReport', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'test-key',
-      testResult: {},
-    },
+    driver: new MobileNextDriver({ apiKey: 'test-key', testResult: {} }),
   });
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
+  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
 });
 
 test('defineConfig injects upload reporter when mobilenext driver has uploadReport on', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'test-key',
-      testResult: { uploadReport: 'on' },
-    },
+    driver: new MobileNextDriver({ apiKey: 'test-key', testResult: { uploadReport: 'on' } }),
   });
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
+  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
 });
 
 test('defineConfig injects json reporter alongside upload reporter', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'key',
-      testResult: { uploadReport: 'on-failure' },
-    },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on-failure' } }),
   });
   const reporters = config.reporter as Array<[string, unknown]>;
   const jsonEntry = reporters.find((r) => r[0] === 'json');
@@ -105,55 +95,51 @@ test('defineConfig injects json reporter alongside upload reporter', () => {
 
 test('defineConfig does not inject upload reporter when uploadReport is off', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'key',
-      testResult: { uploadReport: 'off' },
-    },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'off' } }),
   });
-  if (Array.isArray(config.reporter)) {
-    const paths = config.reporter.map((r) => (Array.isArray(r) ? r[0] : r));
-    expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(false);
-  } else {
-    expect(config.reporter).toBeUndefined();
-  }
+  expect(config.reporter).toBeUndefined();
 });
 
 test('defineConfig injects upload reporter by default when testResult is absent', () => {
-  const config = defineConfig({ driver: { type: 'mobilenext', apiKey: 'key' } });
+  const config = defineConfig({ driver: new MobileNextDriver({ apiKey: 'key' }) });
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('driver-mobilenext'))).toBe(true);
+  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
 });
 
 test('defineConfig does not inject upload reporter for mobilecli driver', () => {
-  const config = defineConfig({ driver: { type: 'mobilecli' } });
+  const config = defineConfig({ driver: new MobilecliDriver() });
+  expect(config.reporter).toBeUndefined();
+});
+
+test('defineConfig does not inject upload reporter when driver is omitted', () => {
+  const config = defineConfig({});
   expect(config.reporter).toBeUndefined();
 });
 
 test('defineConfig preserves existing array reporters when injecting', () => {
   const config = defineConfig({
-    driver: { type: 'mobilenext', apiKey: 'key', testResult: { uploadReport: 'on' } },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
     reporter: [['html'], ['list']],
   });
   const reporters = config.reporter as Array<[string, unknown]>;
   const names = reporters.map((r) => r[0]);
   expect(names).toContain('html');
   expect(names).toContain('list');
-  expect(names.some((n) => String(n).includes('driver-mobilenext'))).toBe(true);
+  expect(names.some((n) => String(n).includes('reporter'))).toBe(true);
 });
 
 test('defineConfig normalizes string reporter to array form before injecting', () => {
   const config = defineConfig({
-    driver: { type: 'mobilenext', apiKey: 'key', testResult: { uploadReport: 'on' } },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
     reporter: 'html',
   });
   const reporters = config.reporter as Array<[string, unknown]>;
   expect(Array.isArray(reporters)).toBe(true);
   const names = reporters.map((r) => r[0]);
   expect(names).toContain('html');
-  expect(names.some((n) => String(n).includes('driver-mobilenext'))).toBe(true);
+  expect(names.some((n) => String(n).includes('reporter'))).toBe(true);
 });
 
 test('defineConfig preserves use.actionTimeout', () => {
@@ -181,38 +167,12 @@ test('defineConfig preserves globalTimeout', () => {
   expect(config.globalTimeout).toBe(3_600_000);
 });
 
-test('defineConfig preserves driver.mobilenext.allocationTimeout', () => {
-  const config = defineConfig({
-    driver: { type: 'mobilenext', apiKey: 'key', allocationTimeout: 900_000 },
-  });
-  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
-  expect(driver.allocationTimeout).toBe(900_000);
-});
-
-test('defineConfig preserves driver.mobilenext.uploadTimeout', () => {
-  const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'key',
-      testResult: { uploadReport: 'on' },
-      uploadTimeout: 120_000,
-    },
-  });
-  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
-  expect(driver.uploadTimeout).toBe(120_000);
-});
-
 test('defineConfig passes uploadTimeout to upload reporter options', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
-      apiKey: 'key',
-      testResult: { uploadReport: 'on' },
-      uploadTimeout: 90_000,
-    },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' }, uploadTimeout: 90_000 }),
   });
   const reporters = config.reporter as Array<[string, unknown]>;
-  const uploadEntry = reporters.find(([path]) => String(path).includes('driver-mobilenext'));
+  const uploadEntry = reporters.find(([path]) => String(path).includes('reporter'));
   expect(uploadEntry).toBeDefined();
   const opts = uploadEntry![1] as { uploadTimeout: number };
   expect(opts.uploadTimeout).toBe(90_000);
@@ -220,32 +180,28 @@ test('defineConfig passes uploadTimeout to upload reporter options', () => {
 
 test('defineConfig sets captureGitInfo when mobilenext driver is configured with testResult', () => {
   const config = defineConfig({
-    driver: { type: 'mobilenext', apiKey: 'key', testResult: { uploadReport: 'on' } },
+    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
   });
   expect(config.captureGitInfo).toEqual({ commit: true });
 });
 
 test('defineConfig sets captureGitInfo by default when testResult is absent', () => {
-  const config = defineConfig({ driver: { type: 'mobilenext', apiKey: 'key' } });
+  const config = defineConfig({ driver: new MobileNextDriver({ apiKey: 'key' }) });
   expect(config.captureGitInfo).toEqual({ commit: true });
 });
 
-test('defineConfig accepts mobilenext driver with testResult config', () => {
+test('defineConfig passes testResult through to the upload reporter options', () => {
   const config = defineConfig({
-    driver: {
-      type: 'mobilenext',
+    driver: new MobileNextDriver({
       apiKey: 'test-key',
-      testResult: {
-        uploadReport: 'on',
-        name: 'My Suite',
-        tags: ['ci', 'nightly'],
-        environment: 'staging',
-      },
-    },
+      testResult: { uploadReport: 'on', name: 'My Suite', tags: ['ci', 'nightly'], environment: 'staging' },
+    }),
   });
-  const driver = config.driver as import('./config.js').DriverConfigMobileNext;
-  expect(driver.testResult?.uploadReport).toBe('on');
-  expect(driver.testResult?.name).toBe('My Suite');
-  expect(driver.testResult?.tags).toEqual(['ci', 'nightly']);
-  expect(driver.testResult?.environment).toBe('staging');
+  const reporters = config.reporter as Array<[string, unknown]>;
+  const uploadEntry = reporters.find(([path]) => String(path).includes('reporter'));
+  const opts = uploadEntry![1] as { testResult: { uploadReport: string; name: string; tags: string[]; environment: string } };
+  expect(opts.testResult.uploadReport).toBe('on');
+  expect(opts.testResult.name).toBe('My Suite');
+  expect(opts.testResult.tags).toEqual(['ci', 'nightly']);
+  expect(opts.testResult.environment).toBe('staging');
 });

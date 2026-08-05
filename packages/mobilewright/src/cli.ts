@@ -9,8 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
 import type { DeviceInfo } from '@mobilewright/protocol';
-import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
-import { ensureMobilecliReachable } from './server.js';
+import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliReachable } from '@mobilewright/driver-mobilecli';
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';

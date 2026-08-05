@@ -120,13 +120,13 @@ Point your `mobilewright.config.ts` at the cloud driver. Read the API key from a
 
 ```ts
 import { defineConfig } from 'mobilewright';
+import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 
 export default defineConfig({
   platform: 'ios', // or 'android'
-  driver: {
-    type: 'mobilenext',
+  driver: new MobileNextDriver({
     apiKey: process.env.MOBILENEXT_API_KEY,
-  },
+  }),
 });
 ```
 

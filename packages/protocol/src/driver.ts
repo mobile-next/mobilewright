@@ -3,11 +3,13 @@ import type {
   ConnectionConfig,
   DeviceInfo,
   DeviceSettings,
+  DeviceType,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
   ListDevicesOptions,
   Orientation,
+  Platform,
   RecordingOptions,
   RecordingResult,
   ScreenSize,
@@ -18,6 +20,39 @@ import type {
   ViewNode,
   WebViewInfo,
 } from './types.js';
+
+/**
+ * Thrown by `MobilewrightDriver.allocate` when no device is currently
+ * available but one may become available later (e.g. all matching devices
+ * are already taken). The device pool treats this as a temporary condition
+ * and re-queues the waiter rather than rejecting it outright.
+ */
+export class NoDeviceAvailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoDeviceAvailableError';
+  }
+}
+
+export interface AllocationCriteria {
+  platform?: Platform;
+  /** Regex source (`RegExp.prototype.source`) matched against device name. */
+  deviceNamePattern?: string;
+  deviceId?: string;
+}
+
+export interface AllocatedDevice {
+  deviceId: string;
+  platform: Platform;
+  /** Free-form label identifying which driver produced this allocation (e.g. "mobilecli"). Informational only. */
+  driver?: string;
+  model?: string;
+  osVersion?: string;
+  type?: DeviceType;
+}
+
+/** A single Playwright reporter config entry: a module path, optionally with options. */
+export type ReporterEntry = [string] | [string, unknown];
 
 export interface WebViewSession {
   /** Evaluate a JavaScript expression in the webview and return its result. */
@@ -111,7 +146,7 @@ export interface MobilewrightDriver {
   uninstallApp(bundleId: string): Promise<void>;
 
   // Device
-  /** List the devices available to this driver. */
+  /** List the devices available to this driver, online and offline. */
   listDevices(opts?: ListDevicesOptions): Promise<DeviceInfo[]>;
   /** Open the given URL on the device (deep link or web URL). */
   openUrl(url: string): Promise<void>;
@@ -125,4 +160,37 @@ export interface MobilewrightDriver {
   // WebView (optional — drivers that don't support it omit this)
   /** Bridge for inspecting and driving webviews; absent on drivers without webview support. */
   webViewBridge?: WebViewBridge;
+
+  // Allocation — used by the device-pool coordinator to reserve/release a
+  // device ahead of connect(). Local, single-device use (ios.launch(),
+  // connectDevice()) never calls these.
+  /**
+   * Reserve a device matching `criteria`. Async because it may involve a
+   * network round-trip (cloud pool) or local enumeration.
+   * `takenDeviceIds` excludes devices already handed to other pool slots —
+   * needed by drivers that enumerate devices locally (e.g. mobilecli), since
+   * cloud drivers already guarantee exclusivity per allocation call and can
+   * ignore it. Throws `NoDeviceAvailableError` when nothing currently
+   * matches (a temporary condition the pool will retry).
+   */
+  allocate(
+    criteria: AllocationCriteria,
+    takenDeviceIds: ReadonlySet<string>,
+    signal?: AbortSignal,
+  ): Promise<AllocatedDevice>;
+  /** Release a device back to the pool. No-op for drivers with nothing to release. */
+  release(deviceId: string): Promise<void>;
+
+  // Lifecycle (optional — drivers with nothing to prepare/release omit these)
+  /** Prepare this driver for use (e.g. start a local server process) before any device-pool workers connect. Called once by the coordinator at startup. */
+  prepare?(): Promise<void>;
+  /** Release resources acquired by `prepare()` (e.g. kill a spawned server). Called once at coordinator shutdown. */
+  dispose?(): Promise<void>;
+
+  /**
+   * Reporter entries this driver wants auto-injected by `defineConfig()`
+   * (e.g. a results-upload reporter). Drivers without a reporting
+   * integration omit this.
+   */
+  configureReporting?(): { reporters: ReporterEntry[]; captureGitInfo?: boolean } | undefined;
 }

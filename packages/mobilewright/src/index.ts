@@ -9,7 +9,10 @@ export { expect } from '@mobilewright/core';
 export { Device, Screen, Locator, MobileWebViewPage, MobileWebViewLocator, Page, WebLocator } from '@mobilewright/core';
 
 // Configuration
-export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions, type DriverConfig, type DriverConfigMobilecli, type DriverConfigMobileNext } from './config.js';
+export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions } from './config.js';
+
+// Driver — implement this interface (or construct one from a @mobilewright/driver-* package) and pass an instance as `driver` in defineConfig().
+export type { MobilewrightDriver } from '@mobilewright/protocol';
 
 // Errors
 export { MobilewrightError } from './errors.js';

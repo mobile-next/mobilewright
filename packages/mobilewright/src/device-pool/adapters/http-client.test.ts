@@ -2,14 +2,15 @@ import { test, expect } from '@playwright/test';
 import { DevicePool } from '../application/device-pool.js';
 import { DevicePoolHttpServer } from './http-server.js';
 import { HttpDevicePoolClient } from './http-client.js';
-import type { AllocateResult, DeviceAllocator } from '../application/ports.js';
+import type { MobilewrightDriver } from '@mobilewright/protocol';
+import type { AllocatedDevice } from '../application/ports.js';
 
-function makeAllocator(devices: AllocateResult[]): DeviceAllocator {
+function makeDriver(devices: AllocatedDevice[]): MobilewrightDriver {
   let i = 0;
   return {
     async allocate() { return devices[i++ % devices.length]; },
     async release() {},
-  };
+  } as unknown as MobilewrightDriver;
 }
 
 interface ServerHandle {
@@ -31,7 +32,7 @@ async function startServerAndClient(pool: DevicePool): Promise<ServerHandle> {
 
 test('client.allocate returns a handle from the server', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);
@@ -47,7 +48,7 @@ test('client.allocate returns a handle from the server', async () => {
 
 test('client.release frees the device for a subsequent allocate', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);
@@ -65,7 +66,7 @@ test('client.release frees the device for a subsequent allocate', async () => {
 
 test('install-tracking round-trip via client', async () => {
   const pool = new DevicePool({
-    allocator: makeAllocator([{ deviceId: 'd1', platform: 'ios' }]),
+    driver: makeDriver([{ deviceId: 'd1', platform: 'ios' }]),
     maxSlots: 1,
   });
   const { client, stop } = await startServerAndClient(pool);

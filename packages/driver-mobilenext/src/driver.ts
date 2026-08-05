@@ -1,9 +1,14 @@
 import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { Transform } from 'node:stream';
+import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
+import os from 'node:os';
 import createDebug from 'debug';
 import type {
+  AllocatedDevice,
+  AllocationCriteria,
   AppInfo,
   ConnectionConfig,
   DeviceInfo,
@@ -18,6 +23,7 @@ import type {
   Platform,
   RecordingOptions,
   RecordingResult,
+  ReporterEntry,
   ScreenSize,
   ScreenshotOptions,
   Session,
@@ -26,8 +32,12 @@ import type {
   ViewNode,
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
+import { FleetApiClient, type DeviceFilter } from './fleet-api.js';
+import type { MobileNextTestResultConfig } from './reporter.js';
 
 export const DEFAULT_URL = 'wss://api.mobilenext.ai/ws';
+
+const _require = createRequire(import.meta.url);
 
 // ─── RPC response types ───────────────────────────────────────
 
@@ -91,8 +101,38 @@ interface MobileNextDevicesResponse {
 }
 
 export interface MobileNextDriverOptions {
-  region?: string;
   apiKey?: string;
+  /** Fleet API base URL override. Mainly for testing. */
+  apiUrl?: string;
+  /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 300000 (5 min). */
+  allocationTimeout?: number;
+  /** Test-result upload options for the auto-injected upload reporter. Omit to use defaults ('on'). */
+  testResult?: MobileNextTestResultConfig;
+  /** Timeout for uploading test results to mobilenext.ai, in ms. Default: none. */
+  uploadTimeout?: number;
+}
+
+function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
+  // The fleet API requires exactly one platform filter, so a missing platform is a caller error —
+  // fail loudly instead of silently constraining every allocation to iOS.
+  if (!criteria.platform) {
+    throw new Error('MobileNextDriver.allocate requires a platform ("ios" or "android") to allocate a device');
+  }
+  // The fleet filter DSL has no exact-device selector (only platform/type/name/version), so a
+  // pinned deviceId cannot be honored. Reject it rather than silently allocating a different
+  // device — deviceId is for local drivers; select a cloud device by deviceName instead.
+  if (criteria.deviceId) {
+    throw new Error(
+      `MobileNextDriver.allocate cannot pin a specific deviceId ("${criteria.deviceId}"): the fleet does not support exact-device selection. Remove deviceId or filter by deviceName.`,
+    );
+  }
+  const filters: DeviceFilter[] = [
+    { attribute: 'platform', operator: 'EQUALS', value: criteria.platform },
+  ];
+  if (criteria.deviceNamePattern) {
+    filters.push({ attribute: 'name', operator: 'CONTAINS', value: criteria.deviceNamePattern });
+  }
+  return filters;
 }
 
 const VALID_PLATFORMS = new Set<string>(['ios', 'android']);
@@ -168,9 +208,18 @@ const debug = createDebug('mw:driver-mobilenext');
 export class MobileNextDriver implements MobilewrightDriver {
   private session: ActiveSession | null = null;
   private readonly options: MobileNextDriverOptions;
+  private readonly fleetClient: FleetApiClient;
+  private fleetSessionPromise: Promise<string> | null = null;
+  // serial -> the fleet session it was allocated in, needed to release it later.
+  private readonly fleetSessionBySerial = new Map<string, string>();
 
   constructor(options: MobileNextDriverOptions = {}) {
     this.options = options;
+    this.fleetClient = new FleetApiClient({
+      apiKey: options.apiKey ?? '',
+      apiUrl: options.apiUrl,
+      allocationTimeout: options.allocationTimeout,
+    });
   }
 
   // ─── Connection ──────────────────────────────────────────────
@@ -440,6 +489,85 @@ export class MobileNextDriver implements MobilewrightDriver {
 
   async openUrl(url: string): Promise<void> {
     await this.call('device.url', { url });
+  }
+
+  // ─── Allocation ─────────────────────────────────────────────
+
+  // takenDeviceIds is unused: the fleet allocates a fresh device server-side per call and the
+  // filter DSL has no "exclude id" operator, so a local taken-set is both redundant and
+  // inexpressible here. signal is threaded through so a pool shutdown or allocation timeout
+  // cancels an in-flight provisioning wait.
+  async allocate(
+    criteria: AllocationCriteria,
+    _takenDeviceIds: ReadonlySet<string>,
+    signal?: AbortSignal,
+  ): Promise<AllocatedDevice> {
+    const filters = buildFilters(criteria);
+    const sessionId = await this.getFleetSession();
+    debug('allocating device (session=%s, filters=%o)', sessionId, filters);
+
+    const device = await this.fleetClient.allocateDevice(sessionId, filters, signal);
+    const serial = device.info.serial;
+    if (!serial) {
+      throw new Error(`Device allocation ${device.id} became in_use without a serial`);
+    }
+    this.fleetSessionBySerial.set(serial, sessionId);
+    debug('allocated device %s (allocation=%s, platform=%s)', serial, device.id, device.info.platform);
+
+    return {
+      deviceId: serial,
+      platform: device.info.platform === 'android' ? 'android' : ('ios' as Platform),
+      driver: 'mobilenext',
+      model: device.info.name,
+      osVersion: device.info.osVersion,
+      type: toDeviceType(device.info.type ?? ''),
+    };
+  }
+
+  async release(deviceId: string): Promise<void> {
+    const sessionId = this.fleetSessionBySerial.get(deviceId);
+    if (!sessionId) {
+      return;
+    }
+    this.fleetSessionBySerial.delete(deviceId);
+    debug('releasing device %s (session=%s)', deviceId, sessionId);
+    await this.fleetClient.releaseDevice(sessionId, deviceId);
+    debug('released device %s', deviceId);
+  }
+
+  // Cache the promise, not the id, so concurrent first allocations share a single createSession.
+  // On failure, clear the cache so a later allocate() can retry instead of inheriting the rejection.
+  private getFleetSession(): Promise<string> {
+    if (!this.fleetSessionPromise) {
+      this.fleetSessionPromise = this.fleetClient.createSession().catch((err: unknown) => {
+        this.fleetSessionPromise = null;
+        throw err;
+      });
+    }
+    return this.fleetSessionPromise;
+  }
+
+  // ─── Reporting ──────────────────────────────────────────────
+
+  configureReporting(): { reporters: ReporterEntry[]; captureGitInfo?: boolean } | undefined {
+    if (this.options.testResult?.uploadReport === 'off') {
+      return undefined;
+    }
+    const jsonResultsPath = join(os.tmpdir(), `mobilewright-results-${randomUUID()}.json`);
+    const uploadReporterPath = _require.resolve('./reporter.js');
+
+    return {
+      captureGitInfo: true,
+      reporters: [
+        ['json', { outputFile: jsonResultsPath }],
+        [uploadReporterPath, {
+          apiKey: this.options.apiKey ?? '',
+          jsonResultsPath,
+          testResult: this.options.testResult ?? {},
+          uploadTimeout: this.options.uploadTimeout,
+        }],
+      ],
+    };
   }
 
   // ─── Helpers ────────────────────────────────────────────────

@@ -51,6 +51,8 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     openUrl: async () => {},
     startRecording: async () => {},
     stopRecording: async () => ({}),
+    allocate: async () => ({ deviceId: 'device1', platform: 'ios' as const }),
+    release: async () => {},
   };
 }
 
