@@ -6,6 +6,7 @@ interface RecordedCall {
   path: string;
   body: unknown;
   authorization: string | null;
+  userAgent: string | null;
 }
 
 interface StubResponse {
@@ -26,6 +27,7 @@ function stubFetch(responses: StubResponse[]): { fetchFn: typeof fetch; calls: R
       path: new URL(url).pathname,
       body: init.body ? JSON.parse(init.body as string) : undefined,
       authorization: headers?.['Authorization'] ?? null,
+      userAgent: headers?.['User-Agent'] ?? null,
     });
     const chosen = responses[Math.min(index, responses.length - 1)];
     index += 1;
@@ -68,6 +70,7 @@ test('createSession posts to the sessions endpoint with a bearer token', async (
   expect(calls[0].method).toBe('POST');
   expect(calls[0].path).toBe('/api/v1/sessions');
   expect(calls[0].authorization).toBe('Bearer mob_test');
+  expect(calls[0].userAgent).toMatch(/^mobilewright\/\d+\.\d+\.\d+$/);
 });
 
 test('allocateDevice returns immediately for a pre-booted device (serial is device.id)', async () => {

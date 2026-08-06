@@ -1,6 +1,11 @@
 import createDebug from 'debug';
+import { createRequire } from 'node:module';
 
 const debug = createDebug('mw:driver-mobilenext:fleet-api');
+
+const _require = createRequire(import.meta.url);
+const _pkg = _require('../package.json') as { version: string };
+const USER_AGENT = `mobilewright/${_pkg.version}`;
 
 export const DEFAULT_API_URL = 'https://api.mobilenext.ai';
 
@@ -187,7 +192,10 @@ export class FleetApiClient {
   }
 
   private async request<T = void>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-    const headers: Record<string, string> = { 'Authorization': `Bearer ${this.apiKey}` };
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'User-Agent': USER_AGENT,
+    };
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
