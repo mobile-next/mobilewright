@@ -1,4 +1,4 @@
-import type { MobilewrightDriver } from '@mobilewright/protocol';
+import type { DeviceAllocator } from '@mobilewright/protocol';
 import { DeviceSlot } from '../domain/device-slot.js';
 import { Allocation } from '../domain/allocation.js';
 import { NoDeviceAvailableError } from './ports.js';
@@ -8,7 +8,7 @@ import type {
 } from './ports.js';
 
 export interface DevicePoolOptions {
-  driver: MobilewrightDriver;
+  driver: DeviceAllocator;
   maxSlots: number;
   /** Per-allocation timeout in ms. Default 600_000 (10 min). */
   allocationTimeoutMs?: number;
@@ -21,7 +21,7 @@ interface Waiter {
 }
 
 export class DevicePool {
-  private readonly driver: MobilewrightDriver;
+  private readonly driver: DeviceAllocator;
   private readonly maxSlots: number;
   private readonly allocationTimeoutMs: number;
   private readonly slots: DeviceSlot[] = [];

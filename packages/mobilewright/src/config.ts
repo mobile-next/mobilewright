@@ -125,32 +125,6 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-function normalizeReporters(
-  reporter: MobilewrightConfig['reporter'],
-): Array<[string] | [string, unknown]> {
-  if (!reporter) {
-    return [];
-  }
-  if (typeof reporter === 'string') {
-    return [[reporter]];
-  }
-  return reporter;
-}
-
-/** Auto-injects reporter entries the configured driver wants (e.g. mobile-next's results upload). */
-function injectDriverReporters(config: MobilewrightConfig): MobilewrightConfig {
-  const extra = config.driver?.configureReporting?.();
-  if (!extra) {
-    return config;
-  }
-
-  return {
-    ...config,
-    ...(extra.captureGitInfo && { captureGitInfo: { ...config.captureGitInfo, commit: true } }),
-    reporter: [...normalizeReporters(config.reporter), ...extra.reporters],
-  };
-}
-
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   const ourSetup = _require.resolve('./device-pool/setup.js');
@@ -165,7 +139,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
 
-  return injectDriverReporters(base);
+  return base;
 }
 
 const CONFIG_FILES = [

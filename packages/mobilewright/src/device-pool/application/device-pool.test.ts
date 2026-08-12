@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test';
-import type { MobilewrightDriver } from '@mobilewright/protocol';
+import type { DeviceAllocator } from '@mobilewright/protocol';
 import { DevicePool } from './device-pool.js';
 import { NoDeviceAvailableError } from './ports.js';
 import type { AllocatedDevice } from './ports.js';
 
-/** Fake driver exposing only allocate()/release() — all DevicePool needs. */
-function fakeDriver(impl: Pick<MobilewrightDriver, 'allocate' | 'release'>): MobilewrightDriver {
-  return impl as unknown as MobilewrightDriver;
+/** Fake driver exposing only allocate()/release() — all DevicePool needs, no cast required. */
+function fakeDriver(impl: Pick<DeviceAllocator, 'allocate' | 'release'>): DeviceAllocator {
+  return impl;
 }
 
-function makeDriver(devices: AllocatedDevice[]): MobilewrightDriver {
+function makeDriver(devices: AllocatedDevice[]): DeviceAllocator {
   let i = 0;
   return fakeDriver({
     async allocate() {

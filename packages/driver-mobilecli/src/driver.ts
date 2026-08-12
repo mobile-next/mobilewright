@@ -15,7 +15,8 @@ import type {
   HardwareButton,
   LaunchOptions,
   ListDevicesOptions,
-  MobilewrightDriver,
+  MobilewrightSession,
+  DeviceAllocator,
   Orientation,
   Platform,
   RecordingOptions,
@@ -258,7 +259,7 @@ class MobilecliWebViewSession implements WebViewSession {
   }
 }
 
-export class MobilecliDriver implements MobilewrightDriver {
+export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   private session: { deviceId: string; deviceName: string; platform: Platform; deviceType: DeviceType; rpc: RpcClient } | null = null;
   private readonly serverUrl: string;
   private readonly mobilecliPath?: string;

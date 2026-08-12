@@ -1,6 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
-import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { defineConfig, toArray } from './config.js';
 
 test('defineConfig injects globalSetup pointing at device-pool/setup.js', () => {
@@ -62,86 +60,6 @@ test('toArray returns the array unchanged when already an array', () => {
   expect(toArray(['app.apk', 'other.apk'])).toEqual(['app.apk', 'other.apk']);
 });
 
-test('defineConfig injects upload reporter by default when testResult is set without uploadReport', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'test-key', testResult: {} }),
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  expect(Array.isArray(reporters)).toBe(true);
-  const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
-});
-
-test('defineConfig injects upload reporter when mobilenext driver has uploadReport on', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'test-key', testResult: { uploadReport: 'on' } }),
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  expect(Array.isArray(reporters)).toBe(true);
-  const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
-});
-
-test('defineConfig injects json reporter alongside upload reporter', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on-failure' } }),
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  const jsonEntry = reporters.find((r) => r[0] === 'json');
-  expect(jsonEntry).toBeDefined();
-  const opts = jsonEntry![1] as { outputFile: string };
-  expect(opts.outputFile).toMatch(/mobilewright-results/);
-});
-
-test('defineConfig does not inject upload reporter when uploadReport is off', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'off' } }),
-  });
-  expect(config.reporter).toBeUndefined();
-});
-
-test('defineConfig injects upload reporter by default when testResult is absent', () => {
-  const config = defineConfig({ driver: new MobileNextDriver({ apiKey: 'key' }) });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  expect(Array.isArray(reporters)).toBe(true);
-  const paths = reporters.map((r) => r[0]);
-  expect(paths.some((p) => String(p).includes('reporter'))).toBe(true);
-});
-
-test('defineConfig does not inject upload reporter for mobilecli driver', () => {
-  const config = defineConfig({ driver: new MobilecliDriver() });
-  expect(config.reporter).toBeUndefined();
-});
-
-test('defineConfig does not inject upload reporter when driver is omitted', () => {
-  const config = defineConfig({});
-  expect(config.reporter).toBeUndefined();
-});
-
-test('defineConfig preserves existing array reporters when injecting', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
-    reporter: [['html'], ['list']],
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  const names = reporters.map((r) => r[0]);
-  expect(names).toContain('html');
-  expect(names).toContain('list');
-  expect(names.some((n) => String(n).includes('reporter'))).toBe(true);
-});
-
-test('defineConfig normalizes string reporter to array form before injecting', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
-    reporter: 'html',
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  expect(Array.isArray(reporters)).toBe(true);
-  const names = reporters.map((r) => r[0]);
-  expect(names).toContain('html');
-  expect(names.some((n) => String(n).includes('reporter'))).toBe(true);
-});
-
 test('defineConfig preserves use.actionTimeout', () => {
   const config = defineConfig({ use: { actionTimeout: 10_000 } });
   expect(config.use?.actionTimeout).toBe(10_000);
@@ -165,43 +83,4 @@ test('defineConfig preserves expect.timeout', () => {
 test('defineConfig preserves globalTimeout', () => {
   const config = defineConfig({ globalTimeout: 3_600_000 });
   expect(config.globalTimeout).toBe(3_600_000);
-});
-
-test('defineConfig passes uploadTimeout to upload reporter options', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' }, uploadTimeout: 90_000 }),
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  const uploadEntry = reporters.find(([path]) => String(path).includes('reporter'));
-  expect(uploadEntry).toBeDefined();
-  const opts = uploadEntry![1] as { uploadTimeout: number };
-  expect(opts.uploadTimeout).toBe(90_000);
-});
-
-test('defineConfig sets captureGitInfo when mobilenext driver is configured with testResult', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({ apiKey: 'key', testResult: { uploadReport: 'on' } }),
-  });
-  expect(config.captureGitInfo).toEqual({ commit: true });
-});
-
-test('defineConfig sets captureGitInfo by default when testResult is absent', () => {
-  const config = defineConfig({ driver: new MobileNextDriver({ apiKey: 'key' }) });
-  expect(config.captureGitInfo).toEqual({ commit: true });
-});
-
-test('defineConfig passes testResult through to the upload reporter options', () => {
-  const config = defineConfig({
-    driver: new MobileNextDriver({
-      apiKey: 'test-key',
-      testResult: { uploadReport: 'on', name: 'My Suite', tags: ['ci', 'nightly'], environment: 'staging' },
-    }),
-  });
-  const reporters = config.reporter as Array<[string, unknown]>;
-  const uploadEntry = reporters.find(([path]) => String(path).includes('reporter'));
-  const opts = uploadEntry![1] as { testResult: { uploadReport: string; name: string; tags: string[]; environment: string } };
-  expect(opts.testResult.uploadReport).toBe('on');
-  expect(opts.testResult.name).toBe('My Suite');
-  expect(opts.testResult.tags).toEqual(['ci', 'nightly']);
-  expect(opts.testResult.environment).toBe('staging');
 });

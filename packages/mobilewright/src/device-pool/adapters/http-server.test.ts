@@ -1,18 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { request as httpRequest } from 'node:http';
 import { DevicePool } from '../application/device-pool.js';
-import type { MobilewrightDriver } from '@mobilewright/protocol';
+import type { DeviceAllocator } from '@mobilewright/protocol';
 import type { AllocatedDevice } from '../application/ports.js';
 import { DevicePoolHttpServer } from './http-server.js';
 
-function makeDriver(devices: AllocatedDevice[]): MobilewrightDriver {
+function makeDriver(devices: AllocatedDevice[]): DeviceAllocator {
   let i = 0;
   return {
     async allocate() {
       return devices[i++ % devices.length];
     },
     async release() {},
-  } as unknown as MobilewrightDriver;
+  };
 }
 
 interface ServerHandle {
