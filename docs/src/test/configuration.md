@@ -73,32 +73,32 @@ import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 driver: new MobileNextDriver({
   apiKey: process.env.MOBILENEXT_API_KEY,
   allocationTimeout: 300_000, // wait for a cloud device, ms (default: 5 min)
+  uploadTimeout: 60_000,      // upload test results, ms (default: none)
 })
 ```
 
 ## Reporting
 
-To upload test results to mobilenext.ai, add the upload reporter to `reporter:` alongside a
-`json` reporter it reads from:
+With the `MobileNextDriver`, test results are uploaded to mobilenext.ai automatically after
+the run — no reporter configuration needed. Control it through the driver's `testResult`
+option:
 
 ```ts
 import { defineConfig } from 'mobilewright';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 
 export default defineConfig({
-  driver: new MobileNextDriver({ apiKey: process.env.MOBILENEXT_API_KEY }),
-  captureGitInfo: { commit: true },
-  reporter: [
-    ['json', { outputFile: 'mobilewright-results.json' }],
-    ['@mobilewright/driver-mobilenext/reporter', {
-      apiKey: process.env.MOBILENEXT_API_KEY,
-      jsonResultsPath: 'mobilewright-results.json',
-      testResult: { uploadReport: 'on' }, // 'on' | 'off' | 'on-failure'
-      uploadTimeout: 60_000, // ms, default: none
-    }],
-  ],
+  driver: new MobileNextDriver({
+    apiKey: process.env.MOBILENEXT_API_KEY,
+    testResult: { uploadReport: 'on' }, // 'on' | 'off' | 'on-failure' (default: 'on')
+    uploadTimeout: 60_000, // ms, default: none
+  }),
 });
 ```
+
+Your own `reporter:` entries are preserved — Mobilewright appends what it needs alongside
+them. If your config already includes a `json` reporter with an `outputFile`, that report is
+reused for the upload instead of writing a second one.
 
 ## Test runner
 
