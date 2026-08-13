@@ -233,3 +233,44 @@ test('allocation that exceeds allocationTimeoutMs rejects with timeout error', a
 
   await expect(pool.allocate({ platform: 'ios' })).rejects.toThrow(/timed out/i);
 });
+
+test('a released simulator slot is not reused for a waiter demanding a real device', async () => {
+  const driver = makeDriver([
+    { deviceId: 'sim-1', platform: 'ios', type: 'simulator' },
+    { deviceId: 'real-1', platform: 'ios', type: 'real' },
+  ]);
+  const pool = new DevicePool({ driver, maxSlots: 2 });
+
+  const first = await pool.allocate({ platform: 'ios', deviceType: 'simulator' });
+  await pool.release(first.allocationId);
+  const second = await pool.allocate({ platform: 'ios', deviceType: 'real' });
+
+  expect(second.deviceId).toBe('real-1');
+});
+
+test('a released slot is not reused for a waiter whose osVersion the device does not satisfy', async () => {
+  const driver = makeDriver([
+    { deviceId: 'ios16', platform: 'ios', osVersion: '16.4' },
+    { deviceId: 'ios17', platform: 'ios', osVersion: '17.5' },
+  ]);
+  const pool = new DevicePool({ driver, maxSlots: 2 });
+
+  const first = await pool.allocate({ platform: 'ios' });
+  await pool.release(first.allocationId);
+  const second = await pool.allocate({ platform: 'ios', osVersion: '17' });
+
+  expect(second.deviceId).toBe('ios17');
+});
+
+test('a released slot is reused when it satisfies the deviceType and osVersion criteria', async () => {
+  const driver = makeDriver([
+    { deviceId: 'sim-17', platform: 'ios', type: 'simulator', osVersion: '17.5' },
+  ]);
+  const pool = new DevicePool({ driver, maxSlots: 2 });
+
+  const first = await pool.allocate({ platform: 'ios' });
+  await pool.release(first.allocationId);
+  const second = await pool.allocate({ platform: 'ios', deviceType: 'simulator', osVersion: '>=17' });
+
+  expect(second.deviceId).toBe('sim-17');
+});

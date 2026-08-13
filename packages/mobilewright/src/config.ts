@@ -25,6 +25,10 @@ export interface MobilewrightUseOptions {
   deviceId?: string;
   /** Regex to match device name. */
   deviceName?: RegExp;
+  /** Restrict to simulators, emulators, or real devices. */
+  deviceType?: 'simulator' | 'emulator' | 'real';
+  /** OS version constraint, e.g. "17" (any 17.x), "26.0" (exactly 26.0) or ">=17 <19". */
+  osVersion?: string;
   /** App bundle ID for this project. */
   bundleId?: string;
   /** App paths (APK/IPA) to install for this project. Overrides top-level installApps. */
@@ -79,6 +83,10 @@ export interface MobilewrightConfig {
   deviceId?: string;
   /** Regex to match device name (e.g. /iPhone 17/). */
   deviceName?: RegExp;
+  /** Restrict to simulators, emulators, or real devices. */
+  deviceType?: 'simulator' | 'emulator' | 'real';
+  /** OS version constraint, e.g. "17" (any 17.x), "26.0" (exactly 26.0) or ">=17 <19". */
+  osVersion?: string;
   /** Default app bundle ID. */
   bundleId?: string;
   /** App paths (APK/IPA) to install on the device before launching. */

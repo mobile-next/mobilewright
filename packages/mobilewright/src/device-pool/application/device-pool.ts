@@ -1,4 +1,5 @@
 import type { DeviceAllocator } from '@mobilewright/protocol';
+import { osVersionSatisfies } from '@mobilewright/protocol';
 import { DeviceSlot } from '../domain/device-slot.js';
 import { Allocation } from '../domain/allocation.js';
 import { NoDeviceAvailableError } from './ports.js';
@@ -228,6 +229,12 @@ function slotMatches(slot: DeviceSlot, criteria: AllocationCriteria): boolean {
     return false;
   }
   if (criteria.deviceId && slot.deviceId !== criteria.deviceId) {
+    return false;
+  }
+  if (criteria.deviceType && slot.type !== criteria.deviceType) {
+    return false;
+  }
+  if (criteria.osVersion && (slot.osVersion === undefined || !osVersionSatisfies(slot.osVersion, criteria.osVersion))) {
     return false;
   }
   return true;

@@ -1,8 +1,10 @@
 ## [0.0.53] (2026-08-13)
 * Feat: filter device allocation by `deviceType` (simulator/emulator/real) and `osVersion` constraint expressions like `"17"` or `">=17 <19"` ([#269](https://github.com/mobile-next/mobilewright/pull/269))
-* Feat: accept driver instances instead of `{ type, ... }` config objects — pass `new MobileNextDriver({ apiKey })` ([#260](https://github.com/mobile-next/mobilewright/pull/260))
-* Feat: send mobilewright User-Agent header on fleet API requests ([#263](https://github.com/mobile-next/mobilewright/pull/263))
-* Refactor: split driver interface into DeviceAllocator/MobilewrightSession, drop auto-reporter wiring ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+* Feat: accept driver instances instead of `{type, ...}` config objects ([#260](https://github.com/mobile-next/mobilewright/pull/260)); legacy config objects are converted automatically with a deprecation warning ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+* Feat: drivers can observe the test run via `TestObserver` lifecycle hooks (`onRunStart`, `onTestEnd`, `onRunEnd`) ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+* Fix: screen and device actions (`screenshot`, `swipe`, `launchApp`, `terminateApp`, …) now appear as steps in the test report ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+* Refactor: split the driver contract into `DeviceAllocator` and `MobilewrightSession` interfaces ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+* Chore: update brace-expansion package for security ([#261](https://github.com/mobile-next/mobilewright/pull/261))
 
 ## [0.0.52] (2026-08-01)
 * Feat: add per-project `deviceId` and expose the resolved `device.id` ([#257](https://github.com/mobile-next/mobilewright/pull/257))
