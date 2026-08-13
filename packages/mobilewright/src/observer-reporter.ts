@@ -46,6 +46,11 @@ function toResultInfo(result: TestResult): TestResultInfo {
   };
 }
 
+// An observer failure must never crash or fail the test run — warn and move on.
+function warnObserverFailure(hook: string, err: unknown): void {
+  console.warn(`\n  [mobilewright] Test observer ${hook} failed: ${err}`);
+}
+
 /**
  * Shim Playwright reporter that forwards test-lifecycle events to the active
  * driver's `TestObserver`, if any. No-ops entirely when no driver is
@@ -63,7 +68,12 @@ export default class ObserverReporter implements Reporter {
     if (!observer?.onRunStart) {
       return;
     }
-    void observer.onRunStart({ totalTests: suite.allTests().length });
+    try {
+      const started = observer.onRunStart({ totalTests: suite.allTests().length });
+      void Promise.resolve(started).catch((err) => warnObserverFailure('onRunStart', err));
+    } catch (err) {
+      warnObserverFailure('onRunStart', err);
+    }
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
@@ -71,7 +81,11 @@ export default class ObserverReporter implements Reporter {
     if (!observer?.onTestEnd) {
       return;
     }
-    observer.onTestEnd(toTestInfo(test), toResultInfo(result));
+    try {
+      observer.onTestEnd(toTestInfo(test), toResultInfo(result));
+    } catch (err) {
+      warnObserverFailure('onTestEnd', err);
+    }
   }
 
   async onEnd(result: FullResult): Promise<void> {
@@ -93,7 +107,7 @@ export default class ObserverReporter implements Reporter {
     try {
       await observer.onRunEnd(runResult);
     } catch (err) {
-      console.warn(`\n  [mobilewright] Test observer onRunEnd failed: ${err}`);
+      warnObserverFailure('onRunEnd', err);
     }
   }
 

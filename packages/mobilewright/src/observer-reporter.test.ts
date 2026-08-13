@@ -147,6 +147,30 @@ test('onEnd does not throw when the observer rejects', async () => {
   await expect(reporter.onEnd({ status: 'passed', startTime: new Date(), duration: 0 } as FullResult)).resolves.not.toThrow();
 });
 
+test('onBegin and onTestEnd do not throw when the observer throws', () => {
+  const failingObserver: TestObserver = {
+    onRunStart: () => { throw new Error('boom'); },
+    onTestEnd: () => { throw new Error('boom'); },
+  };
+  setActiveDriver({ observer: failingObserver } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  expect(() => reporter.onBegin({} as FullConfig, fakeSuite(1))).not.toThrow();
+  expect(() => reporter.onTestEnd(fakeTestCase(), fakeTestResult())).not.toThrow();
+});
+
+test('onBegin does not leave an unhandled rejection when observer.onRunStart rejects', async () => {
+  const failingObserver: TestObserver = {
+    onRunStart: () => Promise.reject(new Error('boom')),
+  };
+  setActiveDriver({ observer: failingObserver } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  reporter.onBegin({} as FullConfig, fakeSuite(1));
+  // Give the rejection a microtask to surface — the test fails on unhandledRejection if unhandled.
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
 test('reporter methods no-op when no driver is registered', () => {
   setActiveDriver(undefined);
   const reporter = new ObserverReporter();
