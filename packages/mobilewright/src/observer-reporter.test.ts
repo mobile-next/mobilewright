@@ -46,7 +46,7 @@ function fakeTestCase(overrides: Partial<{ id: string; title: string; titlePath:
   } as unknown as TestCase;
 }
 
-function fakeStep(overrides: Partial<{ title: string; category: string; duration: number; error: { message: string }; steps: TestStep[] }> = {}): TestStep {
+function fakeStep(overrides: Partial<{ title: string; category: string; duration: number; error: { message?: string; value?: string }; steps: TestStep[] }> = {}): TestStep {
   return {
     title: overrides.title ?? 'a step',
     category: overrides.category ?? 'test.step',
@@ -57,7 +57,7 @@ function fakeStep(overrides: Partial<{ title: string; category: string; duration
 }
 
 function fakeTestResult(
-  overrides: Partial<{ status: string; retry: number; duration: number; errors: Array<{ message: string }>; steps: TestStep[] }> = {},
+  overrides: Partial<{ status: string; retry: number; duration: number; errors: Array<{ message?: string; value?: string }>; steps: TestStep[] }> = {},
 ): TestResult {
   return {
     status: overrides.status ?? 'passed',
@@ -157,8 +157,8 @@ test('onTestEnd maps non-Error thrown values using the error value fallback', ()
   const observer = makeRecordingObserver();
   setActiveDriver({ observer } as unknown as MobilewrightDriver);
 
-  const step = fakeStep({ title: 'step', error: { value: 'thrown-string' } as { message: string } });
-  const result = fakeTestResult({ errors: [{ value: 'thrown-string' } as { message: string }], steps: [step] });
+  const step = fakeStep({ title: 'step', error: { value: 'thrown-string' } });
+  const result = fakeTestResult({ errors: [{ value: 'thrown-string' }], steps: [step] });
 
   const reporter = new ObserverReporter();
   reporter.onTestEnd(fakeTestCase(), result);
