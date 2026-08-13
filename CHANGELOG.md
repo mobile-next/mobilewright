@@ -1,10 +1,9 @@
 ## [Unreleased]
 * Feat: accept driver instances instead of `{type, ...}` config objects ([#260](https://github.com/mobile-next/mobilewright/pull/260)); legacy config objects are converted automatically with a deprecation warning ([#267](https://github.com/mobile-next/mobilewright/pull/267))
-* Feat: drivers can observe the test run via `TestObserver` lifecycle hooks (`onRunStart`, `onTestEnd`, `onRunEnd`) — mobilenext test-result upload happens automatically again, no reporter configuration needed ([#267](https://github.com/mobile-next/mobilewright/pull/267))
-* Feat: send mobilewright User-Agent header on fleet API requests ([#263](https://github.com/mobile-next/mobilewright/pull/263))
+* Feat: drivers can observe the test run via `TestObserver` lifecycle hooks (`onRunStart`, `onTestEnd`, `onRunEnd`) ([#267](https://github.com/mobile-next/mobilewright/pull/267))
 * Fix: screen and device actions (`screenshot`, `swipe`, `launchApp`, `terminateApp`, …) now appear as steps in the test report ([#267](https://github.com/mobile-next/mobilewright/pull/267))
 * Refactor: split the driver contract into `DeviceAllocator` and `MobilewrightSession` interfaces ([#267](https://github.com/mobile-next/mobilewright/pull/267))
-* Chore: update packages ([#261](https://github.com/mobile-next/mobilewright/pull/261))
+* Chore: update brace-expansion package for security ([#261](https://github.com/mobile-next/mobilewright/pull/261))
 
 ## [0.0.52] (2026-08-01)
 * Feat: add per-project `deviceId` and expose the resolved `device.id` ([#257](https://github.com/mobile-next/mobilewright/pull/257))
