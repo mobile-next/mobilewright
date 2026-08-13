@@ -1,6 +1,6 @@
 # End-to-end tests
 
-End-to-end tests that verify mobilewright's locators, assertions, and other
+End-to-end tests that verify Mobilewright's locators, assertions, and other
 functionality against real emulators, simulators, and physical devices.
 
 Tests under `src/conformance` run on both platforms; tests under `src/ios` and
