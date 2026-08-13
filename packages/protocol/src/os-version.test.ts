@@ -85,3 +85,14 @@ test('malformed expressions throw', () => {
   expect(() => parseOsVersion('17 <19')).toThrow(); // bare version cannot mix with comparators
   expect(() => parseOsVersion('>=17 >=18')).toThrow(); // duplicate lower bounds
 });
+
+test('contradictory ranges throw', () => {
+  expect(() => parseOsVersion('>=19 <17')).toThrow(); // lower above upper
+  expect(() => parseOsVersion('>17 <=17')).toThrow(); // equal bounds, exclusive lower
+  expect(() => parseOsVersion('>=17 <17')).toThrow(); // equal bounds, exclusive upper
+});
+
+test('an inclusive equal-bound range means exactly that version and stays valid', () => {
+  expect(osVersionSatisfies('17', '>=17 <=17')).toBe(true);
+  expect(osVersionSatisfies('17.1', '>=17 <=17')).toBe(false);
+});

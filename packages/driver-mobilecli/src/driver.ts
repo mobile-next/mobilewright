@@ -31,7 +31,7 @@ import type {
   WebViewInfo,
   WebViewSession,
 } from '@mobilewright/protocol';
-import { NoDeviceAvailableError, osVersionSatisfies } from '@mobilewright/protocol';
+import { NoDeviceAvailableError, osVersionSatisfies, parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
 import { ensureMobilecliReachable, type ServerHandle } from './server.js';
@@ -427,6 +427,12 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     criteria: AllocationCriteria,
     takenDeviceIds: ReadonlySet<string>,
   ): Promise<AllocatedDevice> {
+    if (criteria.osVersion) {
+      // Validate up front: with zero eligible devices the per-device filter below
+      // never parses the expression, and a malformed one would masquerade as a
+      // retriable NoDeviceAvailableError.
+      parseOsVersion(criteria.osVersion);
+    }
     const devices = await this.listDevices(criteria.platform ? { platform: criteria.platform } : undefined);
 
     const namePattern = criteria.deviceNamePattern ? new RegExp(criteria.deviceNamePattern) : undefined;

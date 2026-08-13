@@ -421,3 +421,12 @@ test.describe('MobilecliDriver.allocate()', () => {
     );
   });
 });
+
+test('an invalid osVersion expression throws a parse error even when no devices are eligible', async () => {
+  const driver = new MobilecliDriver();
+  driver.listDevices = async () => [];
+
+  await expect(driver.allocate({ platform: 'ios', osVersion: 'latest' }, new Set())).rejects.toThrow(
+    /invalid OS version/,
+  );
+});

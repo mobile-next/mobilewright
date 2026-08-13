@@ -82,6 +82,12 @@ export function parseOsVersion(expr: string): OsVersionRange {
       range.max = bound;
     }
   }
+  if (range.min && range.max) {
+    const cmp = compareVersions(range.min.version, range.max.version);
+    if (cmp > 0 || (cmp === 0 && !(range.min.inclusive && range.max.inclusive))) {
+      throw new Error(`impossible OS version range "${expr}" — no version can satisfy it`);
+    }
+  }
   return range;
 }
 
