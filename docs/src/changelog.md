@@ -7,6 +7,12 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.53] (2026-08-13)
+* Feat: filter device allocation by `deviceType` (simulator/emulator/real) and `osVersion` constraint expressions like `"17"` or `">=17 <19"` ([#269](https://github.com/mobile-next/mobilewright/pull/269))
+* Feat: accept driver instances instead of `{ type, ... }` config objects — pass `new MobileNextDriver({ apiKey })` ([#260](https://github.com/mobile-next/mobilewright/pull/260))
+* Feat: send mobilewright User-Agent header on fleet API requests ([#263](https://github.com/mobile-next/mobilewright/pull/263))
+* Refactor: split driver interface into DeviceAllocator/MobilewrightSession, drop auto-reporter wiring ([#267](https://github.com/mobile-next/mobilewright/pull/267))
+
 ## [0.0.52] (2026-08-01)
 * Feat: add per-project `deviceId` and expose the resolved `device.id` ([#257](https://github.com/mobile-next/mobilewright/pull/257))
 * Feat(driver-mobilecli): surface selected, checked, and focused state from UI dumps ([#252](https://github.com/mobile-next/mobilewright/pull/252), [mobilecli#320](https://github.com/mobile-next/mobilecli/pull/320)), thanks to [@sjy](https://github.com/sjy)
