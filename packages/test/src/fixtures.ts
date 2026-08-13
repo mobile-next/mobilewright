@@ -50,6 +50,8 @@ type MobilewrightTestFixtures = {
   platform: 'ios' | 'android' | undefined;
   deviceId: string | undefined;
   deviceName: RegExp | undefined;
+  deviceType: 'simulator' | 'emulator' | 'real' | undefined;
+  osVersion: string | undefined;
   installApps: string | string[] | undefined;
   viewTree: 'on-failure' | 'off';
   device: Device;
@@ -77,6 +79,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
   platform: [undefined, { option: true }],
   deviceId: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
+  deviceType: [undefined, { option: true }],
+  osVersion: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
 
   viewTree: [async ({}, use, testInfo) => {
@@ -89,7 +93,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(value);
   }, { option: true }],
 
-  device: async ({ platform, deviceId, deviceName, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
+  device: async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const project = config.projects?.find(p => p.name === testInfo.project.name);
     const projectUse = { ...config.use, ...project?.use };
@@ -98,6 +102,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
       ...(platform && { platform }),
       ...(deviceId !== undefined && { deviceId }),
       ...(deviceName && { deviceName }),
+      ...(deviceType && { deviceType }),
+      ...(osVersion && { osVersion }),
       ...(installApps !== undefined && { installApps }),
       use: projectUse,
     };
@@ -116,6 +122,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
       platform: merged.platform,
       deviceNamePattern: merged.deviceName?.source,
       deviceId: merged.deviceId,
+      deviceType: merged.deviceType,
+      osVersion: merged.osVersion,
     });
     debug('allocated device %s', handle.deviceId);
 

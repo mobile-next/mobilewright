@@ -31,7 +31,7 @@ import type {
   WebViewInfo,
   WebViewSession,
 } from '@mobilewright/protocol';
-import { NoDeviceAvailableError } from '@mobilewright/protocol';
+import { NoDeviceAvailableError, osVersionSatisfies } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
 import { ensureMobilecliReachable, type ServerHandle } from './server.js';
@@ -436,6 +436,8 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       .filter((d) => !takenDeviceIds.has(d.id))
       .filter((d) => !criteria.deviceId || d.id === criteria.deviceId)
       .filter((d) => !namePattern || namePattern.test(d.name))
+      .filter((d) => !criteria.deviceType || d.type === criteria.deviceType)
+      .filter((d) => !criteria.osVersion || (d.osVersion !== undefined && osVersionSatisfies(d.osVersion, criteria.osVersion)))
       .at(0);
 
     if (!match) {

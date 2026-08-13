@@ -37,9 +37,32 @@ Which device to run on and which app to drive.
 | `platform` | `'ios' \| 'android'` | — | Target platform |
 | `deviceId` | `string` | — | Specific device identifier (local drivers only) |
 | `deviceName` | `RegExp` | — | Match a device by name, e.g. `/iPhone 17/` |
+| `deviceType` | `'simulator' \| 'emulator' \| 'real'` | — | Restrict to simulators, emulators, or real devices |
+| `osVersion` | `string` | — | OS version constraint — see [OS version constraints](#os-version-constraints) |
 | `bundleId` | `string` | — | App bundle ID to launch |
 | `installApps` | `string \| string[]` | — | App paths (APK/IPA) to install before launching |
 | `autoAppLaunch` | `boolean` | `true` | Launch the app automatically after connecting |
+
+### OS version constraints
+
+`osVersion` accepts a bare version or a comparator expression:
+
+| Expression | Matches |
+| --- | --- |
+| `'17'` | Any 17.x release (≥ 17, < 18) |
+| `'26.0'` | Exactly 26.0 (26.0.1 matches, 26.1 does not) |
+| `'>=17'` | 17 or newer |
+| `'>=17 <19'` | 17 or 18, not 19 |
+
+A bare version is a prefix match. Comparator expressions combine at most one lower bound (`>=` or `>`) and one upper bound (`<` or `<=`), separated by a space.
+
+```ts
+export default defineConfig({
+  platform: 'ios',
+  deviceType: 'real',
+  osVersion: '>=17 <19',
+});
+```
 
 ## Driver
 
@@ -162,4 +185,4 @@ export default defineConfig({
 });
 ```
 
-The project `use` block accepts `platform`, `deviceId`, `deviceName`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.
+The project `use` block accepts `platform`, `deviceId`, `deviceName`, `deviceType`, `osVersion`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.

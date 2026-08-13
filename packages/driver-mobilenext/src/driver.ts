@@ -29,6 +29,7 @@ import type {
   TestObserver,
   ViewNode,
 } from '@mobilewright/protocol';
+import { parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { FleetApiClient, type DeviceFilter } from './fleet-api.js';
 import { MobileNextTestObserver, type MobileNextTestResultConfig } from './observer.js';
@@ -108,7 +109,7 @@ export interface MobileNextDriverOptions {
   uploadTimeout?: number;
 }
 
-function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
+export function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
   // The fleet API requires exactly one platform filter, so a missing platform is a caller error —
   // fail loudly instead of silently constraining every allocation to iOS.
   if (!criteria.platform) {
@@ -127,6 +128,18 @@ function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
   ];
   if (criteria.deviceNamePattern) {
     filters.push({ attribute: 'name', operator: 'CONTAINS', value: criteria.deviceNamePattern });
+  }
+  if (criteria.deviceType) {
+    filters.push({ attribute: 'type', operator: 'EQUALS', value: criteria.deviceType });
+  }
+  if (criteria.osVersion) {
+    const range = parseOsVersion(criteria.osVersion);
+    if (range.min) {
+      filters.push({ attribute: 'version', operator: range.min.inclusive ? 'GREATER_THAN_OR_EQUALS' : 'GREATER_THAN', value: range.min.version });
+    }
+    if (range.max) {
+      filters.push({ attribute: 'version', operator: range.max.inclusive ? 'LESS_THAN_OR_EQUALS' : 'LESS_THAN', value: range.max.version });
+    }
   }
   return filters;
 }

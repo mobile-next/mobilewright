@@ -3,6 +3,7 @@ import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MobilecliDriver } from './driver.js';
+import { NoDeviceAvailableError, type DeviceInfo } from '@mobilewright/protocol';
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
 const tmpDir = mkdtempSync(join(tmpdir(), 'mw-driver-test-'));
@@ -362,5 +363,61 @@ test.describe('MobilecliDriver.applyDeviceSettings()', () => {
     expect(calls).toEqual([
       { method: 'device.settings.apply', params: { deviceId: SIMULATOR_DEVICE_ID, animations: 'off' } },
     ]);
+  });
+});
+
+test.describe('MobilecliDriver.allocate()', () => {
+  function createDriverWithDevices(devices: Partial<DeviceInfo>[]): MobilecliDriver {
+    const driver = new MobilecliDriver();
+    driver.listDevices = async () =>
+      devices.map((d, i) => ({
+        id: d.id ?? `device-${i}`,
+        name: d.name ?? `Device ${i}`,
+        platform: d.platform ?? 'ios',
+        type: d.type ?? 'simulator',
+        state: d.state ?? 'online',
+        model: d.model,
+        osVersion: d.osVersion,
+      }));
+    return driver;
+  }
+
+  test('picks a real device over a simulator when deviceType is "real"', async () => {
+    const driver = createDriverWithDevices([
+      { id: 'sim-1', type: 'simulator' },
+      { id: 'real-1', type: 'real' },
+    ]);
+
+    const allocated = await driver.allocate({ platform: 'ios', deviceType: 'real' }, new Set());
+
+    expect(allocated.deviceId).toBe('real-1');
+  });
+
+  test('throws NoDeviceAvailableError when no device matches the deviceType', async () => {
+    const driver = createDriverWithDevices([{ id: 'sim-1', type: 'simulator' }]);
+
+    await expect(driver.allocate({ platform: 'ios', deviceType: 'real' }, new Set())).rejects.toThrow(
+      NoDeviceAvailableError,
+    );
+  });
+
+  test('picks the device whose OS version satisfies the expression', async () => {
+    const driver = createDriverWithDevices([
+      { id: 'old', osVersion: '16.4' },
+      { id: 'wanted', osVersion: '17.5' },
+      { id: 'too-new', osVersion: '18.0' },
+    ]);
+
+    const allocated = await driver.allocate({ platform: 'ios', osVersion: '17' }, new Set());
+
+    expect(allocated.deviceId).toBe('wanted');
+  });
+
+  test('a device that does not report an OS version never matches an osVersion filter', async () => {
+    const driver = createDriverWithDevices([{ id: 'unknown-version', osVersion: undefined }]);
+
+    await expect(driver.allocate({ platform: 'ios', osVersion: '17' }, new Set())).rejects.toThrow(
+      NoDeviceAvailableError,
+    );
   });
 });

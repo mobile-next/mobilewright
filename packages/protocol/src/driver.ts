@@ -39,6 +39,10 @@ export interface AllocationCriteria {
   /** Regex source (`RegExp.prototype.source`) matched against device name. */
   deviceNamePattern?: string;
   deviceId?: string;
+  /** Restrict to simulators, emulators, or real devices. */
+  deviceType?: DeviceType;
+  /** OS version constraint expression, e.g. "17", "26.0" or ">=17 <19". See `parseOsVersion`. */
+  osVersion?: string;
 }
 
 export interface AllocatedDevice {

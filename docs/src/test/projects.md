@@ -59,6 +59,8 @@ The `use` block inside each project accepts the same options as the top-level co
 | `installApps` | APK or IPA/ZIP path(s) to install before tests run |
 | `deviceId` | Exact device ID to pin this project to (local drivers only) |
 | `deviceName` | Regex to match a specific device |
+| `deviceType` | `'simulator'`, `'emulator'` or `'real'` |
+| `osVersion` | OS version constraint, e.g. `'17'`, `'26.0'` or `'>=17 <19'` |
 
 A common pattern is to share `bundleId` and `timeout` at the top level, and only specify `platform` and `installApps` per project:
 
