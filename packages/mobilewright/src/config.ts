@@ -5,11 +5,16 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import type { MobilewrightDriver } from '@mobilewright/protocol';
+import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
+import { MobileNextDriver, type MobileNextDriverOptions } from '@mobilewright/driver-mobilenext';
 import { setActiveDriver } from './driver-registry.js';
 
 const _require = createRequire(import.meta.url);
 
 type ReporterEntry = [string] | [string, unknown];
+
+/** Pre-0.0.53 driver config shape: `{ type: 'mobilenext' | 'mobilecli', ...options }`. */
+type LegacyDriverConfig = { type: string } & Record<string, unknown>;
 
 // ─── Project ──────────────────────────────────────────────────────
 
@@ -212,9 +217,37 @@ function injectObserverReporter(config: MobilewrightConfig): MobilewrightConfig 
   };
 }
 
+function isDriverInstance(driver: unknown): driver is MobilewrightDriver {
+  return typeof (driver as MobilewrightDriver | undefined)?.allocate === 'function';
+}
+
+/** Converts a legacy `{ type, ... }` driver config object into a driver instance, with a deprecation warning. */
+function resolveLegacyDriver(legacy: LegacyDriverConfig): MobilewrightDriver {
+  const { type, ...options } = legacy;
+  console.warn(
+    `[mobilewright] Deprecated: \`driver: { type: '${type}', ... }\` config objects will stop working in a future release — ` +
+    'pass a driver instance instead, e.g. `new MobileNextDriver({ apiKey })`.',
+  );
+  switch (type) {
+    case 'mobilenext':
+    case 'mobile-use':
+      return new MobileNextDriver(options as MobileNextDriverOptions);
+    case 'mobilecli':
+      return new MobilecliDriver(options);
+    default:
+      throw new Error(
+        `defineConfig: unknown driver type "${type}". Pass a driver instance instead, e.g. \`new MobileNextDriver({ apiKey })\`.`,
+      );
+  }
+}
+
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
-  setActiveDriver(config.driver);
+  let driver = config.driver;
+  if (driver && !isDriverInstance(driver)) {
+    driver = resolveLegacyDriver(driver as unknown as LegacyDriverConfig);
+  }
+  setActiveDriver(driver);
 
   const ourSetup = _require.resolve('./device-pool/setup.js');
   const ourTeardown = _require.resolve('./device-pool/teardown.js');
@@ -224,6 +257,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   const base: MobilewrightConfig = {
     workers: 1,
     ...config,
+    ...(driver && { driver }),
     globalSetup: userSetups.length > 0 ? [ourSetup, ...userSetups] : ourSetup,
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };

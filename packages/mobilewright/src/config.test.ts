@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path';
 import { test, expect } from '@playwright/test';
+import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { defineConfig, toArray } from './config.js';
@@ -142,6 +143,32 @@ test('defineConfig registers the configured driver as the active driver', () => 
 test('defineConfig leaves reporter untouched for a driver without an observer', () => {
   const config = defineConfig({ driver: new MobilecliDriver() });
   expect(config.reporter).toBeUndefined();
+});
+
+test('defineConfig converts a legacy {type, ...} driver config object into a driver instance', () => {
+  const legacyDriver = { type: 'mobilenext', apiKey: 'key' } as unknown as MobilewrightDriver;
+
+  const config = withoutJsonEnvVars(() => defineConfig({ driver: legacyDriver }));
+
+  expect(config.driver).toBeInstanceOf(MobileNextDriver);
+  expect(getActiveDriver()).toBe(config.driver);
+  // The converted instance carries an observer, so the shim gets injected too.
+  const reporters = config.reporter as ReporterEntry[];
+  expect(String(reporters[reporters.length - 1]![0])).toMatch(/observer-reporter\.(js|ts)$/);
+});
+
+test('defineConfig converts a legacy mobilecli driver config object into a MobilecliDriver', () => {
+  const legacyDriver = { type: 'mobilecli' } as unknown as MobilewrightDriver;
+
+  const config = defineConfig({ driver: legacyDriver });
+
+  expect(config.driver).toBeInstanceOf(MobilecliDriver);
+});
+
+test('defineConfig rejects an unknown legacy driver type with a clear message', () => {
+  const legacyDriver = { type: 'appium' } as unknown as MobilewrightDriver;
+
+  expect(() => defineConfig({ driver: legacyDriver })).toThrow(/unknown driver type "appium"/);
 });
 
 test('defineConfig leaves reporter untouched when no driver is configured', () => {
