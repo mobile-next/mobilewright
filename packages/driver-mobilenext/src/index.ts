@@ -9,4 +9,4 @@ export {
   type DeviceStatus,
 } from './fleet-api.js';
 export { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams, type GitInfo } from './upload-client.js';
-export { default as MobileNextUploadReporter, type MobileNextTestResultConfig } from './reporter.js';
+export { MobileNextTestObserver, type MobileNextTestResultConfig } from './observer.js';

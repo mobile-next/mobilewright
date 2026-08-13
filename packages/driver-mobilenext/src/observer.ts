@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import type { Reporter, TestCase, TestResult, FullResult, FullConfig, Suite, TestStep } from '@playwright/test/reporter';
+import type {
+  TestObserver,
+  TestInfo,
+  TestResultInfo,
+  TestStepInfo,
+  RunResultInfo,
+  TestRunInfo,
+  SourceLocation,
+} from '@mobilewright/protocol';
 import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams } from './upload-client.js';
 
 const _require = createRequire(import.meta.url);
@@ -15,9 +23,8 @@ export interface MobileNextTestResultConfig {
 
 type UploadFn = (params: UploadTestResultParams) => Promise<{ url: string }>;
 
-interface MobileNextUploadReporterOptions {
+export interface MobileNextTestObserverOptions {
   apiKey: string;
-  jsonResultsPath: string;
   testResult: MobileNextTestResultConfig;
   uploadTimeout?: number;
   _uploadFn?: UploadFn;
@@ -54,52 +61,57 @@ type JsonReport = {
   suites?: JsonSuite[];
 };
 
-export default class MobileNextUploadReporter implements Reporter {
+/**
+ * `TestObserver` implementation for `MobileNextDriver`: collects per-step
+ * source snippets during the run, then on `onRunEnd` injects them into
+ * Playwright's JSON report and uploads it to mobilenext.
+ */
+export class MobileNextTestObserver implements TestObserver {
   private hasFailed = false;
   private hasTests = false;
-  private readonly options: MobileNextUploadReporterOptions;
-  private readonly snippetsByResult = new Map<TestResult, string[]>();
+  private readonly options: MobileNextTestObserverOptions;
   private readonly snippetsByKey = new Map<string, string[]>();
   private readonly sourceCache = new Map<string, string[]>();
 
-  constructor(options: MobileNextUploadReporterOptions) {
+  constructor(options: MobileNextTestObserverOptions) {
     this.options = options;
   }
 
-  onBegin(_config: FullConfig, suite: Suite): void {
-    this.hasTests = suite.allTests().length > 0;
+  onRunStart(run: TestRunInfo): void {
+    this.hasTests = run.totalTests > 0;
   }
 
-  onStepEnd(_test: TestCase, result: TestResult, step: TestStep): void {
-    if (step.category !== 'test.step') return;
-    if (!this.snippetsByResult.has(result)) {
-      this.snippetsByResult.set(result, []);
-    }
-    const snippet = step.location ? this.extractSnippet(step.location) : '';
-    this.snippetsByResult.get(result)!.push(snippet);
-  }
-
-  onTestEnd(test: TestCase, result: TestResult): void {
+  onTestEnd(test: TestInfo, result: TestResultInfo): void {
     if (result.status === 'failed' || result.status === 'timedOut') {
       this.hasFailed = true;
     }
-    this.snippetsByKey.set(`${test.id}:${result.retry}`, this.snippetsByResult.get(result) ?? []);
-    this.snippetsByResult.delete(result);
+    this.snippetsByKey.set(`${test.id}:${result.retry}`, this.collectSnippets(result.steps));
   }
 
-  async onEnd(_result: FullResult): Promise<void> {
-    if (!this.hasTests) return;
+  async onRunEnd(result: RunResultInfo): Promise<void> {
+    if (!this.hasTests) {
+      return;
+    }
     const { uploadReport } = this.options.testResult;
-    if (uploadReport === 'off') return;
-    if (uploadReport === 'on-failure' && !this.hasFailed) return;
+    if (uploadReport === 'off') {
+      return;
+    }
+    if (uploadReport === 'on-failure' && !this.hasFailed) {
+      return;
+    }
+
+    const rawReport = await result.jsonReport?.();
+    if (!rawReport) {
+      console.warn('\n  [mobilewright] No JSON report available; skipping test result upload.');
+      return;
+    }
+    const report = rawReport as JsonReport;
+    this.injectSnippets(report);
+    const gitInfo = extractGitInfoFromReport(report as Record<string, unknown>);
 
     const upload = this.options._uploadFn ?? uploadTestResult;
     const pkg = _require('../package.json') as { version: string };
     const userAgent = `mobilewright/${pkg.version}`;
-    const rawContent = readFileSync(this.options.jsonResultsPath, 'utf8');
-    const report = JSON.parse(rawContent) as JsonReport;
-    this.injectSnippets(report);
-    const gitInfo = extractGitInfoFromReport(report);
 
     try {
       const uploadResult = await upload({
@@ -118,7 +130,23 @@ export default class MobileNextUploadReporter implements Reporter {
     }
   }
 
-  private extractSnippet(location: { file: string; line: number; column: number }): string {
+  // Post-order traversal of the slim step tree — children before parent,
+  // matching the completion order Playwright's own onStepEnd produced.
+  private collectSnippets(steps: TestStepInfo[]): string[] {
+    const snippets: string[] = [];
+    const walk = (nodes: TestStepInfo[]): void => {
+      for (const step of nodes) {
+        walk(step.steps);
+        if (step.category === 'test.step') {
+          snippets.push(step.location ? this.extractSnippet(step.location) : '');
+        }
+      }
+    };
+    walk(steps);
+    return snippets;
+  }
+
+  private extractSnippet(location: SourceLocation): string {
     let lines = this.sourceCache.get(location.file);
     if (!lines) {
       try {
@@ -129,7 +157,9 @@ export default class MobileNextUploadReporter implements Reporter {
       }
     }
     const line = location.line; // 1-based
-    if (line < 2 || line > lines.length) return '';
+    if (line < 2 || line > lines.length) {
+      return '';
+    }
 
     const lineNumWidth = String(line + 1).length;
     const pad = (n: number) => String(n).padStart(lineNumWidth, ' ');
@@ -139,7 +169,9 @@ export default class MobileNextUploadReporter implements Reporter {
     // Arrow under the column, accounting for the "> line | " prefix
     const arrowOffset = `  ${pad(line)} | `.length + Math.max(0, location.column - 1);
     snippet.push(' '.repeat(arrowOffset) + '^');
-    if (line < lines.length) snippet.push(`  ${pad(line + 1)} | ${lines[line]}`);
+    if (line < lines.length) {
+      snippet.push(`  ${pad(line + 1)} | ${lines[line]}`);
+    }
     return snippet.join('\n');
   }
 
@@ -165,12 +197,16 @@ export default class MobileNextUploadReporter implements Reporter {
     }
   }
 
-  // Post-order traversal: children before parent — matches onStepEnd completion order.
+  // Post-order traversal: children before parent — matches the snippet collection order.
   private walkSteps(steps: JsonStep[], queue: string[]): void {
     for (const step of steps) {
-      if (step.steps?.length) this.walkSteps(step.steps, queue);
+      if (step.steps?.length) {
+        this.walkSteps(step.steps, queue);
+      }
       const snippet = queue.shift();
-      if (snippet) step.snippet = snippet;
+      if (snippet) {
+        step.snippet = snippet;
+      }
     }
   }
 }

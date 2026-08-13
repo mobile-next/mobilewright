@@ -2,9 +2,14 @@ import { access } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import type { MobilewrightDriver } from '@mobilewright/protocol';
+import { setActiveDriver } from './driver-registry.js';
 
 const _require = createRequire(import.meta.url);
+
+type ReporterEntry = [string] | [string, unknown];
 
 // ─── Project ──────────────────────────────────────────────────────
 
@@ -125,8 +130,80 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
+/** Normalizes `MobilewrightConfig['reporter']` into Playwright's array-of-tuples shape. */
+function normalizeReporters(reporter: MobilewrightConfig['reporter']): ReporterEntry[] {
+  if (!reporter) {
+    return [];
+  }
+  if (typeof reporter === 'string') {
+    return [[reporter]];
+  }
+  return reporter;
+}
+
+/**
+ * Mirrors Playwright's own resolution of the JSON reporter's output file from
+ * env vars, for a `json` reporter entry that has no explicit `outputFile`:
+ * `PLAYWRIGHT_JSON_OUTPUT_FILE`, else `PLAYWRIGHT_JSON_OUTPUT_DIR` /
+ * `PLAYWRIGHT_JSON_OUTPUT_NAME` (dir defaults to cwd). Returns undefined when
+ * none are set, meaning Playwright would write to stdout instead of a file.
+ */
+function resolvePlaywrightJsonEnvPath(): string | undefined {
+  const explicitFile = process.env['PLAYWRIGHT_JSON_OUTPUT_FILE'];
+  if (explicitFile) {
+    return explicitFile;
+  }
+  const name = process.env['PLAYWRIGHT_JSON_OUTPUT_NAME'];
+  if (!name) {
+    return undefined;
+  }
+  const dir = process.env['PLAYWRIGHT_JSON_OUTPUT_DIR'] ?? process.cwd();
+  return join(dir, name);
+}
+
+/**
+ * Injects the observer shim reporter (and, when needed, a `json` reporter to
+ * feed it) into `config.reporter` — only when the configured driver exposes
+ * a `TestObserver`. See the JSON-path merge rules in
+ * docs/superpowers/specs/2026-08-13-driver-test-observer-design.md.
+ */
+function injectObserverReporter(config: MobilewrightConfig): MobilewrightConfig {
+  if (!config.driver?.observer) {
+    return config;
+  }
+
+  const userReporters = normalizeReporters(config.reporter);
+  const jsonEntry = userReporters.find(([name]) => name === 'json');
+
+  let jsonResultsPath: string | undefined;
+  if (jsonEntry) {
+    const jsonOptions = jsonEntry[1] as { outputFile?: string } | undefined;
+    jsonResultsPath = jsonOptions?.outputFile ?? resolvePlaywrightJsonEnvPath();
+  }
+
+  let injectedJson: ReporterEntry | undefined;
+  if (jsonResultsPath === undefined) {
+    jsonResultsPath = join(tmpdir(), `mobilewright-results-${randomUUID()}.json`);
+    injectedJson = ['json', { outputFile: jsonResultsPath }];
+  }
+
+  const baseReporters: ReporterEntry[] = userReporters.length > 0 ? userReporters : [['list']];
+  const shimEntry: ReporterEntry = [
+    _require.resolve('./observer-reporter.js'),
+    { jsonResultsPath },
+  ];
+
+  return {
+    ...config,
+    captureGitInfo: { commit: true, ...config.captureGitInfo },
+    reporter: [...baseReporters, ...(injectedJson ? [injectedJson] : []), shimEntry],
+  };
+}
+
 /** Type-safe config helper for mobilewright.config.ts files. */
 export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
+  setActiveDriver(config.driver);
+
   const ourSetup = _require.resolve('./device-pool/setup.js');
   const ourTeardown = _require.resolve('./device-pool/teardown.js');
   const userSetups = toArray(config.globalSetup);
@@ -139,7 +216,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
 
-  return base;
+  return injectObserverReporter(base);
 }
 
 const CONFIG_FILES = [

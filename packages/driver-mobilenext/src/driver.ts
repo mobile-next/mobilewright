@@ -26,10 +26,12 @@ import type {
   Session,
   SwipeDirection,
   SwipeOptions,
+  TestObserver,
   ViewNode,
 } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { FleetApiClient, type DeviceFilter } from './fleet-api.js';
+import { MobileNextTestObserver, type MobileNextTestResultConfig } from './observer.js';
 
 export const DEFAULT_URL = 'wss://api.mobilenext.ai/ws';
 
@@ -100,6 +102,10 @@ export interface MobileNextDriverOptions {
   apiUrl?: string;
   /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 300000 (5 min). */
   allocationTimeout?: number;
+  /** Controls automatic test-result upload to mobilenext after each run. Omit to upload on every run. */
+  testResult?: MobileNextTestResultConfig;
+  /** Timeout for the entire report-upload operation, in ms. */
+  uploadTimeout?: number;
 }
 
 function buildFilters(criteria: AllocationCriteria): DeviceFilter[] {
@@ -202,6 +208,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   private fleetSessionPromise: Promise<string> | null = null;
   // serial -> the fleet session it was allocated in, needed to release it later.
   private readonly fleetSessionBySerial = new Map<string, string>();
+  /** Test-lifecycle observer that uploads results to mobilenext; undefined when uploading is disabled. */
+  readonly observer: TestObserver | undefined;
 
   constructor(options: MobileNextDriverOptions = {}) {
     if (options.apiKey && options.apiUrl && !options.apiUrl.startsWith('https://')) {
@@ -213,6 +221,13 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
       apiUrl: options.apiUrl,
       allocationTimeout: options.allocationTimeout,
     });
+    this.observer = options.testResult?.uploadReport === 'off'
+      ? undefined
+      : new MobileNextTestObserver({
+        apiKey: options.apiKey ?? '',
+        testResult: options.testResult ?? {},
+        uploadTimeout: options.uploadTimeout,
+      });
   }
 
   // ─── Connection ──────────────────────────────────────────────

@@ -194,6 +194,74 @@ export interface MobilewrightSession {
   webViewBridge?: WebViewBridge;
 }
 
+/** A location in a test source file. */
+export interface SourceLocation {
+  file: string;
+  line: number;
+  column: number;
+}
+
+/** Summary of a test run, delivered at `onRunStart`. */
+export interface TestRunInfo {
+  /** Total number of tests scheduled in this run. */
+  totalTests: number;
+}
+
+/** Identifying information about a single test, delivered at `onTestEnd`. */
+export interface TestInfo {
+  /** Stable test id — matches `spec.id` in Playwright's JSON report. */
+  id: string;
+  title: string;
+  /** Full title path: [file, describe..., title]. */
+  titlePath: string[];
+  location?: SourceLocation;
+}
+
+/** A single step (or nested step) within a test result. */
+export interface TestStepInfo {
+  title: string;
+  /** Playwright step category, e.g. 'test.step', 'expect', 'hook'. */
+  category: string;
+  duration: number;
+  error?: string;
+  location?: SourceLocation;
+  steps: TestStepInfo[];
+}
+
+/** Outcome of a single test attempt, delivered at `onTestEnd`. */
+export interface TestResultInfo {
+  status: 'passed' | 'failed' | 'timedOut' | 'skipped' | 'interrupted';
+  retry: number;
+  duration: number;
+  errors: string[];
+  steps: TestStepInfo[];
+}
+
+/** Outcome of an entire test run, delivered at `onRunEnd`. */
+export interface RunResultInfo {
+  status: 'passed' | 'failed' | 'timedout' | 'interrupted';
+  startTime: Date;
+  duration: number;
+  /**
+   * Lazily read Playwright's JSON report for this run, when available.
+   * Transitional escape hatch — prefer the event hooks; this may be removed
+   * once drivers no longer need the raw report.
+   */
+  jsonReport?(): Promise<unknown>;
+}
+
+/**
+ * Optional test-lifecycle observer implemented by a driver. Hooks are invoked
+ * in the runner process (same instance that performed allocation), forwarded
+ * from Playwright's reporter events by mobilewright's internal shim reporter.
+ * All hooks are optional; `onRunEnd` is awaited (uploads go there).
+ */
+export interface TestObserver {
+  onRunStart?(run: TestRunInfo): void | Promise<void>;
+  onTestEnd?(test: TestInfo, result: TestResultInfo): void;
+  onRunEnd?(result: RunResultInfo): void | Promise<void>;
+}
+
 /**
  * The full driver contract: reserves devices from a pool AND controls a
  * connected one. Every driver in this repo implements both roles on one
@@ -202,4 +270,7 @@ export interface MobilewrightSession {
  * process uses only the `MobilewrightSession` half, but both are constructed
  * from the same `driver` instance you configure.
  */
-export type MobilewrightDriver = DeviceAllocator & MobilewrightSession;
+export type MobilewrightDriver = DeviceAllocator & MobilewrightSession & {
+  /** Optional test-lifecycle observer — receives test run events (e.g. to upload results). */
+  observer?: TestObserver;
+};
