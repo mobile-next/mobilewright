@@ -141,7 +141,7 @@ export default defineConfig({
 
 See [Timeouts](./timeouts.md) for how these interact and how to override them at call sites.
 
-## Reporting
+## Report metadata
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
