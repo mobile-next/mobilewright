@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
@@ -165,11 +166,11 @@ test('defineConfig injects list, a tmp json reporter, and the observer shim for 
   expect(shimOptions.jsonResultsPath).toBe(jsonOptions.outputFile);
 });
 
-test('defineConfig reuses a user json reporter outputFile and injects no second json reporter', () => {
+test('defineConfig reuses an absolute user json reporter outputFile and injects no second json reporter', () => {
   const config = withoutJsonEnvVars(() =>
     defineConfig({
       driver: new MobileNextDriver({ apiKey: 'key' }),
-      reporter: [['json', { outputFile: 'x.json' }]],
+      reporter: [['json', { outputFile: '/tmp/x.json' }]],
     }),
   );
   const reporters = config.reporter as ReporterEntry[];
@@ -178,8 +179,31 @@ test('defineConfig reuses a user json reporter outputFile and injects no second 
   expect(jsonEntries.length).toBe(1);
 
   const shimEntry = reporters[reporters.length - 1]!;
-  const shimOptions = shimEntry[1] as { jsonResultsPath: string };
-  expect(shimOptions.jsonResultsPath).toBe('x.json');
+  const shimOptions = shimEntry[1] as { jsonResultsPath: string; cleanupJsonResults: boolean };
+  expect(shimOptions.jsonResultsPath).toBe('/tmp/x.json');
+  expect(shimOptions.cleanupJsonResults).toBe(false);
+});
+
+test('defineConfig does not reuse a relative user json outputFile and appends its own tmp json reporter', () => {
+  // Playwright resolves a relative outputFile against the config directory,
+  // which defineConfig cannot know — reusing it would read the wrong path.
+  const config = withoutJsonEnvVars(() =>
+    defineConfig({
+      driver: new MobileNextDriver({ apiKey: 'key' }),
+      reporter: [['json', { outputFile: 'results.json' }]],
+    }),
+  );
+  const reporters = config.reporter as ReporterEntry[];
+
+  const jsonEntries = reporters.filter(([name]) => name === 'json');
+  expect(jsonEntries.length).toBe(2);
+  expect(jsonEntries[0]![1]).toEqual({ outputFile: 'results.json' });
+
+  const shimEntry = reporters[reporters.length - 1]!;
+  const shimOptions = shimEntry[1] as { jsonResultsPath: string; cleanupJsonResults: boolean };
+  expect(isAbsolute(shimOptions.jsonResultsPath)).toBe(true);
+  expect(shimOptions.jsonResultsPath).not.toBe('results.json');
+  expect(shimOptions.cleanupJsonResults).toBe(true);
 });
 
 test('defineConfig uses PLAYWRIGHT_JSON_OUTPUT_FILE when the user json reporter has no outputFile', () => {

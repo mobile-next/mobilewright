@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { TestCase, TestResult, TestStep, FullConfig, FullResult, Suite } from '@playwright/test/reporter';
@@ -125,6 +125,46 @@ test('onEnd awaits observer.onRunEnd and its jsonReport() reads the results file
   expect(report).toEqual({ hello: 'world' });
 
   rmSync(dir, { recursive: true });
+});
+
+test('onEnd removes the results directory when cleanupJsonResults is set, even without an onRunEnd hook', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mw-observer-reporter-test-'));
+  const filePath = join(dir, 'results.json');
+  writeFileSync(filePath, JSON.stringify({}));
+  setActiveDriver({ observer: {} } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter({ jsonResultsPath: filePath, cleanupJsonResults: true });
+  await reporter.onEnd({ status: 'passed', startTime: new Date(), duration: 0 } as FullResult);
+
+  expect(existsSync(dir)).toBe(false);
+});
+
+test('onEnd leaves the results file in place when cleanupJsonResults is not set', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mw-observer-reporter-test-'));
+  const filePath = join(dir, 'results.json');
+  writeFileSync(filePath, JSON.stringify({}));
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter({ jsonResultsPath: filePath });
+  await reporter.onEnd({ status: 'passed', startTime: new Date(), duration: 0 } as FullResult);
+
+  expect(existsSync(filePath)).toBe(true);
+  rmSync(dir, { recursive: true });
+});
+
+test('onTestEnd maps non-Error thrown values using the error value fallback', () => {
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+
+  const step = fakeStep({ title: 'step', error: { value: 'thrown-string' } as { message: string } });
+  const result = fakeTestResult({ errors: [{ value: 'thrown-string' } as { message: string }], steps: [step] });
+
+  const reporter = new ObserverReporter();
+  reporter.onTestEnd(fakeTestCase(), result);
+
+  expect(observer.testEnds[0]!.result.errors).toEqual(['thrown-string']);
+  expect(observer.testEnds[0]!.result.steps[0]!.error).toBe('thrown-string');
 });
 
 test('onEnd does not attach jsonReport when no jsonResultsPath was configured', async () => {

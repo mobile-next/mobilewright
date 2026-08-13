@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type {
   Reporter,
   TestCase,
+  TestError,
   TestResult,
   TestStep,
   FullResult,
@@ -14,6 +17,13 @@ import { getActiveDriver } from './driver-registry.js';
 export interface ObserverReporterOptions {
   /** Path to the JSON report this run writes, if any — read lazily to build `RunResultInfo.jsonReport()`. */
   jsonResultsPath?: string;
+  /** Remove the jsonResultsPath directory after the run — set only for the private tmp dir defineConfig created. */
+  cleanupJsonResults?: boolean;
+}
+
+// `message` is set for thrown Errors, `value` for thrown non-Errors.
+function errorText(error: TestError): string {
+  return error.message ?? error.value ?? String(error);
 }
 
 function toStepInfo(step: TestStep): TestStepInfo {
@@ -21,7 +31,7 @@ function toStepInfo(step: TestStep): TestStepInfo {
     title: step.title,
     category: step.category,
     duration: step.duration,
-    ...(step.error?.message !== undefined && { error: step.error.message }),
+    ...(step.error !== undefined && { error: errorText(step.error) }),
     ...(step.location !== undefined && { location: step.location }),
     steps: step.steps.map(toStepInfo),
   };
@@ -41,7 +51,7 @@ function toResultInfo(result: TestResult): TestResultInfo {
     status: result.status,
     retry: result.retry,
     duration: result.duration,
-    errors: result.errors.map((e) => e.message ?? String(e)),
+    errors: result.errors.map(errorText),
     steps: result.steps.map(toStepInfo),
   };
 }
@@ -89,25 +99,31 @@ export default class ObserverReporter implements Reporter {
   }
 
   async onEnd(result: FullResult): Promise<void> {
-    const observer = getActiveDriver()?.observer;
-    if (!observer?.onRunEnd) {
-      return;
-    }
-
     const jsonResultsPath = this.options.jsonResultsPath;
-    const runResult: RunResultInfo = {
-      status: result.status,
-      startTime: result.startTime,
-      duration: result.duration,
-      ...(jsonResultsPath !== undefined && {
-        jsonReport: async () => JSON.parse(await readFile(jsonResultsPath, 'utf8')) as unknown,
-      }),
-    };
-
     try {
-      await observer.onRunEnd(runResult);
-    } catch (err) {
-      warnObserverFailure('onRunEnd', err);
+      const observer = getActiveDriver()?.observer;
+      if (!observer?.onRunEnd) {
+        return;
+      }
+
+      const runResult: RunResultInfo = {
+        status: result.status,
+        startTime: result.startTime,
+        duration: result.duration,
+        ...(jsonResultsPath !== undefined && {
+          jsonReport: async () => JSON.parse(await readFile(jsonResultsPath, 'utf8')) as unknown,
+        }),
+      };
+
+      try {
+        await observer.onRunEnd(runResult);
+      } catch (err) {
+        warnObserverFailure('onRunEnd', err);
+      }
+    } finally {
+      if (this.options.cleanupJsonResults && jsonResultsPath !== undefined) {
+        rmSync(dirname(jsonResultsPath), { recursive: true, force: true });
+      }
     }
   }
 

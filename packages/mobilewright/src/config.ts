@@ -1,8 +1,8 @@
 import { access } from 'node:fs/promises';
+import { mkdtempSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { setActiveDriver } from './driver-registry.js';
@@ -151,14 +151,14 @@ function normalizeReporters(reporter: MobilewrightConfig['reporter']): ReporterE
 function resolvePlaywrightJsonEnvPath(): string | undefined {
   const explicitFile = process.env['PLAYWRIGHT_JSON_OUTPUT_FILE'];
   if (explicitFile) {
-    return explicitFile;
+    return resolve(process.cwd(), explicitFile);
   }
   const name = process.env['PLAYWRIGHT_JSON_OUTPUT_NAME'];
   if (!name) {
     return undefined;
   }
-  const dir = process.env['PLAYWRIGHT_JSON_OUTPUT_DIR'] ?? process.cwd();
-  return join(dir, name);
+  const dir = process.env['PLAYWRIGHT_JSON_OUTPUT_DIR'] ?? '.';
+  return resolve(process.cwd(), dir, name);
 }
 
 /**
@@ -178,19 +178,31 @@ function injectObserverReporter(config: MobilewrightConfig): MobilewrightConfig 
   let jsonResultsPath: string | undefined;
   if (jsonEntry) {
     const jsonOptions = jsonEntry[1] as { outputFile?: string } | undefined;
-    jsonResultsPath = jsonOptions?.outputFile ?? resolvePlaywrightJsonEnvPath();
+    const userOutputFile = jsonOptions?.outputFile;
+    if (userOutputFile === undefined) {
+      jsonResultsPath = resolvePlaywrightJsonEnvPath();
+    } else if (isAbsolute(userOutputFile)) {
+      jsonResultsPath = userOutputFile;
+    }
+    // A relative outputFile is resolved by Playwright against the config
+    // directory, which is unknowable here — fall through and write our own
+    // copy instead of guessing.
   }
 
   let injectedJson: ReporterEntry | undefined;
+  let cleanupJsonResults = false;
   if (jsonResultsPath === undefined) {
-    jsonResultsPath = join(tmpdir(), `mobilewright-results-${randomUUID()}.json`);
+    // mkdtemp creates the directory with 0o700 — the report stays private on
+    // shared machines. The shim removes it after the run.
+    jsonResultsPath = join(mkdtempSync(join(tmpdir(), 'mobilewright-results-')), 'results.json');
     injectedJson = ['json', { outputFile: jsonResultsPath }];
+    cleanupJsonResults = true;
   }
 
   const baseReporters: ReporterEntry[] = userReporters.length > 0 ? userReporters : [['list']];
   const shimEntry: ReporterEntry = [
     _require.resolve('./observer-reporter.js'),
-    { jsonResultsPath },
+    { jsonResultsPath, cleanupJsonResults },
   ];
 
   return {

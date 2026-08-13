@@ -212,7 +212,11 @@ export interface TestInfo {
   /** Stable test id — matches `spec.id` in Playwright's JSON report. */
   id: string;
   title: string;
-  /** Full title path: [file, describe..., title]. */
+  /**
+   * Full title path as Playwright reports it: root suite (empty string),
+   * project name, file, describe blocks, then the test title. The project
+   * entry distinguishes e.g. ios/android runs of the same test.
+   */
   titlePath: string[];
   location?: SourceLocation;
 }
