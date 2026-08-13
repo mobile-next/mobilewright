@@ -98,3 +98,33 @@ test.describe('Screen coordinate gestures', () => {
     expect(driver._tracker.gestureCalls).toEqual([[sequence]]);
   });
 });
+
+test.describe('Screen step reporting', () => {
+  test('reports direct screen actions as test steps', async () => {
+    const driver = createMockDriver();
+    const screen = new Screen(driver);
+    const titles: string[] = [];
+    screen.setStepFn((title, fn) => {
+      titles.push(title);
+      return fn();
+    });
+
+    await screen.screenshot();
+    await screen.swipe('up');
+    await screen.tap(1, 2);
+    await screen.doubleTap(1, 2);
+    await screen.longPress(1, 2);
+    await screen.pressButton('HOME');
+    await screen.goBack();
+
+    expect(titles).toEqual([
+      'screen.screenshot()',
+      'screen.swipe()',
+      'screen.tap()',
+      'screen.doubleTap()',
+      'screen.longPress()',
+      'screen.pressButton()',
+      'screen.goBack()',
+    ]);
+  });
+});

@@ -92,3 +92,46 @@ test.describe('Device.id', () => {
     expect(() => device.id).toThrow(/not connected yet/);
   });
 });
+
+test.describe('Device step reporting', () => {
+  function createRecordingStepFn(titles: string[]) {
+    return (title: string, fn: () => Promise<unknown>) => {
+      titles.push(title);
+      return fn();
+    };
+  }
+
+  test('reports app and device actions as test steps', async () => {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    const device = new Device(driver);
+    const titles: string[] = [];
+    device.setStepFn(createRecordingStepFn(titles));
+
+    await device.launchApp('com.test');
+    await device.terminateApp('com.test');
+    await device.installApp('/tmp/app.apk');
+    await device.uninstallApp('com.test');
+    await device.openUrl('https://example.com');
+    await device.setOrientation('landscape');
+
+    expect(titles).toEqual([
+      'device.launchApp()',
+      'device.terminateApp()',
+      'device.installApp()',
+      'device.uninstallApp()',
+      'device.openUrl()',
+      'device.setOrientation()',
+    ]);
+  });
+
+  test('propagates the step function to the screen', async () => {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    const device = new Device(driver);
+    const titles: string[] = [];
+    device.setStepFn(createRecordingStepFn(titles));
+
+    await device.screen.tap(10, 20);
+
+    expect(titles).toEqual(['screen.tap()']);
+  });
+});

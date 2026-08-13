@@ -12,7 +12,8 @@ import type {
   Session,
 } from '@mobilewright/protocol';
 import { Screen } from './screen.js';
-import type { LocatorOptions } from './locator.js';
+import type { LocatorOptions, StepFn } from './locator.js';
+import { runStep } from './stackTrace.js';
 import { retryUntil } from './poll.js';
 
 const debug = createDebug('mw:device');
@@ -41,6 +42,7 @@ export class Device {
   readonly driver: MobilewrightDriver;
   private cleanupCallbacks: Array<() => Promise<void>> = [];
   private _screen: Screen | null = null;
+  private _stepFn: StepFn | null = null;
   private session: Session | null = null;
   private readonly opts: DeviceOptions;
 
@@ -83,6 +85,16 @@ export class Device {
     this.cleanupCallbacks = [];
   }
 
+  /** Wire test-step reporting for this device and its screen (report visibility). */
+  setStepFn(fn: StepFn): void {
+    this._stepFn = fn;
+    this.screen.setStepFn(fn);
+  }
+
+  private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
+    return runStep(this._stepFn, title, fn);
+  }
+
   get screen(): Screen {
     this._screen ??= new Screen(this.driver, this.opts.locatorDefaults);
     return this._screen;
@@ -103,7 +115,7 @@ export class Device {
   }
 
   async setOrientation(orientation: Orientation): Promise<void> {
-    return this.driver.setOrientation(orientation);
+    return this._step('device.setOrientation()', () => this.driver.setOrientation(orientation));
   }
 
   /** Screen dimensions and pixel density: { width, height, scale }. */
@@ -112,7 +124,7 @@ export class Device {
   }
 
   async openUrl(url: string): Promise<void> {
-    return this.driver.openUrl(url);
+    return this._step('device.openUrl()', () => this.driver.openUrl(url));
   }
 
   /** Alias for openUrl — matches Playwright's page.goto(). */
@@ -123,6 +135,10 @@ export class Device {
   // ─── App control ─────────────────────────────────────────────
 
   async launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
+    return this._step('device.launchApp()', () => this._launchApp(bundleId, opts));
+  }
+
+  private async _launchApp(bundleId: string, opts?: LaunchOptions): Promise<void> {
     await this.driver.launchApp(bundleId, opts);
     if (opts?.noWaitAfter) {
       return;
@@ -151,7 +167,7 @@ export class Device {
 
   async terminateApp(bundleId: string): Promise<void> {
     debug('terminating %s', bundleId);
-    return this.driver.terminateApp(bundleId);
+    return this._step('device.terminateApp()', () => this.driver.terminateApp(bundleId));
   }
 
   async listApps(): Promise<AppInfo[]> {
@@ -163,19 +179,21 @@ export class Device {
   }
 
   async installApp(path: string): Promise<void> {
-    const { installTimeout } = this.opts;
-    if (installTimeout === undefined) {
-      return this.driver.installApp(path);
-    }
-    return raceWithTimeout(
-      this.driver.installApp(path),
-      installTimeout,
-      `installApp timed out after ${installTimeout}ms`,
-    );
+    return this._step('device.installApp()', () => {
+      const { installTimeout } = this.opts;
+      if (installTimeout === undefined) {
+        return this.driver.installApp(path);
+      }
+      return raceWithTimeout(
+        this.driver.installApp(path),
+        installTimeout,
+        `installApp timed out after ${installTimeout}ms`,
+      );
+    });
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
-    return this.driver.uninstallApp(bundleId);
+    return this._step('device.uninstallApp()', () => this.driver.uninstallApp(bundleId));
   }
 
   // ─── Recording ─────────────────────────────────────────────────

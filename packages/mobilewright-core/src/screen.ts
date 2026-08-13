@@ -10,6 +10,7 @@ import type {
   ViewNode,
 } from '@mobilewright/protocol';
 import { Locator, type LocatorOptions, type StepFn } from './locator.js';
+import { runStep } from './stackTrace.js';
 import { WebViewLocator } from './webview-locator.js';
 import type { Role } from './query-engine.js';
 
@@ -30,6 +31,10 @@ export class Screen {
 
   setStepFn(fn: StepFn): void {
     this.root._stepFn = fn;
+  }
+
+  private async _step<T>(title: string, fn: () => Promise<T>): Promise<T> {
+    return runStep(this.root._stepFn, title, fn);
   }
 
   // ─── Locator factories (delegated to root locator) ─────────
@@ -71,43 +76,45 @@ export class Screen {
   // ─── Direct screen actions ──────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
-    const buffer = await this.driver.screenshot(opts);
-    if (opts?.path) {
-      mkdirSync(dirname(opts.path), { recursive: true });
-      writeFileSync(opts.path, buffer);
-    }
-    return buffer;
+    return this._step('screen.screenshot()', async () => {
+      const buffer = await this.driver.screenshot(opts);
+      if (opts?.path) {
+        mkdirSync(dirname(opts.path), { recursive: true });
+        writeFileSync(opts.path, buffer);
+      }
+      return buffer;
+    });
   }
 
   async swipe(
     direction: SwipeDirection,
     opts?: SwipeOptions,
   ): Promise<void> {
-    return this.driver.swipe(direction, opts);
+    return this._step('screen.swipe()', () => this.driver.swipe(direction, opts));
   }
 
   async pressButton(button: HardwareButton): Promise<void> {
-    return this.driver.pressButton(button);
+    return this._step('screen.pressButton()', () => this.driver.pressButton(button));
   }
 
   async tap(x: number, y: number): Promise<void> {
-    return this.driver.tap(x, y);
+    return this._step('screen.tap()', () => this.driver.tap(x, y));
   }
 
   async doubleTap(x: number, y: number): Promise<void> {
-    return this.driver.doubleTap(x, y);
+    return this._step('screen.doubleTap()', () => this.driver.doubleTap(x, y));
   }
 
   async longPress(x: number, y: number, duration?: number): Promise<void> {
-    return this.driver.longPress(x, y, duration);
+    return this._step('screen.longPress()', () => this.driver.longPress(x, y, duration));
   }
 
   async gesture(sequence: GestureSequence): Promise<void> {
-    return this.driver.gesture(sequence);
+    return this._step('screen.gesture()', () => this.driver.gesture(sequence));
   }
 
   async goBack(): Promise<void> {
-    return this.driver.pressButton('BACK');
+    return this._step('screen.goBack()', () => this.driver.pressButton('BACK'));
   }
   
   // ─── View tree ──────────────────────────────────────────────────

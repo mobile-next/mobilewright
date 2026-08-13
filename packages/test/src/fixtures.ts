@@ -172,6 +172,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
         await device.launchApp(bundleId);
       }
 
+      device.setStepFn((title, fn, location) => (base.step as any)(title, fn, { location }));
+
       await use(device);
     } finally {
       await device.disconnect();
@@ -194,8 +196,6 @@ export const test = base.extend<MobilewrightTestFixtures>({
         // recording may not be supported — continue without it
       }
     }
-
-    device.screen.setStepFn((title, fn, location) => (base.step as any)(title, fn, { location }));
 
     await use(device.screen);
 
