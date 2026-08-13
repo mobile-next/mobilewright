@@ -194,7 +194,6 @@ export default defineConfig({
   driver: new MobileNextDriver({
     apiKey: process.env.MOBILENEXT_API_KEY,
     allocationTimeout: 15 * 60_000,
-    testResult: { uploadReport: 'on-failure' },
     uploadTimeout: 2 * 60_000,
   }),
 });
