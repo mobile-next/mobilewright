@@ -1,3 +1,10 @@
+## [0.0.54] (2026-09-01)
+* Feat: add radio role mapping to query engine ([#277](https://github.com/mobile-next/mobilewright/pull/277))
+* Chore: update bundled mobilecli to 1.0.7 — npm package split into per-platform binaries, shrinking `node_modules` by ~70MB ([#276](https://github.com/mobile-next/mobilewright/pull/276), [mobilecli#134](https://github.com/mobile-next/mobilecli/pull/134))
+* Fix(iOS): don't fail device listing when one connected device is untrusted ([mobilecli#373](https://github.com/mobile-next/mobilecli/pull/373))
+* Feat(iOS): surface enabled, selected and focused attributes in UI dumps ([mobilecli#369](https://github.com/mobile-next/mobilecli/pull/369))
+* Perf(Android): faster screenshots via on-device agent ([mobilecli#368](https://github.com/mobile-next/mobilecli/pull/368))
+
 ## [0.0.53] (2026-08-13)
 * Feat: filter device allocation by `deviceType` (simulator/emulator/real) and `osVersion` constraint expressions like `"17"` or `">=17 <19"` ([#269](https://github.com/mobile-next/mobilewright/pull/269))
 * Feat: accept driver instances instead of `{type, ...}` config objects ([#260](https://github.com/mobile-next/mobilewright/pull/260)); legacy config objects are converted automatically with a deprecation warning ([#267](https://github.com/mobile-next/mobilewright/pull/267))
