@@ -4,6 +4,7 @@ import type {
   DeviceInfo,
   DeviceSettings,
   DeviceType,
+  Geolocation,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
@@ -166,6 +167,8 @@ export interface MobilewrightSession {
   getOrientation(): Promise<Orientation>;
   /** Rotate the device to the given orientation. */
   setOrientation(orientation: Orientation): Promise<void>;
+  /** Override the GPS location reported by the device; null clears the override. */
+  setGeolocation(geolocation: Geolocation | null): Promise<void>;
 
   // Apps
   /** Launch the app with the given bundle id, optionally with launch options. */

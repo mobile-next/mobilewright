@@ -36,6 +36,13 @@ export type Platform = 'ios' | 'android';
 export type DeviceType = 'real' | 'simulator' | 'emulator';
 export type DeviceState = 'online' | 'offline';
 
+export interface Geolocation {
+  /** Latitude in degrees, between -90 and 90. */
+  latitude: number;
+  /** Longitude in degrees, between -180 and 180. */
+  longitude: number;
+}
+
 export interface DeviceInfo {
   id: string;
   name: string;

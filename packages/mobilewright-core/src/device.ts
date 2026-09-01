@@ -3,6 +3,7 @@ import type {
   AppInfo,
   ConnectionConfig,
   DeviceSettings,
+  Geolocation,
   LaunchOptions,
   MobilewrightDriver,
   Orientation,
@@ -116,6 +117,22 @@ export class Device {
 
   async setOrientation(orientation: Orientation): Promise<void> {
     return this._step('device.setOrientation()', () => this.driver.setOrientation(orientation));
+  }
+
+  /**
+   * Override the GPS location reported by the device.
+   * Passing null or undefined clears the override — matches Playwright's setGeolocation().
+   */
+  async setGeolocation(geolocation?: Geolocation | null): Promise<void> {
+    if (geolocation !== undefined && geolocation !== null) {
+      if (geolocation.latitude < -90 || geolocation.latitude > 90) {
+        throw new Error(`setGeolocation: latitude must be between -90 and 90, got ${geolocation.latitude}`);
+      }
+      if (geolocation.longitude < -180 || geolocation.longitude > 180) {
+        throw new Error(`setGeolocation: longitude must be between -180 and 180, got ${geolocation.longitude}`);
+      }
+    }
+    return this._step('device.setGeolocation()', () => this.driver.setGeolocation(geolocation ?? null));
   }
 
   /** Screen dimensions and pixel density: { width, height, scale }. */

@@ -11,6 +11,7 @@ import type {
   DeviceSettings,
   DeviceState,
   DeviceType,
+  Geolocation,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
@@ -561,6 +562,14 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
 
   async setOrientation(orientation: Orientation): Promise<void> {
     await this.call('device.io.orientation.set', { orientation });
+  }
+
+  async setGeolocation(geolocation: Geolocation | null): Promise<void> {
+    if (geolocation === null) {
+      await this.call('device.location.clear');
+      return;
+    }
+    await this.call('device.location.set', { latitude: geolocation.latitude, longitude: geolocation.longitude });
   }
 
   // ─── Recording Operations ─────────────────────────────────────

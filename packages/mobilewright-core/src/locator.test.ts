@@ -78,6 +78,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     getScreenSize: async () => ({ width: 390, height: 844, scale: 3 }),
     getOrientation: async () => 'portrait' as Orientation,
     setOrientation: async (...args: any[]) => { tracker.setOrientationCalls.push(args); },
+    setGeolocation: async () => {},
     launchApp: async (...args: any[]) => { tracker.launchAppCalls.push(args); },
     terminateApp: async (...args: any[]) => { tracker.terminateAppCalls.push(args); },
     listApps: async () => [] as AppInfo[],
