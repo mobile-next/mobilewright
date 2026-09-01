@@ -189,6 +189,7 @@ export const ROLE_TYPE_MAP = {
   image: ['image', 'imageview', 'appcompatimageview', 'shapeableimageview', 'reactimageview'],
   switch: ['switch', 'toggle', 'togglebutton'],
   checkbox: ['checkbox'],
+  radio: ['radio', 'radiobutton', 'appcompatradiobutton'],
   slider: ['slider', 'seekbar'],
   list: ['table', 'collectionview', 'listview', 'recyclerview', 'scrollview', 'reactscrollview'],
   listitem: ['cell', 'linearlayout', 'relativelayout', 'other'],
