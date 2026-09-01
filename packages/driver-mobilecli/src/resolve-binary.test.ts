@@ -1,51 +1,58 @@
+import { existsSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
-import { resolveMobilecliBinary } from './resolve-binary.js';
+import { getPlatformBinary, resolveMobilecliBinary } from './resolve-binary.js';
 
-function simulatePlatform(platform: string, arch: string, fn: () => void): void {
-  const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')!;
-  const archDescriptor = Object.getOwnPropertyDescriptor(process, 'arch')!;
-  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
-  Object.defineProperty(process, 'arch', { value: arch, configurable: true });
-  try {
-    fn();
-  } finally {
-    Object.defineProperty(process, 'platform', platformDescriptor);
-    Object.defineProperty(process, 'arch', archDescriptor);
-  }
-}
-
-test('resolveMobilecliBinary returns a path to the darwin-arm64 binary', () => {
-  simulatePlatform('darwin', 'arm64', () => {
-    expect(resolveMobilecliBinary()).toContain('mobilecli-darwin-arm64');
+test('darwin-arm64 maps to the @mobilenext darwin-arm64 package', () => {
+  expect(getPlatformBinary('darwin', 'arm64')).toEqual({
+    packageName: '@mobilenext/mobilecli-darwin-arm64',
+    binaryName: 'mobilecli-darwin-arm64',
   });
 });
 
-test('resolveMobilecliBinary returns a path to the darwin-amd64 binary for x64', () => {
-  simulatePlatform('darwin', 'x64', () => {
-    expect(resolveMobilecliBinary()).toContain('mobilecli-darwin-amd64');
+test('darwin-x64 maps to the @mobilenext darwin-amd64 package', () => {
+  expect(getPlatformBinary('darwin', 'x64')).toEqual({
+    packageName: '@mobilenext/mobilecli-darwin-amd64',
+    binaryName: 'mobilecli-darwin-amd64',
   });
 });
 
-test('resolveMobilecliBinary returns a path to the linux-arm64 binary', () => {
-  simulatePlatform('linux', 'arm64', () => {
-    expect(resolveMobilecliBinary()).toContain('mobilecli-linux-arm64');
+test('linux-arm64 maps to the @mobilenext linux-arm64 package', () => {
+  expect(getPlatformBinary('linux', 'arm64')).toEqual({
+    packageName: '@mobilenext/mobilecli-linux-arm64',
+    binaryName: 'mobilecli-linux-arm64',
   });
 });
 
-test('resolveMobilecliBinary returns a path to the linux-amd64 binary for x64', () => {
-  simulatePlatform('linux', 'x64', () => {
-    expect(resolveMobilecliBinary()).toContain('mobilecli-linux-amd64');
+test('linux-x64 maps to the @mobilenext linux-amd64 package', () => {
+  expect(getPlatformBinary('linux', 'x64')).toEqual({
+    packageName: '@mobilenext/mobilecli-linux-amd64',
+    binaryName: 'mobilecli-linux-amd64',
   });
 });
 
-test('resolveMobilecliBinary returns a path to the windows-amd64 binary for win32-x64', () => {
-  simulatePlatform('win32', 'x64', () => {
-    expect(resolveMobilecliBinary()).toContain('mobilecli-windows-amd64.exe');
+test('win32-x64 maps to the @mobilenext windows-amd64 package with an .exe binary', () => {
+  expect(getPlatformBinary('win32', 'x64')).toEqual({
+    packageName: '@mobilenext/mobilecli-windows-amd64',
+    binaryName: 'mobilecli-windows-amd64.exe',
   });
 });
 
-test('resolveMobilecliBinary throws an error for an unsupported platform', () => {
-  simulatePlatform('freebsd', 'x64', () => {
-    expect(() => resolveMobilecliBinary()).toThrow('Unsupported platform: freebsd-x64');
+test('win32-arm64 maps to the @mobilenext windows-arm64 package with an .exe binary', () => {
+  expect(getPlatformBinary('win32', 'arm64')).toEqual({
+    packageName: '@mobilenext/mobilecli-windows-arm64',
+    binaryName: 'mobilecli-windows-arm64.exe',
   });
+});
+
+test('an unsupported platform throws an error', () => {
+  expect(() => getPlatformBinary('freebsd', 'x64')).toThrow('Unsupported platform: freebsd-x64');
+});
+
+test('an explicit path is returned as-is', () => {
+  expect(resolveMobilecliBinary('/opt/bin/mobilecli')).toBe('/opt/bin/mobilecli');
+});
+
+test('the resolved binary for this machine exists on disk', () => {
+  const binaryPath = resolveMobilecliBinary();
+  expect(existsSync(binaryPath)).toBe(true);
 });
