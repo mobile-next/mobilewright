@@ -1,3 +1,6 @@
+## [0.0.55] (2026-09-01)
+* Fix: resolve mobilecli binary from its per-platform optional dependency instead of `mobilecli/bin`, and support win32-arm64 ([#282](https://github.com/mobile-next/mobilewright/pull/282))
+
 ## [0.0.54] (2026-09-01)
 * Feat: add radio role mapping to query engine ([#277](https://github.com/mobile-next/mobilewright/pull/277))
 * Chore: update bundled mobilecli to 1.0.7 — npm package split into per-platform binaries, shrinking `node_modules` by ~70MB ([#276](https://github.com/mobile-next/mobilewright/pull/276), [mobilecli#134](https://github.com/mobile-next/mobilecli/pull/134))
