@@ -270,6 +270,10 @@ console.log(device.id);
 await device.setOrientation('landscape');
 const orientation = await device.getOrientation();
 
+// Geolocation — override the GPS location the device reports
+await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+await device.setGeolocation(null); // clear the override
+
 // Screen dimensions and pixel density: { width, height, scale }
 const size = await device.screenSize();
 
