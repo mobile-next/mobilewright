@@ -31,11 +31,11 @@
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
     "debug": "^4.4.3",
-    "mobilecli": "1.0.7",
-    "ws": "^8.18.0"
+    "ws": "^8.21.3",
+    "mobilecli": "1.0.7"
   },
   "devDependencies": {
     "@types/debug": "^4.1.13",
-    "@types/ws": "^8.5.0"
+    "@types/ws": "^8.18.1"
   }
 }

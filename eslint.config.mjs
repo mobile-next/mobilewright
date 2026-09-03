@@ -10,6 +10,7 @@ export default [
       'node_modules/',
       'packages/*/dist/',
       '**/playwright-report/',
+      'packages/mobilewright-core/src/generated/',
     ],
   },
   {
