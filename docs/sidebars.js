@@ -46,6 +46,16 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Cloud Providers',
+      collapsed: false,
+      items: [
+        'cloud-providers/index',
+        'cloud-providers/mobile-next-cloud',
+        'cloud-providers/browserstack',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Integrations',
       collapsed: false,
       items: [
