@@ -156,6 +156,8 @@ export interface MobilewrightSession {
   gesture(gestures: GestureSequence): Promise<void>;
   /** Press a hardware button (e.g. home, back, volume). */
   pressButton(button: HardwareButton): Promise<void>;
+  /** Dismiss the soft keyboard if it is currently open. Optional — drivers that don't support it omit it. */
+  dismissKeyboard?(): Promise<void>;
 
   // Screen
   /** Capture a screenshot of the device screen as a PNG buffer. */

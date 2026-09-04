@@ -180,10 +180,14 @@ export class Locator {
     return this._step('locator.clear()', () => this._tapAndClear(opts?.timeout));
   }
 
-  async fill(text: string, opts?: { timeout?: number }): Promise<void> {
+  async fill(text: string, opts?: { timeout?: number; dismissKeyboard?: boolean }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
       await this._tapAndClear(opts?.timeout);
       await this.driver.typeText(text);
+      const dismiss = opts?.dismissKeyboard ?? true;
+      if (dismiss) {
+        await this.driver.dismissKeyboard?.();
+      }
     });
   }
 
