@@ -144,7 +144,8 @@ test('deep link opens profile', async ({ device, screen }) => {
 
 ## Running what you wrote
 
-Save the file under your `testDir` with a `.test.ts` or `.spec.ts` suffix, then run:
+Save the file under your `testDir` with a `.test` or `.spec` suffix — `.ts`, `.js` and
+`.mjs` are all discovered — then run:
 
 ```bash
 npx mobilewright test

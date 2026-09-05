@@ -116,10 +116,15 @@ npx mobilewright doctor --category system
 
 ## Scaffold a project
 
-Create a `mobilewright.config.ts` and `example.test.ts` in the current directory:
+Drop a `mobilewright.config.ts` and an `example.test.ts` into the current directory:
 
 ```bash
-npm init mobilewright@latest
+npx mobilewright init
 ```
 
-Existing files are not overwritten.
+Existing files are not overwritten. This is a one-shot helper — it does not prompt, touch
+`package.json`, or install anything.
+
+For a full project scaffold that asks for your language, test directory and bundle ID and
+then installs the dependencies, use `npm init mobilewright@latest` instead — see
+[Installation](../getting-started/intro.md#installing-mobilewright).

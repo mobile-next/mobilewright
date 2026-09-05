@@ -66,9 +66,13 @@ mobilewright doctor  v0.0.1
 
   Android
     ✓  Java (JDK)  21.0.10
+    ✓  JAVA_HOME  /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
     ✓  ANDROID_HOME  /Users/john/Library/Android/sdk
     ✓  ADB (Android Debug Bridge)  1.0.41
+    ✓  ADB Devices  0 devices connected
     ✓  Android Emulator  36.1.9.0
+    ✓  Android SDK Platforms  API 35 (latest)  [4 platforms installed]
+    ✓  Android Build Tools  35.0.0 (latest)  [3 versions installed]
 
 ────────────────────────────────────────────────────────────
   Summary  17 ok
@@ -92,6 +96,11 @@ To add Mobilewright to a project that already has a `package.json`, install it d
 ```bash
 npm install --save-dev mobilewright @mobilewright/test
 ```
+
+Note that `npm init mobilewright@latest` and `npx mobilewright init` are different commands
+and produce different files. The former is the project scaffold described here; the latter is
+a one-shot CLI helper that drops a config and an `example.test.ts` into the current directory
+without prompting. See [Command Line](../test/cli.md#scaffold-a-project).
 
 ## Directory layout
 
