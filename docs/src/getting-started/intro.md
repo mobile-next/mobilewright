@@ -97,11 +97,6 @@ To add Mobilewright to a project that already has a `package.json`, install it d
 npm install --save-dev mobilewright @mobilewright/test
 ```
 
-Note that `npm init mobilewright@latest` and `npx mobilewright init` are different commands
-and produce different files. The former is the project scaffold described here; the latter is
-a one-shot CLI helper that drops a config and an `example.test.ts` into the current directory
-without prompting. See [Command Line](../test/cli.md#scaffold-a-project).
-
 ## Directory layout
 
 After scaffolding, your project looks like this:
