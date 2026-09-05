@@ -141,3 +141,19 @@ test('deep link opens profile', async ({ device, screen }) => {
   await expect(screen.getByText('Profile')).toBeVisible();
 });
 ```
+
+## Running what you wrote
+
+Save the file under your `testDir` with a `.test.ts` or `.spec.ts` suffix, then run:
+
+```bash
+npx mobilewright test
+```
+
+To run just this file while you iterate:
+
+```bash
+npx mobilewright test tests/login.spec.ts
+```
+
+See [Running Tests](./running-tests.md) for filtering, reporters and exit codes.
