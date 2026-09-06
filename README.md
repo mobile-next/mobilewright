@@ -74,7 +74,7 @@ await device.close();
 
 ## Prerequisites
 
-- Node.js >= 20.19 (ESM-only package; older Node cannot `require()` it from a CommonJS `playwright.config`)
+- Node.js >= 20.19
 - A booted iOS simulator, Android emulator, or connected real device
 
 Run `mobilewright doctor` to verify your environment is ready:
