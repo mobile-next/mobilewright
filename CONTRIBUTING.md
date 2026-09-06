@@ -30,7 +30,7 @@ npm run build
 # run the tests
 npm test
 # or for coverage reports
-npm test:coverage
+npm run test:coverage
 ```
 
 The repo is an npm workspace; packages live under `packages/*`.
@@ -39,7 +39,7 @@ The repo is an npm workspace; packages live under `packages/*`.
 
 - Branch off `main` and open a pull request when ready.
 - Keep PRs focused — one concern per PR.
-- Smallest change as possible.
+- Smallest change possible.
 - Add or update tests for any behavior change.
 - Run `npm run build` and `npm test` locally before pushing.
 

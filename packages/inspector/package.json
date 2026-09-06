@@ -1,7 +1,7 @@
 {
   "name": "@mobilewright/inspector",
   "version": "0.0.1",
-  "description": "Browser-based element inspector for mobilewright",
+  "description": "Browser-based element inspector for Mobilewright",
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
