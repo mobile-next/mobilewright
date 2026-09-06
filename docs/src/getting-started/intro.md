@@ -109,15 +109,16 @@ tests/
   example.spec.ts
 ```
 
-The generated `mobilewright.config.ts` is deliberately minimal:
+The generated `mobilewright.config.ts` sets the target platform, app bundle ID, and device. `platform` is required — tests fail to start without it:
 
 ```typescript
 import { defineConfig } from 'mobilewright';
 
 export default defineConfig({
-  testDir: './tests',
+  platform: 'ios',
   bundleId: 'com.example.myapp',
-  reporter: 'html',
+  deviceName: /iPhone/,
+  timeout: 30_000,
 });
 ```
 
@@ -135,19 +136,17 @@ This test asserts on the text `Welcome`, which almost certainly is not on your a
 
 ## Choosing a device and installing your app
 
-The scaffolded config does not pin a device, so Mobilewright uses the first one it finds. Add these options to target a specific device and to install a build before the test runs:
+Edit `bundleId` to your app's bundle identifier and `deviceName` to match the device you want. Add `installApps` to install a build before the test runs:
 
 ```typescript
 import { defineConfig } from 'mobilewright';
 
 export default defineConfig({
-  testDir: './tests',
   platform: 'ios',
-  deviceName: /iPhone 16/,
   bundleId: 'com.example.myapp',
+  deviceName: /iPhone 16/,
   installApps: './builds/myapp.ipa',
-  timeout: 10_000,
-  reporter: 'html',
+  timeout: 30_000,
 });
 ```
 
