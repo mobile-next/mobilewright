@@ -36,9 +36,13 @@ mobilewright doctor  v0.0.1
 
   Android
     ✓  Java (JDK)  21.0.10
+    ✓  JAVA_HOME  /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
     ✓  ANDROID_HOME  /Users/john/Library/Android/sdk
     ✓  ADB (Android Debug Bridge)  1.0.41
+    ✓  ADB Devices  0 devices connected
     ✓  Android Emulator  36.1.9.0
+    ✓  Android SDK Platforms  API 35 (latest)  [4 platforms installed]
+    ✓  Android Build Tools  35.0.0 (latest)  [3 versions installed]
 
 ────────────────────────────────────────────────────────────
   Summary  17 ok

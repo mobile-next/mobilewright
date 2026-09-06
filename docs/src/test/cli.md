@@ -116,10 +116,13 @@ npx mobilewright doctor --category system
 
 ## Scaffold a project
 
-Create a `mobilewright.config.ts` and `example.test.ts` in the current directory:
-
 ```bash
 npm init mobilewright@latest
 ```
 
-Existing files are not overwritten.
+Prompts for TypeScript or JavaScript, the test directory (default `tests`), and the bundle
+ID of the app under test — pre-filling the bundle ID if it finds an Xcode or Gradle project
+nearby. It then writes `package.json`, `mobilewright.config.ts` and
+`tests/example.spec.ts`, and runs `npm install`.
+
+See [Installation](../getting-started/intro.md) for the generated files.
