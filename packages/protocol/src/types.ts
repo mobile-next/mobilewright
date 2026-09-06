@@ -151,6 +151,8 @@ export interface ScreenshotOptions {
   format?: ScreenshotFormat;
   quality?: number;
   path?: string;
+  /** Crop to this rect in screen points before encoding. */
+  clip?: Bounds;
 }
 
 export interface ScreenSize {

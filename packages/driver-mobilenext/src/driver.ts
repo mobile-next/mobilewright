@@ -352,6 +352,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     const result = await this.call<MobileNextScreenshotResponse>('device.screenshot', {
       ...(opts?.format && { format: opts.format }),
       ...(opts?.quality !== undefined && { quality: opts.quality }),
+      ...(opts?.clip && { clip: opts.clip }),
     });
     let b64 = result.data;
     const commaIdx = b64.indexOf(',');

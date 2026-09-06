@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import sharp from 'sharp';
 import type {
   MobilewrightDriver,
   ViewNode,
   Orientation,
   AppInfo,
   DeviceInfo,
+  ScreenshotOptions,
 } from '@mobilewright/protocol';
 import { Locator, LocatorError } from './locator.js';
 
@@ -729,23 +729,21 @@ test.describe('Locator', () => {
   });
 
   test.describe('screenshot', () => {
-    test('returns a buffer cropped to the element bounds', async () => {
-      const screenWidth = 390;
-      const screenHeight = 844;
-      const fullImage = await sharp({
-        create: { width: screenWidth, height: screenHeight, channels: 3, background: { r: 100, g: 150, b: 200 } },
-      }).png().toBuffer();
-
+    test('asks the driver to clip to the element bounds', async () => {
       const driver = createMockDriver(hierarchy);
-      driver.screenshot = async () => fullImage;
+      const image = Buffer.from('png-bytes');
+      let receivedOptions: ScreenshotOptions | undefined;
+      driver.screenshot = async (opts?: ScreenshotOptions) => {
+        receivedOptions = opts;
+        return image;
+      };
 
       // Submit button: x:20, y:100, width:200, height:50
       const locator = new Locator(driver, { kind: 'label', value: 'Submit' });
-      const cropped = await locator.screenshot();
+      const result = await locator.screenshot();
 
-      const meta = await sharp(cropped).metadata();
-      expect(meta.width).toBe(200);
-      expect(meta.height).toBe(50);
+      expect(result).toBe(image);
+      expect(receivedOptions?.clip).toEqual({ x: 20, y: 100, width: 200, height: 50 });
     });
   });
 });
