@@ -28,8 +28,9 @@ jobs:
           node-version: 24
       - run: npm ci --ignore-scripts
       - run: npm audit
-      - run: npm run sync:playwright
       - run: |
+          # make sure we have playwright's injected engine
+          npm run sync:playwright
           git diff --exit-code -- packages/mobilewright-core/src/generated/ || {
             echo "::error::packages/mobilewright-core/src/generated/ is stale — run 'npm run sync:playwright' and commit the result."
             exit 1
