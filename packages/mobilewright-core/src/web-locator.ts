@@ -51,6 +51,11 @@ function isStrictModeViolation(e: unknown): boolean {
 }
 
 export class MobileWebViewLocator {
+  // Playwright's web-first matchers gate on `receiver._apiName` (see expectTypes
+  // in playwright/lib/matchers/expect.js), a plain instance property every real
+  // Locator sets in its constructor. Report it so expect() from @playwright/test
+  // accepts a MobileWebViewLocator.
+  _apiName = 'Locator';
   _stepFn: StepFn | null = null;
 
   constructor(
@@ -447,10 +452,10 @@ export class MobileWebViewLocator {
   }
 }
 
-// Playwright's web-first matchers gate on `receiver.constructor.name === 'Locator'`
-// (see expectTypes in playwright/lib/util). Report that name so expect() from
-// @playwright/test accepts a MobileWebViewLocator, while the exported class name stays
-// distinct for our own code.
+// The actual expect() gate is _apiName (set above); this rename only affects
+// constructor.name, which Playwright still uses when printing an unrecognized
+// receiver in its error message. Keep it so those messages read naturally,
+// while the exported class name stays distinct for our own code.
 Object.defineProperty(MobileWebViewLocator, 'name', { value: 'Locator', configurable: true });
 
 // Declaration-merge the rest of Playwright's Locator surface in as ambient: the

@@ -1,42 +1,36 @@
-// Sole module that reaches into playwright-core internals. Playwright's package
-// `exports` map blocks these subpaths, so we resolve the package root and
-// require the files by absolute path (an absolute require bypasses `exports`).
-// Pinned to playwright-core@1.58.2 — if a future bump moves these paths, only
-// this file breaks. Playwright is Apache-2.0 (see NOTICE).
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+// Sole module that reaches into playwright-core internals. playwright-core's
+// package `exports` map blocks its internal subpaths, and as of 1.60.0 those
+// internals are no longer separate requirable files at all — they're bundled
+// into one opaque lib/coreBundle.js. So this file gets the two pieces it needs
+// two different ways: INJECTED_SOURCE (the InjectedScript engine — large, and
+// gets real fixes on every Playwright release) is auto-extracted from the
+// installed playwright-core at install time, see
+// scripts/sync-playwright-injected-script.mjs and ./generated/injected-script-source.ts.
+// The selector-string builders (small, stable wire-format helpers) are
+// hand-vendored in ./selector-builders.ts. Playwright is Apache-2.0 (see NOTICE).
 import type { WebViewSession } from '@mobilewright/protocol';
+import { INJECTED_SOURCE } from './generated/injected-script-source.js';
+import {
+  getByRoleSelector,
+  getByTextSelector,
+  getByLabelSelector,
+  getByPlaceholderSelector,
+  getByAltTextSelector,
+  getByTitleSelector,
+  getByTestIdSelector,
+} from './selector-builders.js';
 
-type GetByRoleSelector = (
-  role: string,
-  options?: { name?: string | RegExp; exact?: boolean },
-) => string;
-
-const require = createRequire(import.meta.url);
-const pkgRoot = dirname(require.resolve('playwright-core/package.json'));
-
-type TextBuilder = (value: string | RegExp, options?: { exact?: boolean }) => string;
-
-const injected = require(join(pkgRoot, 'lib/generated/injectedScriptSource.js')) as { source: string };
-const locatorUtils = require(join(pkgRoot, 'lib/utils/isomorphic/locatorUtils.js')) as {
-  getByRoleSelector: GetByRoleSelector;
-  getByTextSelector: TextBuilder;
-  getByLabelSelector: TextBuilder;
-  getByPlaceholderSelector: TextBuilder;
-  getByAltTextSelector: TextBuilder;
-  getByTitleSelector: TextBuilder;
-  getByTestIdSelector: (attrName: string, value: string | RegExp) => string;
-};
-
-export const INJECTED_SOURCE: string = injected.source;
+export { INJECTED_SOURCE };
 export const TEST_ID_ATTR = 'data-testid';
-export const getByRoleSelector: GetByRoleSelector = locatorUtils.getByRoleSelector;
-export const getByTextSelector: TextBuilder = locatorUtils.getByTextSelector;
-export const getByLabelSelector: TextBuilder = locatorUtils.getByLabelSelector;
-export const getByPlaceholderSelector: TextBuilder = locatorUtils.getByPlaceholderSelector;
-export const getByAltTextSelector: TextBuilder = locatorUtils.getByAltTextSelector;
-export const getByTitleSelector: TextBuilder = locatorUtils.getByTitleSelector;
-export const getByTestIdSelector = locatorUtils.getByTestIdSelector;
+export {
+  getByRoleSelector,
+  getByTextSelector,
+  getByLabelSelector,
+  getByPlaceholderSelector,
+  getByAltTextSelector,
+  getByTitleSelector,
+  getByTestIdSelector,
+};
 
 // WKWebView's UA contains "AppleWebKit" without "Chrome/"; Android System
 // WebView / Chromium contains "Chrome/". Pinning browserName makes Playwright's
