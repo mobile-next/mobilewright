@@ -21,7 +21,7 @@ If you've used Playwright, you already know Mobilewright.
 | Setup | `npm install mobilewright` | Server + drivers + caps | React Native only | Xcode/AS only |
 | Cross-platform | iOS + Android, one API | Yes, verbose | React Native only | Single platform |
 | AI agent support | First-class (accessibility tree) | Limited | No | No |
-| Real devices in the cloud | Via [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=comparison) | Yes (complex) | Simulators only | Yes |
+| Real devices in the cloud | Via [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=comparison) and [others](https://mobilewright.dev/docs/cloud-providers/) | Yes (complex) | Simulators only | Yes |
 | Locators | Semantic roles + labels | XPath, CSS, ID | Test IDs | Native queries |
 
 ## Built for AI agents
