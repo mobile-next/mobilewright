@@ -5,7 +5,7 @@ title: Geolocation
 
 # Geolocation
 
-Use `device.setGeolocation()` to override the GPS location the device reports. Every app on the device, including your own, sees the fake coordinates until you clear the override.
+Use `device.setGeolocation()` to override the GPS location the device reports. Every app on the device that has location permission, including your own, sees the fake coordinates until you clear the override.
 
 ```typescript
 await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
