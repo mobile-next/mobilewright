@@ -59,8 +59,6 @@ test('maps app shows the overridden location', async ({ device, screen }) => {
   </TabItem>
 </Tabs>
 
-Take a screenshot with `device.screenshot()` if you want to eyeball the map centered on Fiji.
-
 ## Testing your app
 
 Set the location before launching your app so its first location fix already returns the fake coordinates. The override does not grant location permission; your app still has to be allowed to read location, the same way it would on a real device.
