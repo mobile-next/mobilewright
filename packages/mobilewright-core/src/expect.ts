@@ -16,10 +16,23 @@ export interface ExpectOptions {
 // argument. Its object form also carries `timeout`, which we do not support yet.
 export type ExpectMessage = string | { message?: string };
 
-// Carries the custom message from the expect() Proxy down to wrapAssertion, so a
-// message also renames the reporter step (as Playwright does).
-interface MessageCarrier {
+// Carries the custom message and soft flag from the expect() Proxies down to
+// wrapAssertion, so both show up in the reporter step title (as Playwright does).
+interface StepCarrier {
   _message?: string;
+  _soft?: boolean;
+}
+
+// Called with the ExpectError of a failed expect.soft() assertion. The test runner
+// installs a handler that records the failure and lets the test continue; without
+// a runner, soft failures throw like hard ones.
+export type SoftFailureHandler = (error: ExpectError) => void;
+
+// ponytail: module-level hook, only one runner per process
+let softFailureHandler: SoftFailureHandler = (error) => { throw error; };
+
+export function setSoftFailureHandler(handler: SoftFailureHandler): void {
+  softFailureHandler = handler;
 }
 
 /**
@@ -31,6 +44,7 @@ interface MessageCarrier {
  *   expect(webLocator).toHaveText('Hello')
  *   expect(42).toBe(42)
  *   expect(locator, 'checkout button should appear').toBeVisible()
+ *   expect.soft(locator).toBeVisible()   // records the failure, test keeps running
  */
 export function expect(actual: Page, message?: ExpectMessage): PageAssertions;
 export function expect(actual: WebLocator, message?: ExpectMessage): WebLocatorAssertions;
@@ -45,6 +59,29 @@ export function expect(actual: unknown, message?: ExpectMessage): any {
   return withMessage(assertions, resolved);
 }
 
+function soft(actual: Page, message?: ExpectMessage): PageAssertions;
+function soft(actual: WebLocator, message?: ExpectMessage): WebLocatorAssertions;
+function soft(actual: Locator, message?: ExpectMessage): LocatorAssertions;
+function soft<T>(actual: T, message?: ExpectMessage): ValueAssertions<T>;
+function soft(actual: unknown, message?: ExpectMessage): any {
+  return withSoft(expect(actual as Page, message));
+}
+
+function withSoft<T extends object>(assertions: T): T {
+  (assertions as StepCarrier)._soft = true;
+  return interceptErrors(assertions, swallowSoftFailure, withSoft);
+}
+
+function swallowSoftFailure(error: unknown): unknown {
+  if (error instanceof ExpectError) {
+    softFailureHandler(error);
+    return undefined;
+  }
+  return error;
+}
+
+expect.soft = soft;
+
 function createAssertions(actual: unknown): object {
   if (actual instanceof Page) { return new PageAssertions(actual, false); }
   if (actual instanceof WebLocator) { return new WebLocatorAssertions(actual, false); }
@@ -54,22 +91,37 @@ function createAssertions(actual: unknown): object {
   return new ValueAssertions(actual, false);
 }
 
-// Every failure funnels through ExpectError, so a single Proxy over the assertions
-// object can prefix the custom message without touching any individual matcher.
-// Matchers are a mix of sync (ValueAssertions) and async (everything else), hence
-// both the try/catch and the promise catch.
 function withMessage<T extends object>(assertions: T, message: string): T {
   // Fresh instance per expect() call (and per `.not`), so tagging it is safe and
   // lets wrapAssertion use the message as the step title.
-  (assertions as MessageCarrier)._message = message;
+  (assertions as StepCarrier)._message = message;
+  return interceptErrors(assertions, (e) => prefixMessage(e, message), (child) => withMessage(child, message));
+}
+
+// Every failure funnels through ExpectError, so a single Proxy over the assertions
+// object can post-process failures without touching any individual matcher.
+// `onError` returns the error to throw, or undefined to swallow it (soft mode).
+// Matchers are a mix of sync (ValueAssertions) and async (everything else), hence
+// both the try/catch and the promise catch.
+function interceptErrors<T extends object>(
+  assertions: T,
+  onError: (error: unknown) => unknown,
+  wrapChild: (child: object) => object = (child) => interceptErrors(child, onError),
+): T {
+  const rethrow = (e: unknown): void => {
+    const error = onError(e);
+    if (error !== undefined) {
+      throw error;
+    }
+  };
 
   return new Proxy(assertions, {
     get(target, prop, receiver): unknown {
       const value = Reflect.get(target, prop, receiver);
 
-      // `.not` returns another assertions object — re-wrap so the message survives chaining.
+      // `.not` returns another assertions object — re-wrap so the interception survives chaining.
       if (value !== null && typeof value === 'object') {
-        return withMessage(value, message);
+        return wrapChild(value);
       }
 
       if (typeof value !== 'function') {
@@ -80,11 +132,12 @@ function withMessage<T extends object>(assertions: T, message: string): T {
         try {
           const result = Reflect.apply(value, target, args);
           if (result instanceof Promise) {
-            return result.catch((e: unknown) => { throw prefixMessage(e, message); });
+            return result.catch(rethrow);
           }
           return result;
         } catch (e) {
-          throw prefixMessage(e, message);
+          rethrow(e);
+          return undefined;
         }
       };
     },
@@ -119,10 +172,10 @@ function wrapAssertion<T>(
   negated: boolean,
   method: string,
   fn: () => Promise<T>,
-  message?: string,
+  carrier: StepCarrier,
 ): Promise<T> {
-  const defaultTitle = negated ? `expect.not.${method}()` : `expect.${method}()`;
-  return runStep(stepFn, message ?? defaultTitle, fn);
+  const prefix = ['expect', carrier._soft && 'soft', negated && 'not'].filter(Boolean).join('.');
+  return runStep(stepFn, carrier._message ?? `${prefix}.${method}()`, fn);
 }
 
 // Poll until `predicate` holds (or the timeout elapses), re-raising any failure
@@ -146,8 +199,9 @@ class LocatorAssertions {
     protected readonly negated: boolean,
   ) {}
 
-  // Set by withMessage() when expect() was given a custom message.
+  // Set by withMessage() / withSoft() on the expect() Proxy.
   _message?: string;
+  _soft?: boolean;
 
   get not(): LocatorAssertions {
     return new LocatorAssertions(this.locator, !this.negated);
@@ -158,7 +212,7 @@ class LocatorAssertions {
   }
 
   protected _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    return wrapAssertion(this.locator._stepFn, this.negated, method, fn, this._message);
+    return wrapAssertion(this.locator._stepFn, this.negated, method, fn, this);
   }
 
   async toBeVisible(opts?: ExpectOptions): Promise<void> {
@@ -513,13 +567,14 @@ class PageAssertions {
 
   // Set by withMessage() when expect() was given a custom message.
   _message?: string;
+  _soft?: boolean;
 
   get not(): PageAssertions {
     return new PageAssertions(this.page, !this.negated);
   }
 
   private _wrapAssertion<T>(method: string, fn: () => Promise<T>): Promise<T> {
-    return wrapAssertion(this.page._stepFn, this.negated, method, fn, this._message);
+    return wrapAssertion(this.page._stepFn, this.negated, method, fn, this);
   }
 
   // Applies negation so callers pass the plain "does it match?" predicate.
@@ -565,6 +620,7 @@ class WebLocatorAssertions {
 
   // Set by withMessage() when expect() was given a custom message.
   _message?: string;
+  _soft?: boolean;
 
   get not(): WebLocatorAssertions {
     return new WebLocatorAssertions(this.webLocator, !this.negated);
@@ -600,7 +656,7 @@ class WebLocatorAssertions {
             : `Expected ${method} to match, but it did not (received ${got})`;
         },
       );
-    }, this._message);
+    }, this);
   }
 
   toBeVisible(opts?: ExpectOptions): Promise<void> {

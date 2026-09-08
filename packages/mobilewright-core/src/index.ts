@@ -4,7 +4,7 @@ export { Screen, type GetByWebViewOptions } from './screen.js';
 export { Device, type DeviceOptions } from './device.js';
 export { MobileWebViewPage, MobileWebViewPage as Page } from './page.js';
 export { MobileWebViewLocator, MobileWebViewLocator as WebLocator } from './web-locator.js';
-export { expect, ExpectError, type ExpectOptions } from './expect.js';
+export { expect, ExpectError, setSoftFailureHandler, type ExpectOptions, type SoftFailureHandler } from './expect.js';
 export { queryAll, ROLE_TYPE_MAP, bareTypeName, type LocatorStrategy, type Role } from './query-engine.js';
 export { sleep } from './sleep.js';
 export type { HardwareButton } from '@mobilewright/protocol';
