@@ -59,17 +59,6 @@ test('maps app shows the overridden location', async ({ device, screen }) => {
 
 Set the location before launching your app so its first location fix already returns the fake coordinates. The override does not grant location permission; your app still has to be allowed to read location, the same way it would on a real device.
 
-```typescript
-import { test, expect } from '@mobilewright/test';
-
-test('nearby stores lists the closest branch', async ({ device, screen }) => {
-  await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
-  await device.launchApp('com.example.app');
-  await screen.getByText('Nearby stores').tap();
-  await expect(screen.getByText('Billund')).toBeVisible();
-});
-```
-
 To move the device mid-test, call `setGeolocation()` again with new coordinates. Apps that subscribe to location updates receive the change without a relaunch.
 
 ## Clean up between tests
