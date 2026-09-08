@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@mobilewright/test": "*",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^22.20.1",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
