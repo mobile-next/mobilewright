@@ -8,7 +8,7 @@ title: Geolocation
 Use `device.setGeolocation()` to override the GPS location the device reports. Every app on the device, including your own, sees the fake coordinates until you clear the override.
 
 ```typescript
-await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
 ```
 
 Pass `null` (or nothing) to clear the override and restore the location the device reports on its own:
@@ -19,9 +19,9 @@ await device.setGeolocation(null);
 
 Latitude must be between -90 and 90, longitude between -180 and 180. Out-of-range values throw before anything is sent to the device.
 
-## Try it: Fiji in the maps app
+## Try it: the maps app
 
-The system maps app is installed on every device, so it's a quick way to verify the override works before wiring it into your own app.
+The system maps app is installed on every device and centers on the current location when it opens, so it's a quick way to verify the override works before wiring it into your own app.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -33,11 +33,9 @@ import TabItem from '@theme/TabItem';
 import { test, expect } from '@mobilewright/test';
 
 test('maps app shows the overridden location', async ({ device, screen }) => {
-  await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+  await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
   await device.launchApp('com.apple.Maps');
-  await screen.getByText('Search Maps').tap();
-  await screen.getByText('Search Maps').fill('Nadi');
-  await expect(screen.getByText('Fiji')).toBeVisible();
+  await expect(screen.getByText('Billund')).toBeVisible();
 });
 ```
 
@@ -48,11 +46,9 @@ test('maps app shows the overridden location', async ({ device, screen }) => {
 import { test, expect } from '@mobilewright/test';
 
 test('maps app shows the overridden location', async ({ device, screen }) => {
-  await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+  await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
   await device.launchApp('com.google.android.apps.maps');
-  await screen.getByText('Search here').tap();
-  await screen.getByText('Search here').fill('Nadi');
-  await expect(screen.getByText('Fiji')).toBeVisible();
+  await expect(screen.getByText('Billund')).toBeVisible();
 });
 ```
 
@@ -66,11 +62,11 @@ Set the location before launching your app so its first location fix already ret
 ```typescript
 import { test, expect } from '@mobilewright/test';
 
-test('nearby stores lists the Nadi branch', async ({ device, screen }) => {
-  await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+test('nearby stores lists the closest branch', async ({ device, screen }) => {
+  await device.setGeolocation({ latitude: 55.73511, longitude: 9.1309 });
   await device.launchApp('com.example.app');
   await screen.getByText('Nearby stores').tap();
-  await expect(screen.getByText('Nadi')).toBeVisible();
+  await expect(screen.getByText('Billund')).toBeVisible();
 });
 ```
 
