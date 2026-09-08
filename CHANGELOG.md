@@ -1,3 +1,8 @@
+## [0.0.57] (2026-09-08)
+* Chore: upgrade playwright to 1.62.1 ([#274](https://github.com/mobile-next/mobilewright/pull/274)), thanks to [@marcomaes](https://github.com/marcomaes)
+* Chore: upgrade bundled mobilecli to 1.0.9, the Android on-screen keyboard is no longer returned by `getViewTree` ([#295](https://github.com/mobile-next/mobilewright/pull/295))
+* Docs: add geolocation guide ([#296](https://github.com/mobile-next/mobilewright/pull/296))
+
 ## [0.0.56] (2026-09-06)
 * Feat: add `device.setGeolocation` for overriding the device GPS location ([#279](https://github.com/mobile-next/mobilewright/pull/279))
 * Chore: upgrade bundled mobilecli to 1.0.8 and use clip for element screenshots, remove sharp package ([#289](https://github.com/mobile-next/mobilewright/pull/289), [#290](https://github.com/mobile-next/mobilewright/pull/290))
