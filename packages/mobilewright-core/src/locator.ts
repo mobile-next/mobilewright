@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
@@ -217,8 +216,7 @@ export class Locator {
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
     return this._step('locator.screenshot()', async () => {
       const node = await this.resolveVisible(opts?.timeout);
-      const fullScreenshot = await this.driver.screenshot();
-      return cropToElement(fullScreenshot, node.bounds, await this.driver.getScreenSize());
+      return this.driver.screenshot({ clip: node.bounds });
     });
   }
 
@@ -422,23 +420,6 @@ export class Locator {
 
     return null;
   }
-}
-
-async function cropToElement(
-  screenshot: Buffer,
-  bounds: Bounds,
-  screenSize: { width: number; height: number },
-): Promise<Buffer> {
-  const metadata = await sharp(screenshot).metadata();
-  const scale = (metadata.width ?? 1) / screenSize.width;
-  return sharp(screenshot)
-    .extract({
-      left: Math.round(bounds.x * scale),
-      top: Math.round(bounds.y * scale),
-      width: Math.round(bounds.width * scale),
-      height: Math.round(bounds.height * scale),
-    })
-    .toBuffer();
 }
 
 function centerOf(bounds: Bounds): { x: number; y: number } {

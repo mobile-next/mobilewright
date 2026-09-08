@@ -1,3 +1,11 @@
+## [0.0.56] (2026-09-06)
+* Feat: add `device.setGeolocation` for overriding the device GPS location ([#279](https://github.com/mobile-next/mobilewright/pull/279))
+* Chore: upgrade bundled mobilecli to 1.0.8 and use clip for element screenshots, remove sharp package ([#289](https://github.com/mobile-next/mobilewright/pull/289), [#290](https://github.com/mobile-next/mobilewright/pull/290))
+* Chore: require Node.js >= 20.19 ([#291](https://github.com/mobile-next/mobilewright/pull/291))
+* Docs: add Requirements and `doctor` check to Installation, correct the scaffold walkthrough ([#292](https://github.com/mobile-next/mobilewright/pull/292))
+* Docs: add Cloud Providers section with Mobile Next Cloud and BrowserStack guides ([#285](https://github.com/mobile-next/mobilewright/pull/285))
+* Docs: fix typos and update docs ([#287](https://github.com/mobile-next/mobilewright/pull/287)), thanks to [@eilinwis](https://github.com/eilinwis)
+
 ## [0.0.55] (2026-09-01)
 * Fix: resolve mobilecli binary from its per-platform optional dependency instead of `mobilecli/bin`, and support win32-arm64 ([#282](https://github.com/mobile-next/mobilewright/pull/282))
 

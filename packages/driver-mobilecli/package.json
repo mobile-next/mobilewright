@@ -5,7 +5,7 @@
   "homepage": "https://mobilewright.dev",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -32,7 +32,7 @@
     "@mobilewright/protocol": "^0.0.1",
     "debug": "^4.4.3",
     "ws": "^8.21.3",
-    "mobilecli": "1.0.7"
+    "mobilecli": "1.0.8"
   },
   "devDependencies": {
     "@types/debug": "^4.1.13",

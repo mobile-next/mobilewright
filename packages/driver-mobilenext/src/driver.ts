@@ -11,6 +11,7 @@ import type {
   DeviceInfo,
   DeviceState,
   DeviceType,
+  Geolocation,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
@@ -352,6 +353,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     const result = await this.call<MobileNextScreenshotResponse>('device.screenshot', {
       ...(opts?.format && { format: opts.format }),
       ...(opts?.quality !== undefined && { quality: opts.quality }),
+      ...(opts?.clip && { clip: opts.clip }),
     });
     let b64 = result.data;
     const commaIdx = b64.indexOf(',');
@@ -374,6 +376,14 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async setOrientation(orientation: Orientation): Promise<void> {
     await this.call('device.io.orientation.set', { orientation });
+  }
+
+  async setGeolocation(geolocation: Geolocation | null): Promise<void> {
+    if (geolocation === null) {
+      await this.call('device.location.clear');
+      return;
+    }
+    await this.call('device.location.set', { latitude: geolocation.latitude, longitude: geolocation.longitude });
   }
 
   // ─── Recording ──────────────────────────────────────────────

@@ -8,7 +8,7 @@ Framework for mobile device automation, inspired by Playwright's architecture an
 
 **Mobilewright** targets iOS and Android devices, simulators, and emulators through a clean, auto-waiting API built on top of [mobilecli](https://github.com/mobile-next/mobilecli).
 
-[Get Started](#quick-start) · [API Docs](#api-reference) · [Roadmap](ROADMAP.md) · [Mobile Next Cloud](https://mobilenext.ai)
+[Get Started](#quick-start) · [API Docs](#api-reference) · [Roadmap](ROADMAP.md) · [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=hero)
 
 ## Why Mobilewright?
 
@@ -21,7 +21,7 @@ If you've used Playwright, you already know Mobilewright.
 | Setup | `npm install mobilewright` | Server + drivers + caps | React Native only | Xcode/AS only |
 | Cross-platform | iOS + Android, one API | Yes, verbose | React Native only | Single platform |
 | AI agent support | First-class (accessibility tree) | Limited | No | No |
-| Real devices in the cloud | Via [Mobile Next Cloud](https://mobilenext.ai) | Yes (complex) | Simulators only | Yes |
+| Real devices in the cloud | Via [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=comparison) | Yes (complex) | Simulators only | Yes |
 | Locators | Semantic roles + labels | XPath, CSS, ID | Test IDs | Native queries |
 
 ## Built for AI agents
@@ -74,7 +74,7 @@ await device.close();
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 20.19
 - A booted iOS simulator, Android emulator, or connected real device
 
 Run `mobilewright doctor` to verify your environment is ready:
@@ -93,7 +93,7 @@ It checks Xcode, Android SDK, simulators, ADB, and other dependencies — and te
 | `@mobilewright/test` | Test fixtures |
 | `@mobilewright/protocol` | TypeScript interfaces (`MobilewrightDriver`, `ViewNode`) |
 | `@mobilewright/driver-mobilecli` | WebSocket JSON-RPC client for mobilecli |
-| `@mobilewright/driver-mobilenext` | WebSocket JSON-RPC client for [Mobile Next Cloud](https://mobilenext.ai) cloud devices |
+| `@mobilewright/driver-mobilenext` | WebSocket JSON-RPC client for [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=packages) cloud devices |
 | `@mobilewright/core` | `Device`, `Screen`, `Locator`, `expect` — the user-facing API |
 
 Most users only need `mobilewright` (or `@mobilewright/test` for Playwright Test integration).
@@ -269,6 +269,10 @@ console.log(device.id);
 // Orientation
 await device.setOrientation('landscape');
 const orientation = await device.getOrientation();
+
+// Geolocation — override the GPS location the device reports
+await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
+await device.setGeolocation(null); // clear the override
 
 // Screen dimensions and pixel density: { width, height, scale }
 const size = await device.screenSize();
@@ -557,7 +561,7 @@ npx mobilewright merge-reports ./blob-reports --reporter json
 
 ## Run on real devices with Mobile Next Cloud
 
-Need real phones in the cloud? [Mobile Next Cloud](https://mobilenext.ai) gives you API access to hundreds of real Android and iOS devices. Your Mobilewright scripts run with zero modification — point your config at the Mobile Next Cloud endpoint and go.
+Need real phones in the cloud? [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=cloud-section) gives you API access to hundreds of real Android and iOS devices. Your Mobilewright scripts run with zero modification — point your config at the Mobile Next Cloud endpoint and go.
 
 Mobile Next Cloud is the only device cloud with native Mobilewright support.
 

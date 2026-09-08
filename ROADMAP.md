@@ -16,7 +16,7 @@ This is a living document of planned and in-progress features. Items are roughly
 | ✅ Locator assertions | `toBeVisible()`, `toBeEnabled()`, `toBeChecked()`, `toBeHidden()`, `toHaveText()`, `toHaveValue()` |
 | ✅ Value assertions | `toBe()`, `toEqual()`, `toContain()`, `toBeGreaterThan()`, `toMatch()` |
 | ✅ App lifecycle | `launchApp()`, `terminateApp()`, `installApp()`, `uninstallApp()` |
-| ✅ Device control | `setOrientation()`, `openUrl()`, `listApps()`, `getForegroundApp()` |
+| ✅ Device control | `setOrientation()`, `setGeolocation()`, `openUrl()`, `listApps()`, `getForegroundApp()` |
 | ✅ Video recording | Attached to the HTML report (`on`, `on failure`, `off`) |
 | ✅ WebView support | `getByWebView().getByRole('button')` — full locator API inside WebViews |
 | ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
@@ -39,7 +39,7 @@ This is a living document of planned and in-progress features. Items are roughly
 | **Network Capture** | Record `.har` files and inspect HTTP/HTTPS traffic during test runs. | Planned |
 | **Network Interception** | Stub, modify, or block HTTP/HTTPS requests in flight to test error states and offline behavior without a live backend. | Planned |
 | **Network Conditioning** | Simulate throttled or degraded networks — 3G, edge, high latency, packet loss, or fully offline — to test loading states and retry behavior. | Planned |
-| **GPS Location Simulation** | Set the device's reported location, or replay a route of coordinates, to test location-aware flows. | Planned |
+| **GPS Route Replay** | Replay a route of coordinates to test location-aware flows. Setting a fixed location shipped as `device.setGeolocation()`. | Planned |
 | **Device Settings** | Prepare device system settings before a test — dark mode, high contrast, font size, locale, and permissions. | Planned |
 | **Timezone** | Set the device timezone before a test run, to verify date/time rendering and timezone-dependent logic. | Planned |
 | **Shake Gesture** | Trigger a device shake from a test, for apps that use it for undo, bug reporting, or debug menus. | Planned |

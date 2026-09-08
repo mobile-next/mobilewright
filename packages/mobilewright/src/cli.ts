@@ -148,9 +148,9 @@ program
     const reporter = opts.reporter ?? 'html';
     if (reporter === 'html') {
       const playwrightReport = resolve(process.cwd(), 'playwright-report');
-      const mobilewriteReport = resolve(process.cwd(), HTML_REPORT_DIR);
+      const mobilewrightReport = resolve(process.cwd(), HTML_REPORT_DIR);
       try {
-        renameSync(playwrightReport, mobilewriteReport);
+        renameSync(playwrightReport, mobilewrightReport);
       } catch {
         // Already renamed, or html reporter not used — nothing to do.
       }
