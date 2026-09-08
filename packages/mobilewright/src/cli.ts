@@ -88,12 +88,12 @@ program
 
     const config = await loadConfigFromFile(configFile, overrides);
 
-    const runOptions: Record<string, unknown> = {
+    const runOptions: Parameters<typeof runAllTestsWithConfig>[1] = {
       locations: args.length ? args : undefined,
-      grep: opts.grep,
-      grepInvert: opts.grepInvert,
+      grep: opts.grep as string | undefined,
+      grepInvert: opts.grepInvert as string | undefined,
       listMode: !!opts.list,
-      projectFilter: opts.project ?? undefined,
+      projectFilter: opts.project as string[] | undefined,
       passWithNoTests: !!opts.passWithNoTests,
     };
 
