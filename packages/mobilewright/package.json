@@ -42,7 +42,7 @@
     "commander": "^15.0.0",
     "open": "^10.2.0",
     "debug": "^4.4.3",
-    "playwright": "1.62.1",
+    "playwright": "1.63.0",
     "ws": "^8.21.3"
   },
   "devDependencies": {

@@ -41,8 +41,10 @@ program
   .option('--pass-with-no-tests', 'exit with code 0 when no tests found')
   .option('--list', 'list all tests without running them')
   .action(async (args: string[], opts: Record<string, unknown>) => {
-    const { loadConfigFromFile } = await import('playwright/lib/common/configLoader');
-    const { runAllTestsWithConfig } = await import('playwright/lib/runner/testRunner');
+    const { configLoader } = await import('playwright/lib/common');
+    const { testRunner } = await import('playwright/lib/runner');
+    const { loadConfigFromFile } = configLoader;
+    const { runAllTestsWithConfig } = testRunner;
 
     const overrides: Record<string, unknown> = {};
     if (opts.timeout) overrides.timeout = Number(opts.timeout);
@@ -85,16 +87,18 @@ program
     }
 
     const config = await loadConfigFromFile(configFile, overrides);
-    const c = config as Record<string, unknown>;
-    c.cliArgs = args;
-    if (opts.grep) c.cliGrep = opts.grep;
-    if (opts.grepInvert) c.cliGrepInvert = opts.grepInvert;
-    if (opts.project) c.cliProjectFilter = opts.project;
-    if (opts.list) c.cliListOnly = true;
-    if (opts.passWithNoTests) c.cliPassWithNoTests = true;
+
+    const runOptions: Parameters<typeof runAllTestsWithConfig>[1] = {
+      locations: args.length ? args : undefined,
+      grep: opts.grep as string | undefined,
+      grepInvert: opts.grepInvert as string | undefined,
+      listMode: !!opts.list,
+      projectFilter: opts.project as string[] | undefined,
+      passWithNoTests: !!opts.passWithNoTests,
+    };
 
     telemetry('mw_test');
-    const status = await runAllTestsWithConfig(config);
+    const status = await runAllTestsWithConfig(config, runOptions);
 
     telemetry('mw_test-ended', { Status: status });
 
