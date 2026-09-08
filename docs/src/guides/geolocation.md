@@ -94,6 +94,4 @@ test.afterEach(async ({ device }) => {
 | Android emulator | Applied instantly | An emulator has no real location to go back to, so clearing resets it to the emulator default (the Googleplex) |
 | Android real device | Mock location permission is granted to the shell and a test provider is registered | Test provider is removed and the permission is revoked |
 
-On Android real devices, no developer-options toggle is needed: mobilewright grants the mock location permission to the shell package itself, so your app does not need to be selected as the mock location app.
-
 On cloud providers, support depends on the provider. `setGeolocation()` rejects with an unsupported error when the device behind it cannot fake its location.
