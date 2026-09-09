@@ -573,7 +573,7 @@ Mobilewright collects anonymous usage telemetry via PostHog and Scarf. To disabl
 MOBILEWRIGHT_DISABLE_TELEMETRY=1 npx mobilewright test
 ```
 
-When telemetry is enabled, a random identifier is generated and stored in `~/.config/mobilenext/mobilewright/config.json`. No personal information or test data is ever collected.
+When telemetry is enabled, a random identifier is generated and stored in `~/.config/mobilenext/mobilewright/config.json`. Mobilewright never sends personal information or test data. The Scarf pixel is a plain HTTP request, so Scarf receives the usual request metadata (source IP, user agent); Scarf states it does not retain raw IP addresses. Set `MOBILEWRIGHT_DISABLE_TELEMETRY` to opt out of both.
 
 ## Contributing
 

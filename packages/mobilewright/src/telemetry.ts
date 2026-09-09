@@ -63,5 +63,9 @@ export function scarf(): void {
     return;
   }
 
-  fetch('https://static.scarf.sh/a.png?x-pxid=2c7bcfba-01fb-4460-b6e0-5cd668a00471').catch(() => {});
+  fetch('https://static.scarf.sh/a.png?x-pxid=2c7bcfba-01fb-4460-b6e0-5cd668a00471', {
+    signal: AbortSignal.timeout(5000),
+  })
+    .then((response) => response.body?.cancel())
+    .catch(() => {});
 }
