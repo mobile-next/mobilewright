@@ -57,3 +57,11 @@ export function telemetry(event: string, properties: Record<string, string> = {}
     }),
   }).catch(() => {});
 }
+
+export function scarf(): void {
+  if (process.env.MOBILEWRIGHT_DISABLE_TELEMETRY) {
+    return;
+  }
+
+  fetch('https://static.scarf.sh/a.png?x-pxid=2c7bcfba-01fb-4460-b6e0-5cd668a00471').catch(() => {});
+}

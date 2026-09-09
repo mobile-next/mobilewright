@@ -13,7 +13,7 @@ import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliRe
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
-import { telemetry } from './telemetry.js';
+import { scarf, telemetry } from './telemetry.js';
 
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
@@ -98,6 +98,7 @@ program
     };
 
     telemetry('mw_test');
+    scarf();
     const status = await runAllTestsWithConfig(config, runOptions);
 
     telemetry('mw_test-ended', { Status: status });

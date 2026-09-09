@@ -567,7 +567,7 @@ Mobile Next Cloud is the only device cloud with native Mobilewright support.
 
 ## Telemetry
 
-Mobilewright collects anonymous usage telemetry via PostHog. To disable it, set the `MOBILEWRIGHT_DISABLE_TELEMETRY` environment variable:
+Mobilewright collects anonymous usage telemetry via PostHog and Scarf. To disable it, set the `MOBILEWRIGHT_DISABLE_TELEMETRY` environment variable:
 
 ```bash
 MOBILEWRIGHT_DISABLE_TELEMETRY=1 npx mobilewright test
