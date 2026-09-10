@@ -7,6 +7,11 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.58] (2026-09-10)
+* Feat: add `expect.soft` for non-fatal assertions ([#300](https://github.com/mobile-next/mobilewright/pull/300))
+* Feat: send scarf.sh pixel on `mobilewright test` when telemetry is enabled ([#301](https://github.com/mobile-next/mobilewright/pull/301))
+* Fix: upgrade playwright to 1.63.0 and adapt to internal runner API changes ([#299](https://github.com/mobile-next/mobilewright/pull/299)), thanks to [@marcomaes](https://github.com/marcomaes)
+
 ## [0.0.57] (2026-09-08)
 * Chore: upgrade bundled mobilecli to 1.0.9, the Android on-screen keyboard is no longer returned by `getViewTree` ([#295](https://github.com/mobile-next/mobilewright/pull/295))
 * Chore: upgrade playwright to 1.62.1 ([#274](https://github.com/mobile-next/mobilewright/pull/274)), thanks to [@marcomaes](https://github.com/marcomaes)
