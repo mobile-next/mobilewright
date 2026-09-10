@@ -12,10 +12,20 @@ import {
   toArray,
   type DevicePoolClient,
 } from 'mobilewright';
-import { expect } from '@mobilewright/core';
+import { expect, setSoftFailureHandler } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
 
 const debug = createDebug('mw:test:fixtures');
+
+// ponytail: same private Playwright API its own expect.soft goes through
+interface SoftFailureReporter {
+  _failWithError(error: Error): void;
+}
+
+// expect.soft(): mark the test failed and record the error, but keep running.
+setSoftFailureHandler((error) => {
+  (base.info() as unknown as SoftFailureReporter)._failWithError(error);
+});
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
 

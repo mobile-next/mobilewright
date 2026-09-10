@@ -323,6 +323,10 @@ await expect(locator).toHaveValue(/@example\.com$/);
 await expect(locator).toHaveCount(3);                // number of matching elements
 
 await expect(locator).toBeVisible({ timeout: 10_000 });
+
+// Soft assertions record the failure but let the test keep running (Playwright semantics)
+await expect.soft(locator).toHaveText('Success');
+await expect.soft(locator, 'eta should be shown').not.toBeEmpty();
 ```
 
 ### Role Mapping

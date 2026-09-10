@@ -8,7 +8,7 @@ import type {
 } from '@mobilewright/protocol';
 import { Locator } from './locator.js';
 import type { StepFn } from './locator.js';
-import { expect as mwExpect, ExpectError } from './expect.js';
+import { expect as mwExpect, ExpectError, setSoftFailureHandler } from './expect.js';
 
 function node(
   overrides: Partial<ViewNode> & { type: string },
@@ -937,5 +937,87 @@ test.describe('custom message as the step title', () => {
 
     expect(titles).toContain('hidden button stays hidden');
     expect(titles).not.toContain('expect.not.toBeVisible()');
+  });
+});
+
+test.describe('expect.soft', () => {
+  const recorded: ExpectError[] = [];
+  const recordInsteadOfThrowing = (error: ExpectError): void => { recorded.push(error); };
+  const throwLikeAHardAssertion = (error: ExpectError): void => { throw error; };
+
+  test.beforeEach(() => {
+    recorded.length = 0;
+    setSoftFailureHandler(recordInsteadOfThrowing);
+  });
+
+  test.afterAll(() => {
+    setSoftFailureHandler(throwLikeAHardAssertion);
+  });
+
+  test('hands a failed sync assertion to the handler instead of throwing', () => {
+    mwExpect.soft(1).toBe(2);
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toBeInstanceOf(ExpectError);
+    expect(recorded[0].message).toContain('Expected 2, but received 1');
+  });
+
+  test('hands a failed async locator assertion to the handler instead of rejecting', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'hiddenBtn' });
+
+    await mwExpect.soft(locator).toBeVisible({ timeout: 200 });
+
+    expect(recorded).toHaveLength(1);
+  });
+
+  test('keeps running so later soft failures are collected too', () => {
+    mwExpect.soft(1).toBe(2);
+    mwExpect.soft('a').toBe('b');
+
+    expect(recorded).toHaveLength(2);
+  });
+
+  test('records nothing when the assertion passes', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    mwExpect.soft(1).toBe(1);
+    await mwExpect.soft(locator).toBeVisible();
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('survives negation via not', async () => {
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+
+    await mwExpect.soft(locator).not.toBeVisible({ timeout: 200 });
+
+    expect(recorded).toHaveLength(1);
+  });
+
+  test('keeps the custom message in the recorded failure', () => {
+    mwExpect.soft(1, 'counts must match').toBe(2);
+
+    expect(recorded[0].message).toMatch(/^counts must match\n\nExpected 2, but received 1/);
+  });
+
+  test('marks the reporter step title as soft', async () => {
+    const { stepFn, titles } = recordingStepFn();
+    const driver = createMockDriver(hierarchy);
+    const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+    locator._stepFn = stepFn;
+
+    await mwExpect.soft(locator).toBeVisible();
+    await mwExpect.soft(locator).not.toBeHidden();
+
+    expect(titles).toContain('expect.soft.toBeVisible()');
+    expect(titles).toContain('expect.soft.not.toBeHidden()');
+  });
+
+  test('throws like a hard assertion when no runner installed a handler', () => {
+    setSoftFailureHandler(throwLikeAHardAssertion);
+    expect(() => mwExpect.soft(1).toBe(2)).toThrow(ExpectError);
   });
 });
