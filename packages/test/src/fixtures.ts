@@ -17,7 +17,7 @@ import type { Device, Screen } from '@mobilewright/core';
 
 const debug = createDebug('mw:test:fixtures');
 
-// ponytail: same private Playwright API its own expect.soft goes through
+// same private Playwright API its own expect.soft goes through
 interface SoftFailureReporter {
   _failWithError(error: Error): void;
 }

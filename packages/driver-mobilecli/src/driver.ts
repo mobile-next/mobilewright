@@ -32,7 +32,7 @@ import type {
   WebViewInfo,
   WebViewSession,
 } from '@mobilewright/protocol';
-import { NoDeviceAvailableError, osVersionSatisfies, parseOsVersion } from '@mobilewright/protocol';
+import { NoDeviceAvailableError, gestureSequenceToTapActions, osVersionSatisfies, parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
 import { ensureMobilecliReachable, type ServerHandle } from './server.js';
@@ -527,7 +527,7 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async gesture(gestures: GestureSequence): Promise<void> {
-    await this.call('device.io.gesture', { actions: gestures.pointers });
+    await this.call('device.io.gesture', { actions: gestureSequenceToTapActions(gestures) });
   }
 
   async pressButton(button: HardwareButton): Promise<void> {

@@ -30,7 +30,7 @@ import type {
   TestObserver,
   ViewNode,
 } from '@mobilewright/protocol';
-import { parseOsVersion } from '@mobilewright/protocol';
+import { gestureSequenceToTapActions, parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { FleetApiClient, type DeviceFilter } from './fleet-api.js';
 import { MobileNextTestObserver, type MobileNextTestResultConfig } from './observer.js';
@@ -340,7 +340,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async gesture(gestures: GestureSequence): Promise<void> {
-    await this.call('device.io.gesture', { actions: gestures.pointers });
+    await this.call('device.io.gesture', { actions: gestureSequenceToTapActions(gestures) });
   }
 
   async pressButton(button: HardwareButton): Promise<void> {

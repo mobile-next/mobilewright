@@ -28,7 +28,7 @@ interface StepCarrier {
 // a runner, soft failures throw like hard ones.
 export type SoftFailureHandler = (error: ExpectError) => void;
 
-// ponytail: module-level hook, only one runner per process
+// module-level hook, only one runner per process
 let softFailureHandler: SoftFailureHandler = (error) => { throw error; };
 
 export function setSoftFailureHandler(handler: SoftFailureHandler): void {
