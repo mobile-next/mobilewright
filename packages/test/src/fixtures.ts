@@ -1,9 +1,8 @@
 import { test as base, type TestInfo } from '@playwright/test';
-import { createWriteStream, openSync, readSync, closeSync } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import { mkdir, unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import { join } from 'node:path';
 import createDebug from 'debug';
 import {
   createDevicePoolClient,
@@ -14,6 +13,15 @@ import {
 } from 'mobilewright';
 import { expect, setSoftFailureHandler } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
+import {
+  assertValidZipFile,
+  mergeDeviceConfig,
+  assertSupportedPlatform,
+  annotationsForDevice,
+  connectOptionsFor,
+  videoPlan,
+  parseViewTreeOption,
+} from './fixture-helpers.js';
 
 const debug = createDebug('mw:test:fixtures');
 
@@ -26,21 +34,6 @@ interface SoftFailureReporter {
 setSoftFailureHandler((error) => {
   (base.info() as unknown as SoftFailureReporter)._failWithError(error);
 });
-
-const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
-
-function assertValidZipFile(path: string): void {
-  const buf = Buffer.alloc(4);
-  const fd = openSync(path, 'r');
-  try {
-    readSync(fd, buf, { offset: 0, length: 4, position: 0 });
-  } finally {
-    closeSync(fd);
-  }
-  if (!buf.equals(ZIP_MAGIC)) {
-    throw new Error(`"${path}" is not a valid ZIP file`);
-  }
-}
 
 async function attachVideo(testInfo: TestInfo, url: string | undefined, localPath: string): Promise<void> {
   if (url) {
@@ -95,41 +88,22 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
   viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
-    const value = config.viewTree ?? 'off';
-    if (value !== 'on-failure' && value !== 'off') {
-      throw new Error(`Invalid viewTree value: "${value}". Must be "on-failure" or "off".`);
-    }
-    
-    await use(value);
+    await use(parseViewTreeOption(config.viewTree));
   }, { option: true }],
 
   device: async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
-    const project = config.projects?.find(p => p.name === testInfo.project.name);
-    const projectUse = { ...config.use, ...project?.use };
-    const merged = {
-      ...config,
-      ...(platform && { platform }),
-      ...(deviceId !== undefined && { deviceId }),
-      ...(deviceName && { deviceName }),
-      ...(deviceType && { deviceType }),
-      ...(osVersion && { osVersion }),
-      ...(installApps !== undefined && { installApps }),
-      use: projectUse,
-    };
-    
-    if (merged.platform !== 'ios' && merged.platform !== 'android') {
-      throw new Error(`Unsupported platform: "${merged.platform}". Must be "ios" or "android".`);
-    }
+    const merged = mergeDeviceConfig(config, { platform, deviceId, deviceName, deviceType, osVersion, installApps }, testInfo.project.name);
+    const supportedPlatform = assertSupportedPlatform(merged.platform);
 
     for (const appPath of toArray(merged.installApps)) {
       assertValidZipFile(appPath);
     }
 
     const client = getClient();
-    debug('allocating device (platform=%s)', merged.platform);
+    debug('allocating device (platform=%s)', supportedPlatform);
     const handle = await client.allocate({
-      platform: merged.platform,
+      platform: supportedPlatform,
       deviceNamePattern: merged.deviceName?.source,
       deviceId: merged.deviceId,
       deviceType: merged.deviceType,
@@ -137,39 +111,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
     });
     debug('allocated device %s', handle.deviceId);
 
-    if (handle.type) {
-      testInfo.annotations.push({ type: 'device.type', description: handle.type });
-    }
-
-    testInfo.annotations.push({ type: 'device.platform', description: handle.platform });
-
-    if (handle.osVersion) {
-      testInfo.annotations.push({ type: 'device.osVersion', description: handle.osVersion });
-    }
-
-    if (handle.model) {
-      testInfo.annotations.push({ type: 'device.model', description: handle.model });
-    }
-
-    if (handle.driver) {
-      testInfo.annotations.push({ type: 'device.driver', description: handle.driver });
-    }
-
-    testInfo.annotations.push({ type: 'device.id', description: handle.deviceId });
+    testInfo.annotations.push(...annotationsForDevice(handle));
 
     debug('connecting to device %s', handle.deviceId);
-    const device = await connectDevice({
-      platform: handle.platform,
-      deviceId: handle.deviceId,
-      deviceType: handle.type,
-      driver: merged.driver,
-      timeout: merged.timeout,
-      actionTimeout: merged.use?.actionTimeout,
-      expectTimeout: merged.expect?.timeout,
-      appLaunchTimeout: merged.use?.appLaunchTimeout,
-      installTimeout: merged.use?.installTimeout,
-      deviceSettings: { animations: merged.use?.animations },
-    });
+    const device = await connectDevice(connectOptionsFor(handle, merged));
     debug('connected to device %s', handle.deviceId);
 
     try {
@@ -200,13 +145,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
   },
 
   screen: async ({ device, video, viewTree }, use, testInfo) => {
-    const videoMode = typeof video === 'object' ? video.mode : video;
-    const shouldRecord = videoMode === 'on' || videoMode === 'retain-on-failure';
-    const videoPath = shouldRecord
-      ? join(testInfo.outputDir, `video-${testInfo.testId}.mp4`)
-      : '';
+    const plan = videoPlan(video, testInfo.outputDir, testInfo.testId);
+    const videoPath = plan.path;
 
-    if (shouldRecord) {
+    if (plan.shouldRecord) {
       try {
         await mkdir(testInfo.outputDir, { recursive: true });
         await device.startRecording({ output: videoPath });
@@ -217,13 +159,12 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
     await use(device.screen);
 
-    if (shouldRecord) {
+    if (plan.shouldRecord) {
       try {
         const result = await device.stopRecording();
         const failed = testInfo.status !== testInfo.expectedStatus;
-        const shouldAttach = videoMode === 'on' || (videoMode === 'retain-on-failure' && failed);
 
-        if (shouldAttach) {
+        if (plan.shouldAttach(failed)) {
           await attachVideo(testInfo, result.url, result.output ?? videoPath);
         }
 
