@@ -17,6 +17,7 @@ Mobilewright supports these providers:
 
 - [Mobile Next Cloud](./mobile-next-cloud.md) — the driver maintained by the Mobilewright team, with test results uploaded to your dashboard automatically.
 - [BrowserStack](./browserstack.md) — App Automate sessions via the `@browserstack/mobilewright` driver.
+- [TestingBot](./testingbot.md) — real devices, emulators and simulators via the `@testingbot/mobilewright-driver` package.
 
 A common pattern is to keep one config and switch drivers by environment: local device by
 default, cloud when credentials are present. Each provider page shows how.
