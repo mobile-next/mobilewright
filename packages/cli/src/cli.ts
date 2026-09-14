@@ -8,7 +8,7 @@ import type { HardwareButton, SwipeDirection } from '@mobilewright/protocol';
 import { Locator, expect, queryAll } from '@mobilewright/core';
 import { connect, listDevices } from './connect.js';
 import { buildStrategy, type FindOptions } from './find-options.js';
-import { formatSnapshot, renderSnapshot } from './snapshot.js';
+import { formatSnapshot, lineFor, renderSnapshot } from './snapshot.js';
 import { saveSession } from './session.js';
 import { centerOfTarget, parseTarget } from './target.js';
 
@@ -59,12 +59,12 @@ async function withDevice(fn: (c: Awaited<ReturnType<typeof connect>>) => Promis
   try {
     connected = await connect(g.session, g.device);
     const result = await fn(connected);
-    const app = await connected.device.getForegroundApp();
+    const app = await foregroundApp(connected);
     if (g.json) {
-      console.log(JSON.stringify({ ok: true, device: connected.session.deviceId, app: app.bundleId, result }, null, 2));
+      console.log(JSON.stringify({ ok: true, device: connected.session.deviceId, app, result }, null, 2));
     } else {
       if (typeof result === 'string' && result) { console.log(result); }
-      console.log(`# device: ${connected.session.deviceId}  app: ${app.bundleId}`);
+      console.log(`# device: ${connected.session.deviceId}  app: ${app ?? 'unknown'}`);
     }
   } catch (err) {
     // Close before exiting: process.exit() inside catch would skip finally and
@@ -73,6 +73,26 @@ async function withDevice(fn: (c: Awaited<ReturnType<typeof connect>>) => Promis
     fail(err);
   }
   await connected.close().catch(() => {});
+}
+
+/** Foreground app is metadata only; some Android devices cannot report it. */
+async function foregroundApp(c: Awaited<ReturnType<typeof connect>>): Promise<string | undefined> {
+  try {
+    const app = await c.device.getForegroundApp();
+    return app.bundleId || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Parse a CLI number: finite and non-negative, optionally an integer. */
+function parseNonNegative(value: string, flag: string, integer = false): number {
+  const n = Number(value);
+  const valid = Number.isFinite(n) && n >= 0 && (!integer || Number.isInteger(n));
+  if (!valid) {
+    throw new Error(`${flag} must be a non-negative ${integer ? 'integer' : 'number'}, got: ${value}`);
+  }
+  return n;
 }
 
 function addFindOptions(cmd: Command): Command {
@@ -149,8 +169,7 @@ addFindOptions(program.command('find'))
     const tree = await device.screen.viewTree();
     const snapshot = renderSnapshot(tree);
     saveSession(globals().session, { ...session, refs: snapshot.refs });
-    const matched = new Set(queryAll(tree, strategy).map((node) => snapshot.nodes.get(node)));
-    const lines = snapshot.lines.filter((line) => matched.has(line.ref)).map((line) => ({ ...line, depth: 0 }));
+    const lines = queryAll(tree, strategy).map((node) => lineFor(node, snapshot.nodes.get(node)!));
     if (globals().json) { return lines; }
     return lines.length === 0 ? 'no matches' : formatSnapshot(lines);
   }));
@@ -236,7 +255,7 @@ addFindOptions(program.command('expect <matcher> [value]'))
       throw new Error(`unknown matcher "${matcher}", expected one of: ${MATCHERS.join(', ')}`);
     }
     const locator = new Locator(driver, buildStrategy(opts));
-    const timeout = Number(opts.timeout);
+    const timeout = parseNonNegative(opts.timeout, '--timeout');
     await runMatcher(locator, matcher as Matcher, value, timeout);
     return `ok: ${matcher}${value === undefined ? '' : ` ${JSON.stringify(value)}`}`;
   }));
@@ -261,7 +280,7 @@ async function runMatcher(locator: Locator, matcher: Matcher, value: string | un
     case 'text': return assertion.toHaveText(requireValue(matcher, value), { timeout });
     case 'contain-text': return assertion.toContainText(requireValue(matcher, value), { timeout });
     case 'value': return assertion.toHaveValue(requireValue(matcher, value), { timeout });
-    case 'count': return assertion.toHaveCount(Number(requireValue(matcher, value)), { timeout });
+    case 'count': return assertion.toHaveCount(parseNonNegative(requireValue(matcher, value), 'count', true), { timeout });
   }
 }
 

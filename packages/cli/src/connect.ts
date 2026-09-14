@@ -56,8 +56,20 @@ export async function connect(sessionName: string, explicitDevice: string | unde
   // ponytail: every command connects and (if it started the server) tears it down
   // again; a long-lived daemon is the upgrade path once per-command latency hurts.
   await device.connect({ platform: platform!, deviceId, deviceType });
-  const state: SessionState = { ...session, deviceId, platform, deviceType };
-  saveSession(sessionName, state);
+  const state: SessionState = {
+    ...session,
+    deviceId,
+    platform,
+    deviceType,
+    // refs describe a screen on the previous device; never tap them on another one
+    refs: deviceId === session.deviceId ? session.refs : {},
+  };
+  try {
+    saveSession(sessionName, state);
+  } catch (err) {
+    await device.close().catch(() => {});
+    throw err;
+  }
 
   return {
     device,
