@@ -1,0 +1,40 @@
+{
+  "name": "@mobilewright/cli",
+  "version": "0.0.1",
+  "description": "Token-efficient command line interface for driving mobile devices from coding agents",
+  "homepage": "https://mobilewright.dev",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "mobilewright-cli": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mobile-next/mobilewright.git",
+    "directory": "packages/cli"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mobilewright/core": "^0.0.1",
+    "@mobilewright/driver-mobilecli": "^0.0.1",
+    "@mobilewright/protocol": "^0.0.1",
+    "commander": "^15.0.0"
+  }
+}

@@ -26,6 +26,7 @@
     { "path": "packages/driver-mobilenext" },
     { "path": "packages/inspector" },
     { "path": "packages/mobilewright" },
+    { "path": "packages/cli" },
     { "path": "packages/test" }
   ]
 }

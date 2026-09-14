@@ -47,6 +47,14 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Agent CLI',
+      collapsed: false,
+      items: [
+        'agent-cli/introduction',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Cloud Providers',
       collapsed: false,
       items: [
