@@ -1,4 +1,4 @@
-import type { Bounds } from '@mobilewright/protocol';
+import type { RefInfo } from './session.js';
 
 export type Target = { kind: 'ref'; ref: string } | { kind: 'point'; x: number; y: number };
 
@@ -14,13 +14,21 @@ export function parseTarget(arg: string): Target {
   throw new Error(`expected a ref like e12 or coordinates like 100,200, got: ${arg}`);
 }
 
-export function centerOfTarget(target: Target, refs: Record<string, Bounds>): { x: number; y: number } {
+export function resolveRef(target: Target, refs: Record<string, RefInfo>): RefInfo | undefined {
+  if (target.kind === 'point') {
+    return undefined;
+  }
+  const info = refs[target.ref];
+  if (!info) {
+    throw new Error(`unknown ref ${target.ref}, run "snapshot" or "find" first`);
+  }
+  return info;
+}
+
+export function centerOfTarget(target: Target, refs: Record<string, RefInfo>): { x: number; y: number } {
   if (target.kind === 'point') {
     return { x: target.x, y: target.y };
   }
-  const bounds = refs[target.ref];
-  if (!bounds) {
-    throw new Error(`unknown ref ${target.ref}, run "snapshot" or "find" first`);
-  }
+  const { bounds } = resolveRef(target, refs)!;
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }

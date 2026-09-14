@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { parseTarget, centerOfTarget } from './target.js';
 
-const refs = { e5: { x: 10, y: 20, width: 100, height: 40 } };
+const refs = { e5: { bounds: { x: 10, y: 20, width: 100, height: 40 }, locator: 'screen.getByTestId(\'x\')' } };
 
 test('a ref resolves to the center of its remembered bounds', () => {
   expect(centerOfTarget(parseTarget('e5'), refs)).toEqual({ x: 60, y: 40 });

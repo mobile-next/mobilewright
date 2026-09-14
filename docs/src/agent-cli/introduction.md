@@ -40,14 +40,28 @@ pulled in as a dependency. Run `mobilewright doctor` if a device does not show u
 ```bash
 mobilewright-cli devices
 mobilewright-cli launch com.example.app
-mobilewright-cli snapshot
 mobilewright-cli fill e7 "alice@example.com"
 mobilewright-cli tap e9
 mobilewright-cli expect visible --text "Welcome back"
 mobilewright-cli screenshot -o welcome.png
 ```
 
-`snapshot` prints something like:
+After every action the CLI prints the Mobilewright code it ran, the device state and
+a link to a fresh snapshot of the screen:
+
+```
+### Ran Mobilewright code
+```js
+await screen.getByRole('button', { name: 'Sign in' }).tap();
+```
+### Device
+- Device ID: 6A557392-1480-4355-9EBC-B1D12A0F665D
+- App: com.example.app
+### Snapshot
+- [Snapshot](.mobilewright-cli/screen-2026-09-14T20-13-21-867Z.yml)
+```
+
+The snapshot file looks like:
 
 ```
 - textfield [ref=e7] [testid="email"] [placeholder="Email"]
@@ -61,11 +75,22 @@ Each line is `- <role> "<name>" [ref=<ref>]` followed by attributes: `testid`,
 shows containment. Roles are the same semantic roles used by
 [`getByRole()`](../guides/locators.md).
 
-After every action the CLI prints the device ID and the foreground app:
+The `Ran Mobilewright code` line is the exact call a test would make for the element
+you targeted: test ID first, then role and name, then label, text or placeholder.
+Collect these lines and you have a test.
 
+## Agent skill
+
+The package ships a `SKILL.md` that teaches coding agents the command set. Install it
+into the current project with:
+
+```bash
+mobilewright-cli install
 ```
-# device: 6A557392-1480-4355-9EBC-B1D12A0F665D  app: com.example.app
-```
+
+This writes `.claude/skills/mobilewright-cli/SKILL.md` and creates the
+`.mobilewright-cli/` workspace directory for snapshots and videos. The skill path is also
+printed at the top of `mobilewright-cli --help`.
 
 ## Choosing a device
 
@@ -100,6 +125,8 @@ Session files are stored under the system temp directory, or under
 | Command | Description |
 |---------|-------------|
 | `devices` | List connected devices, simulators and emulators |
+| `apps` | List installed apps |
+| `app-install <path>` | Install a `.apk` (Android) or `.ipa`/`.zip`/`.app` (iOS) |
 | `launch <bundleId>` | Launch an app and wait for it to reach the foreground |
 | `terminate <bundleId>` | Terminate a running app |
 | `url <url>` | Open a URL or deep link |
@@ -108,9 +135,9 @@ Session files are stored under the system temp directory, or under
 
 | Command | Description |
 |---------|-------------|
-| `snapshot` | Print the screen as a tree with refs |
+| `snapshot` | Write the screen tree with refs to `.mobilewright-cli/screen-<timestamp>.yml` |
 | `find [locator options]` | Print only the elements matching a locator, with their refs |
-| `screenshot [-o file]` | Save a PNG of the screen (default `screenshot.png`) |
+| `screenshot [ref] [-o file]` | Save a PNG of the screen, or of one element (default `screenshot.png`) |
 
 ### Locator options
 
@@ -146,10 +173,25 @@ Targets are a ref from the last `snapshot` or `find` (`e12`) or raw coordinates 
 | `doubletap <target>` | Double-tap |
 | `longpress <target>` | Long-press |
 | `fill <target> <text>` | Tap a text field, clear it and type |
-| `type <text>` | Type into the focused element |
+| `type <text>` | Type into the focused element, without tapping or clearing first |
 | `press <keys...>` | Press keyboard keys: `Enter`, `backspace`, `cmd+a` |
 | `button <name>` | Hardware button: `HOME`, `BACK`, `POWER`, `VOLUME_UP`, `VOLUME_DOWN`, `ENTER`, `APP_SWITCH`, `LOCK`, `DPAD_*` |
 | `swipe <direction>` | Swipe from the screen center: `up`, `down`, `left`, `right` |
+
+### Logs and video
+
+| Command | Description |
+|---------|-------------|
+| `logs [--filter k=v...] [--limit n]` | Print recent device logs as JSON lines (default 100). Filter keys: `pid`, `process`, `tag`, `level`, `subsystem`, `category`, `message`; use `k!=v` to exclude |
+| `video-start [file]` | Start recording the screen to an MP4 (default `.mobilewright-cli/video-<timestamp>.mp4`) |
+| `video-stop` | Stop recording and print the file path |
+
+```bash
+mobilewright-cli logs --filter level=Error --filter process!=SpringBoard
+mobilewright-cli video-start demo.mp4
+mobilewright-cli tap e9
+mobilewright-cli video-stop
+```
 
 ### Assertions
 
@@ -184,26 +226,26 @@ mobilewright-cli expect count 3 --role listitem --timeout 10000
 | `--json` | Machine-readable output |
 | `--version` | Print the version |
 
-With `--json` every command prints one object: `{ ok, device, app, result }` on success,
-`{ error }` on failure.
+With `--json` every command prints one object: `{ ok, code, result, device, app, snapshot }`
+on success, `{ error }` on failure.
 
 ## From exploration to a test
 
-Because `find` and `expect` mirror the test API, an interactive session translates
+Every action prints the test code it corresponds to, so an interactive session translates
 directly into a Mobilewright test:
 
 ```bash
-mobilewright-cli find --placeholder Email
-mobilewright-cli fill e7 "alice@example.com"
+mobilewright-cli find --placeholder Email          # screen.getByPlaceholder('Email')
+mobilewright-cli fill e7 "alice@example.com"       # await screen.getByPlaceholder('Email').fill('alice@example.com');
 mobilewright-cli find --role button --name "Sign in"
-mobilewright-cli tap e9
-mobilewright-cli expect visible --text "Welcome back"
+mobilewright-cli tap e9                            # await screen.getByRole('button', { name: 'Sign in' }).tap();
+mobilewright-cli expect visible --text "Welcome"   # await expect(screen.getByText('Welcome')).toBeVisible();
 ```
 
 ```ts
 await screen.getByPlaceholder('Email').fill('alice@example.com');
 await screen.getByRole('button', { name: 'Sign in' }).tap();
-await expect(screen.getByText('Welcome back')).toBeVisible();
+await expect(screen.getByText('Welcome')).toBeVisible();
 ```
 
 ## CLI vs MCP

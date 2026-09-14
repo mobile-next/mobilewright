@@ -1,5 +1,7 @@
-import type { Bounds, ViewNode } from '@mobilewright/protocol';
+import type { ViewNode } from '@mobilewright/protocol';
 import { ROLE_TYPE_MAP, bareTypeName } from '@mobilewright/core';
+import { locatorForNode } from './codegen.js';
+import type { RefInfo } from './session.js';
 
 export interface SnapshotLine {
   ref: string;
@@ -12,7 +14,7 @@ export interface SnapshotLine {
 export interface SnapshotResult {
   lines: SnapshotLine[];
   /** Every node in document order, keyed by ref — including nodes not printed. */
-  refs: Record<string, Bounds>;
+  refs: Record<string, RefInfo>;
   /** Node identity for each ref, so `find` can map query matches back to refs. */
   nodes: Map<ViewNode, string>;
 }
@@ -58,14 +60,14 @@ function isInteresting(node: ViewNode, role: string): boolean {
  */
 export function renderSnapshot(roots: ViewNode[]): SnapshotResult {
   const lines: SnapshotLine[] = [];
-  const refs: Record<string, Bounds> = {};
+  const refs: Record<string, RefInfo> = {};
   const nodes = new Map<ViewNode, string>();
   let counter = 0;
 
   function visit(node: ViewNode, depth: number): void {
     counter += 1;
     const ref = `e${counter}`;
-    refs[ref] = node.bounds;
+    refs[ref] = { bounds: node.bounds, locator: locatorForNode(node) };
     nodes.set(node, ref);
     const role = roleOf(node);
     const printed = isInteresting(node, role);

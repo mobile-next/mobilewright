@@ -21,7 +21,8 @@ const loginScreen: ViewNode[] = [
 test('refs are numbered in document order over every node, printed or not', () => {
   const { refs } = renderSnapshot(loginScreen);
   expect(Object.keys(refs)).toEqual(['e1', 'e2', 'e3', 'e4', 'e5', 'e6']);
-  expect(refs['e3']).toEqual({ x: 10, y: 20, width: 100, height: 40 });
+  expect(refs['e3'].bounds).toEqual({ x: 10, y: 20, width: 100, height: 40 });
+  expect(refs['e3'].locator).toBe('screen.getByTestId(\'email\')');
 });
 
 test('bare containers are skipped and their children are not indented further', () => {

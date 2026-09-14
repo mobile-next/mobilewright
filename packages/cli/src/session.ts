@@ -3,12 +3,24 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Bounds, Platform, DeviceType } from '@mobilewright/protocol';
 
+export interface RefInfo {
+  bounds: Bounds;
+  /** Test code that locates this element, e.g. screen.getByTestId('login'). */
+  locator: string;
+}
+
+export interface VideoRecording {
+  pid: number;
+  output: string;
+}
+
 export interface SessionState {
   deviceId?: string;
   platform?: Platform;
   deviceType?: DeviceType;
-  /** Ref → bounds from the most recent snapshot/find. */
-  refs: Record<string, Bounds>;
+  /** Ref → element info from the most recent snapshot/find. */
+  refs: Record<string, RefInfo>;
+  video?: VideoRecording;
 }
 
 export function sessionDir(): string {

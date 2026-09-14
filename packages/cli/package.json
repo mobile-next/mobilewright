@@ -29,7 +29,8 @@
     "directory": "packages/cli"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "dependencies": {
     "@mobilewright/core": "^0.0.1",
