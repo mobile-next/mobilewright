@@ -69,10 +69,9 @@ export function renderSnapshot(roots: ViewNode[]): SnapshotResult {
     const ref = `e${counter}`;
     refs[ref] = { bounds: node.bounds, locator: locatorForNode(node) };
     nodes.set(node, ref);
-    const role = roleOf(node);
-    const printed = isInteresting(node, role);
+    const printed = isInteresting(node, roleOf(node));
     if (printed) {
-      lines.push({ ref, depth, role, name: nameOf(node), attrs: attrsOf(node) });
+      lines.push(lineFor(node, ref, depth));
     }
     for (const child of node.children) {
       visit(child, printed ? depth + 1 : depth);
@@ -83,6 +82,11 @@ export function renderSnapshot(roots: ViewNode[]): SnapshotResult {
     visit(root, 0);
   }
   return { lines, refs, nodes };
+}
+
+/** The snapshot line for any node, printed or not — `find` uses it for bare containers. */
+export function lineFor(node: ViewNode, ref: string, depth = 0): SnapshotLine {
+  return { ref, depth, role: roleOf(node), name: nameOf(node), attrs: attrsOf(node) };
 }
 
 export function formatLine(line: SnapshotLine): string {

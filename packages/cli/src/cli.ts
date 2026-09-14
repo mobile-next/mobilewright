@@ -11,7 +11,7 @@ import { Locator, expect, queryAll } from '@mobilewright/core';
 import { resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 import { connect, listDevices, type Connected } from './connect.js';
 import { buildStrategy, type FindOptions } from './find-options.js';
-import { formatSnapshot, renderSnapshot } from './snapshot.js';
+import { formatSnapshot, lineFor, renderSnapshot } from './snapshot.js';
 import { loadSession, saveSession } from './session.js';
 import { centerOfTarget, parseTarget, resolveRef, type Target } from './target.js';
 import { locatorForStrategy, quote } from './codegen.js';
@@ -79,7 +79,7 @@ async function withDevice(fn: (c: Connected) => Promise<ActionResult | void>): P
   try {
     connected = await connect(g.session, g.device);
     const action = (await fn(connected)) ?? {};
-    const app = await connected.device.getForegroundApp();
+    const app = await foregroundApp(connected);
     let snapshotPath = action.snapshotPath ?? undefined;
     if (action.snapshotPath === undefined) {
       const snapshot = renderSnapshot(await connected.device.screen.viewTree());
@@ -87,8 +87,8 @@ async function withDevice(fn: (c: Connected) => Promise<ActionResult | void>): P
       snapshotPath = writeSnapshotFile(formatSnapshot(snapshot.lines));
     }
     emit(
-      { code: action.code, result: action.result, deviceId: connected.session.deviceId, app: app.bundleId, snapshotPath, snapshotText: action.snapshotText },
-      { ok: true, code: action.code, result: action.json ?? action.result, device: connected.session.deviceId, app: app.bundleId, snapshot: action.snapshotText ?? snapshotPath },
+      { code: action.code, result: action.result, deviceId: connected.session.deviceId, app, snapshotPath, snapshotText: action.snapshotText },
+      { ok: true, code: action.code, result: action.json ?? action.result, device: connected.session.deviceId, app, snapshot: action.snapshotText ?? snapshotPath },
     );
   } catch (err) {
     // Close before exiting: process.exit() inside catch would skip finally and
@@ -97,6 +97,26 @@ async function withDevice(fn: (c: Connected) => Promise<ActionResult | void>): P
     fail(err);
   }
   await connected.close().catch(() => {});
+}
+
+/** Foreground app is metadata only; some Android devices cannot report it. */
+async function foregroundApp(c: Connected): Promise<string | undefined> {
+  try {
+    const app = await c.device.getForegroundApp();
+    return app.bundleId || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Parse a CLI number: finite and non-negative, optionally an integer. */
+function parseNonNegative(value: string, flag: string, integer = false): number {
+  const n = Number(value);
+  const valid = Number.isFinite(n) && n >= 0 && (!integer || Number.isInteger(n));
+  if (!valid) {
+    throw new Error(`${flag} must be a non-negative ${integer ? 'integer' : 'number'}, got: ${value}`);
+  }
+  return n;
 }
 
 function addFindOptions(cmd: Command): Command {
@@ -217,8 +237,7 @@ addFindOptions(program.command('find'))
     const tree = await device.screen.viewTree();
     const snapshot = renderSnapshot(tree);
     saveSession(globals().session, { ...loadSession(globals().session), refs: snapshot.refs });
-    const matched = new Set(queryAll(tree, strategy).map((node) => snapshot.nodes.get(node)));
-    const lines = snapshot.lines.filter((line) => matched.has(line.ref)).map((line) => ({ ...line, depth: 0 }));
+    const lines = queryAll(tree, strategy).map((node) => lineFor(node, snapshot.nodes.get(node)!));
     return {
       code: `${locatorForStrategy(strategy)};`,
       result: lines.length === 0 ? 'no matches' : formatSnapshot(lines),
@@ -394,7 +413,7 @@ addFindOptions(program.command('expect <matcher> [value]'))
     }
     const strategy = buildStrategy(opts);
     const locator = new Locator(driver, strategy);
-    const timeout = Number(opts.timeout);
+    const timeout = parseNonNegative(opts.timeout, '--timeout');
     await runMatcher(locator, matcher as Matcher, value, timeout);
     return {
       code: `await expect(${locatorForStrategy(strategy)}).${matcherCode(matcher as Matcher, value)};`,
@@ -433,7 +452,7 @@ async function runMatcher(locator: Locator, matcher: Matcher, value: string | un
     case 'text': return assertion.toHaveText(requireValue(matcher, value), { timeout });
     case 'contain-text': return assertion.toContainText(requireValue(matcher, value), { timeout });
     case 'value': return assertion.toHaveValue(requireValue(matcher, value), { timeout });
-    case 'count': return assertion.toHaveCount(Number(requireValue(matcher, value)), { timeout });
+    case 'count': return assertion.toHaveCount(parseNonNegative(requireValue(matcher, value), 'count', true), { timeout });
   }
 }
 

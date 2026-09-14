@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { ViewNode } from '@mobilewright/protocol';
-import { renderSnapshot, formatSnapshot } from './snapshot.js';
+import { renderSnapshot, formatSnapshot, lineFor } from './snapshot.js';
 
 function node(partial: Partial<ViewNode> & { type: string }): ViewNode {
   return { isVisible: true, isEnabled: true, bounds: { x: 0, y: 0, width: 10, height: 10 }, children: [], ...partial };
@@ -43,4 +43,10 @@ test('children of a printed node are indented under it', () => {
 test('node identity maps back to its ref so find can reuse snapshot refs', () => {
   const { nodes } = renderSnapshot(loginScreen);
   expect(nodes.get(loginScreen[0].children[2])).toBe('e4');
+});
+
+test('lineFor renders a bare container that the snapshot itself would skip', () => {
+  const { lines } = renderSnapshot(loginScreen);
+  expect(lines.map((l) => l.ref)).not.toContain('e1');
+  expect(formatSnapshot([lineFor(loginScreen[0], 'e1')])).toBe('- other [ref=e1]');
 });

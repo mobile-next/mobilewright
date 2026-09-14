@@ -227,8 +227,8 @@ mobilewright-cli expect count 3 --role listitem --timeout 10000
 | `--json` | Machine-readable output |
 | `--version` | Print the version |
 
-With `--json` every command prints one object: `{ ok, code, result, device, app, snapshot }`
-on success, `{ error }` on failure.
+With `--json`, `devices` prints the device array; every other command prints one object:
+`{ ok, code, result, device, app, snapshot }` on success, `{ error }` on failure.
 
 ## From exploration to a test
 
