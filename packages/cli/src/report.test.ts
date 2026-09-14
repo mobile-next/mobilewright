@@ -19,3 +19,16 @@ test('an action prints code, device and snapshot sections in Playwright CLI orde
 test('a plain result has no device or code sections', () => {
   expect(formatReport({ result: 'saved x.png' })).toBe('### Result\nsaved x.png');
 });
+
+test('the snapshot command inlines the tree as a yaml block instead of a file link', () => {
+  const text = formatReport({ deviceId: 'abc', app: 'com.x', snapshotText: '- button "Go" [ref=e1]' });
+  expect(text).toBe([
+    '### Device',
+    '- Device ID: abc',
+    '- App: com.x',
+    '### Snapshot',
+    '```yaml',
+    '- button "Go" [ref=e1]',
+    '```',
+  ].join('\n'));
+});

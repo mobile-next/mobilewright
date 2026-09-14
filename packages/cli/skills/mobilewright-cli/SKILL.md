@@ -13,8 +13,8 @@ allowed-tools: Bash(mobilewright-cli:*) Bash(npx:*) Bash(npm:*)
 mobilewright-cli devices
 # launch the app under test
 mobilewright-cli launch com.example.app
-# every command writes a snapshot of the screen to .mobilewright-cli/screen-*.yml
-# read it, then act on element refs
+# snapshot prints the screen tree with refs; actions link a fresh one under .mobilewright-cli/
+mobilewright-cli snapshot
 mobilewright-cli fill e7 "alice@example.com"
 mobilewright-cli tap e9
 mobilewright-cli expect visible --text "Welcome back"

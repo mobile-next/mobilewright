@@ -41,6 +41,8 @@ interface ActionResult {
   json?: unknown;
   /** Skip the automatic snapshot (e.g. the command already wrote one). */
   snapshotPath?: string | null;
+  /** Print the snapshot inline instead of linking a file. */
+  snapshotText?: string;
 }
 
 const program = new Command();
@@ -85,8 +87,8 @@ async function withDevice(fn: (c: Connected) => Promise<ActionResult | void>): P
       snapshotPath = writeSnapshotFile(formatSnapshot(snapshot.lines));
     }
     emit(
-      { code: action.code, result: action.result, deviceId: connected.session.deviceId, app: app.bundleId, snapshotPath },
-      { ok: true, code: action.code, result: action.json ?? action.result, device: connected.session.deviceId, app: app.bundleId, snapshot: snapshotPath },
+      { code: action.code, result: action.result, deviceId: connected.session.deviceId, app: app.bundleId, snapshotPath, snapshotText: action.snapshotText },
+      { ok: true, code: action.code, result: action.json ?? action.result, device: connected.session.deviceId, app: app.bundleId, snapshot: action.snapshotText ?? snapshotPath },
     );
   } catch (err) {
     // Close before exiting: process.exit() inside catch would skip finally and
@@ -201,8 +203,12 @@ program
 // ── snapshot / find ────────────────────────────────────────────────────
 program
   .command('snapshot')
-  .description(`write the screen as a compact tree with element refs (e1, e2, ...) into ${WORKSPACE_DIR}/`)
-  .action(() => withDevice(async () => ({})));
+  .description('print the screen as a compact tree with element refs (e1, e2, ...)')
+  .action(() => withDevice(async ({ device }) => {
+    const snapshot = renderSnapshot(await device.screen.viewTree());
+    saveSession(globals().session, { ...loadSession(globals().session), refs: snapshot.refs });
+    return { snapshotPath: null, snapshotText: formatSnapshot(snapshot.lines) };
+  }));
 
 addFindOptions(program.command('find'))
   .description('find elements by locator and print their refs')

@@ -40,6 +40,7 @@ pulled in as a dependency. Run `mobilewright doctor` if a device does not show u
 ```bash
 mobilewright-cli devices
 mobilewright-cli launch com.example.app
+mobilewright-cli snapshot
 mobilewright-cli fill e7 "alice@example.com"
 mobilewright-cli tap e9
 mobilewright-cli expect visible --text "Welcome back"
@@ -61,7 +62,7 @@ await screen.getByRole('button', { name: 'Sign in' }).tap();
 - [Snapshot](.mobilewright-cli/screen-2026-09-14T20-13-21-867Z.yml)
 ```
 
-The snapshot file looks like:
+`mobilewright-cli snapshot` prints the same tree inline; the file an action links to looks like:
 
 ```
 - textfield [ref=e7] [testid="email"] [placeholder="Email"]
@@ -135,7 +136,7 @@ Session files are stored under the system temp directory, or under
 
 | Command | Description |
 |---------|-------------|
-| `snapshot` | Write the screen tree with refs to `.mobilewright-cli/screen-<timestamp>.yml` |
+| `snapshot` | Print the screen tree with refs to stdout (actions link a file under `.mobilewright-cli/` instead) |
 | `find [locator options]` | Print only the elements matching a locator, with their refs |
 | `screenshot [ref] [-o file]` | Save a PNG of the screen, or of one element (default `screenshot.png`) |
 

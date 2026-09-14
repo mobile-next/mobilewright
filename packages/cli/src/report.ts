@@ -11,6 +11,8 @@ export interface Report {
   deviceId?: string;
   app?: string;
   snapshotPath?: string;
+  /** Inline snapshot text (the `snapshot` command prints it instead of linking a file). */
+  snapshotText?: string;
 }
 
 function timestamp(): string {
@@ -42,7 +44,9 @@ export function formatReport(report: Report): string {
   if (report.deviceId) {
     sections.push('### Device', `- Device ID: ${report.deviceId}`, `- App: ${report.app ?? 'unknown'}`);
   }
-  if (report.snapshotPath) {
+  if (report.snapshotText !== undefined) {
+    sections.push('### Snapshot', '```yaml', report.snapshotText, '```');
+  } else if (report.snapshotPath) {
     sections.push('### Snapshot', `- [Snapshot](${report.snapshotPath})`);
   }
   return sections.join('\n');
