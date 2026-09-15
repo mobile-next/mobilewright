@@ -99,7 +99,18 @@ test('onBegin forwards the scheduled test count to observer.onRunStart', () => {
   const reporter = new ObserverReporter();
   reporter.onBegin({} as FullConfig, fakeSuite(3));
 
-  expect(observer.runStarts).toEqual([{ totalTests: 3 }]);
+  expect(observer.runStarts).toEqual([{ totalTests: 3, metadata: undefined }]);
+});
+
+test('onBegin forwards Playwright config metadata to observer.onRunStart', () => {
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+  const metadata = { gitCommit: { hash: 'abc', branch: 'main' } };
+
+  const reporter = new ObserverReporter();
+  reporter.onBegin({ metadata } as unknown as FullConfig, fakeSuite(1));
+
+  expect(observer.runStarts[0]?.metadata).toEqual(metadata);
 });
 
 test('onTestBegin forwards the test and its retry number to observer.onTestBegin', () => {

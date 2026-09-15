@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { TestInfo, TestResultInfo, TestStepInfo, RunResultInfo } from '@mobilewright/protocol';
 import { MobileNextTestObserver } from './observer.js';
-import type { UploadTestResultParams } from './upload-client.js';
+import type { UploadTestResultParams, CreateTestResultParams, FinishTestResultParams } from './upload-client.js';
 
 function makeTempResultsFile(content: string = '{}'): { path: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'mw-observer-test-'));
@@ -45,7 +45,7 @@ test('does not upload when uploadReport is on-failure and no tests failed', asyn
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await observer.onRunEnd(runResultWithoutReport('passed'));
   expect(uploadCalled).toBe(false);
 });
@@ -64,7 +64,7 @@ test('uploads when uploadReport is on-failure and a test failed', async () => {
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   observer.onTestEnd(testInfo, failedTestResult);
   await observer.onRunEnd(runResultReadingFile(path, 'failed'));
   expect(uploadCalled).toBe(true);
@@ -85,7 +85,7 @@ test('uploads when uploadReport is on-failure and a test timed out', async () =>
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   observer.onTestEnd(testInfo, timedOutTestResult);
   await observer.onRunEnd(runResultReadingFile(path, 'failed'));
   expect(uploadCalled).toBe(true);
@@ -106,7 +106,7 @@ test('uploads by default when uploadReport is not set', async () => {
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await observer.onRunEnd(runResultReadingFile(path));
   expect(uploadCalled).toBe(true);
   cleanup();
@@ -126,7 +126,7 @@ test('always uploads when uploadReport is on regardless of test outcomes', async
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   observer.onTestEnd(testInfo, passingTestResult);
   await observer.onRunEnd(runResultReadingFile(path));
   expect(uploadCalled).toBe(true);
@@ -146,7 +146,7 @@ test('does not upload when uploadReport is off', async () => {
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await observer.onRunEnd(runResultWithoutReport('passed'));
   expect(uploadCalled).toBe(false);
 });
@@ -164,7 +164,7 @@ test('does not upload when no tests were collected', async () => {
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 0 });
+  await observer.onRunStart({ totalTests: 0 });
   await observer.onRunEnd(runResultWithoutReport('failed'));
   expect(uploadCalled).toBe(false);
 });
@@ -199,7 +199,7 @@ test('warns and skips the upload when no JSON report is available', async () => 
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await observer.onRunEnd(runResultWithoutReport('passed'));
   expect(uploadCalled).toBe(false);
 });
@@ -236,7 +236,7 @@ test('passes apiKey, name, tags, environment, report, and userAgent to upload fu
     _uploadFn: spyUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await observer.onRunEnd(runResultReadingFile(path));
 
   expect(capturedParams?.apiKey).toBe('my-secret-key');
@@ -266,7 +266,7 @@ test('does not throw when upload function rejects', async () => {
     _uploadFn: failingUpload,
   });
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   await expect(observer.onRunEnd(runResultReadingFile(path))).resolves.not.toThrow();
   cleanup();
 });
@@ -320,7 +320,7 @@ test('injects extracted source snippets into the uploaded report at the matching
   };
   const result: TestResultInfo = { status: 'passed', retry: 0, duration: 5, errors: [], steps: [tapStep] };
 
-  observer.onRunStart({ totalTests: 1 });
+  await observer.onRunStart({ totalTests: 1 });
   observer.onTestEnd({ id: 'spec-1', title: 'tap', titlePath: ['example.spec.ts', 'tap'] }, result);
   await observer.onRunEnd(runResultReadingFile(path));
 
@@ -332,4 +332,145 @@ test('injects extracted source snippets into the uploaded report at the matching
 
   cleanup();
   rmSync(sourceDir, { recursive: true });
+});
+
+type LiveSpies = {
+  created: CreateTestResultParams[];
+  finished: FinishTestResultParams[];
+  uploaded: UploadTestResultParams[];
+  createFn: (params: CreateTestResultParams) => Promise<{ id: string; url: string }>;
+  finishFn: (params: FinishTestResultParams) => Promise<{ url: string }>;
+  uploadFn: (params: UploadTestResultParams) => Promise<{ url: string }>;
+};
+
+function makeLiveSpies(options: { createFails?: boolean } = {}): LiveSpies {
+  const spies: LiveSpies = {
+    created: [], finished: [], uploaded: [],
+    createFn: async (params) => {
+      if (options.createFails) {
+        throw new Error('create failed');
+      }
+      spies.created.push(params);
+      return { id: 'live-1', url: 'file:///tmp/live-1' };
+    },
+    finishFn: async (params) => {
+      spies.finished.push(params);
+      return { url: 'file:///tmp/live-1' };
+    },
+    uploadFn: async (params) => {
+      spies.uploaded.push(params);
+      return { url: 'file:///tmp/fake' };
+    },
+  };
+  return spies;
+}
+
+const runMetadata = { gitCommit: { hash: 'abc123', branch: 'main', subject: 'feat: x', author: { name: 'Ann' } } };
+
+test('creates a running test result at run start with git info from metadata', async () => {
+  const spies = makeLiveSpies();
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on', name: 'Nightly', tags: ['ci'], environment: 'staging' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1, metadata: runMetadata });
+
+  expect(spies.created).toHaveLength(1);
+  expect(spies.created[0]?.name).toBe('Nightly');
+  expect(spies.created[0]?.tags).toEqual(['ci']);
+  expect(spies.created[0]?.environment).toBe('staging');
+  expect(spies.created[0]?.gitInfo).toEqual({ commitSha: 'abc123', branch: 'main', commitMessage: 'feat: x', authorName: 'Ann' });
+});
+
+test('finishes the running test result at run end instead of uploading a new one', async () => {
+  const { path, cleanup } = makeTempResultsFile(JSON.stringify({ suites: [] }));
+  const spies = makeLiveSpies();
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1 });
+  await observer.onRunEnd(runResultReadingFile(path, 'passed'));
+
+  expect(spies.uploaded).toHaveLength(0);
+  expect(spies.finished).toHaveLength(1);
+  expect(spies.finished[0]?.testResultId).toBe('live-1');
+  expect(spies.finished[0]?.status).toBeUndefined();
+  cleanup();
+});
+
+test('marks an interrupted run as errored', async () => {
+  const { path, cleanup } = makeTempResultsFile(JSON.stringify({ suites: [] }));
+  const spies = makeLiveSpies();
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1 });
+  await observer.onRunEnd(runResultReadingFile(path, 'interrupted'));
+
+  expect(spies.finished[0]?.status).toBe('errored');
+  cleanup();
+});
+
+test('does not create a running result when uploadReport is on-failure', async () => {
+  const { path, cleanup } = makeTempResultsFile(JSON.stringify({ suites: [] }));
+  const spies = makeLiveSpies();
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on-failure' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1 });
+  observer.onTestEnd(testInfo, failedTestResult);
+  await observer.onRunEnd(runResultReadingFile(path, 'failed'));
+
+  expect(spies.created).toHaveLength(0);
+  expect(spies.uploaded).toHaveLength(1);
+  cleanup();
+});
+
+test('falls back to a full upload at run end when creating the running result failed', async () => {
+  const { path, cleanup } = makeTempResultsFile(JSON.stringify({ suites: [] }));
+  const spies = makeLiveSpies({ createFails: true });
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1 });
+  await observer.onRunEnd(runResultReadingFile(path, 'passed'));
+
+  expect(spies.finished).toHaveLength(0);
+  expect(spies.uploaded).toHaveLength(1);
+  cleanup();
+});
+
+test('waits for the running result created at start even when onRunStart was not awaited', async () => {
+  const { path, cleanup } = makeTempResultsFile(JSON.stringify({ suites: [] }));
+  const spies = makeLiveSpies();
+  const slowCreate = async (params: CreateTestResultParams) => {
+    await new Promise(resolve => setTimeout(resolve, 20));
+    return spies.createFn(params);
+  };
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on' },
+    _createFn: slowCreate, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  void observer.onRunStart({ totalTests: 1 });
+  await observer.onRunEnd(runResultReadingFile(path, 'passed'));
+
+  expect(spies.uploaded).toHaveLength(0);
+  expect(spies.finished[0]?.testResultId).toBe('live-1');
+  cleanup();
 });

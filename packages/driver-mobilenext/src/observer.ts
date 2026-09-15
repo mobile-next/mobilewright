@@ -9,7 +9,17 @@ import type {
   TestRunInfo,
   SourceLocation,
 } from '@mobilewright/protocol';
-import { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams } from './upload-client.js';
+import {
+  uploadTestResult,
+  createTestResult,
+  finishTestResult,
+  extractGitInfoFromReport,
+  extractGitInfoFromMetadata,
+  type UploadTestResultParams,
+  type CreateTestResultParams,
+  type FinishTestResultParams,
+  type TestRunStatus,
+} from './upload-client.js';
 
 const _require = createRequire(import.meta.url);
 
@@ -22,12 +32,16 @@ export interface MobileNextTestResultConfig {
 }
 
 type UploadFn = (params: UploadTestResultParams) => Promise<{ url: string }>;
+type CreateFn = (params: CreateTestResultParams) => Promise<{ id: string; url: string }>;
+type FinishFn = (params: FinishTestResultParams) => Promise<{ url: string }>;
 
 export interface MobileNextTestObserverOptions {
   apiKey: string;
   testResult: MobileNextTestResultConfig;
   uploadTimeout?: number;
   _uploadFn?: UploadFn;
+  _createFn?: CreateFn;
+  _finishFn?: FinishFn;
 }
 
 type JsonStep = {
@@ -61,6 +75,15 @@ type JsonReport = {
   suites?: JsonSuite[];
 };
 
+// A run that never reached its end is not a test outcome; the server derives
+// passed/failed/flaky from the stats for the rest.
+function terminalStatus(status: RunResultInfo['status']): TestRunStatus | undefined {
+  if (status === 'interrupted' || status === 'timedout') {
+    return 'errored';
+  }
+  return undefined;
+}
+
 /**
  * `TestObserver` implementation for `MobileNextDriver`: collects per-step
  * source snippets during the run, then on `onRunEnd` injects them into
@@ -69,6 +92,12 @@ type JsonReport = {
 export class MobileNextTestObserver implements TestObserver {
   private hasFailed = false;
   private hasTests = false;
+  /**
+   * Id of the "running" row created at run start; resolves to undefined when not
+   * created (on-failure mode, or create failed). A promise because the reporter does
+   * not await onRunStart, and a short run can end before the create returns.
+   */
+  private liveTestResultId: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly options: MobileNextTestObserverOptions;
   private readonly snippetsByKey = new Map<string, string[]>();
   private readonly sourceCache = new Map<string, string[]>();
@@ -77,8 +106,42 @@ export class MobileNextTestObserver implements TestObserver {
     this.options = options;
   }
 
-  onRunStart(run: TestRunInfo): void {
+  async onRunStart(run: TestRunInfo): Promise<void> {
     this.hasTests = run.totalTests > 0;
+    if (!this.hasTests || this.options.testResult.uploadReport === 'off') {
+      return;
+    }
+    // on-failure cannot know at start whether to upload, so it keeps the one-shot path.
+    if (this.options.testResult.uploadReport === 'on-failure') {
+      return;
+    }
+    this.liveTestResultId = this.createLiveRun(run);
+    await this.liveTestResultId;
+  }
+
+  private async createLiveRun(run: TestRunInfo): Promise<string | undefined> {
+    const create = this.options._createFn ?? createTestResult;
+    try {
+      const created = await create({
+        apiKey: this.options.apiKey,
+        userAgent: this.userAgent(),
+        gitInfo: extractGitInfoFromMetadata(run.metadata),
+        name: this.options.testResult.name,
+        tags: this.options.testResult.tags,
+        environment: this.options.testResult.environment,
+        timeout: this.options.uploadTimeout,
+      });
+      console.log(`\n  Test run: ${created.url}`);
+      return created.id;
+    } catch (err) {
+      console.warn(`\n  [mobilewright] Failed to register test run, will upload at the end: ${err}`);
+      return undefined;
+    }
+  }
+
+  private userAgent(): string {
+    const pkg = _require('../package.json') as { version: string };
+    return `mobilewright/${pkg.version}`;
   }
 
   onTestEnd(test: TestInfo, result: TestResultInfo): void {
@@ -107,27 +170,41 @@ export class MobileNextTestObserver implements TestObserver {
     }
     const report = rawReport as JsonReport;
     this.injectSnippets(report);
-    const gitInfo = extractGitInfoFromReport(report as Record<string, unknown>);
 
-    const upload = this.options._uploadFn ?? uploadTestResult;
-    const pkg = _require('../package.json') as { version: string };
-    const userAgent = `mobilewright/${pkg.version}`;
-
+    const liveId = await this.liveTestResultId;
     try {
-      const uploadResult = await upload({
-        apiKey: this.options.apiKey,
-        report: report as Record<string, unknown>,
-        userAgent,
-        gitInfo,
-        name: this.options.testResult.name,
-        tags: this.options.testResult.tags,
-        environment: this.options.testResult.environment,
-        timeout: this.options.uploadTimeout,
-      });
+      const uploadResult = liveId !== undefined
+        ? await this.finishLiveRun(liveId, report, result)
+        : await this.uploadWholeRun(report);
       console.log(`\n  Report uploaded: ${uploadResult.url}`);
     } catch (err) {
       console.warn(`\n  [mobilewright] Failed to upload test results: ${err}`);
     }
+  }
+
+  private finishLiveRun(testResultId: string, report: JsonReport, result: RunResultInfo): Promise<{ url: string }> {
+    const finish = this.options._finishFn ?? finishTestResult;
+    return finish({
+      apiKey: this.options.apiKey,
+      testResultId,
+      report: report as Record<string, unknown>,
+      status: terminalStatus(result.status),
+      timeout: this.options.uploadTimeout,
+    });
+  }
+
+  private uploadWholeRun(report: JsonReport): Promise<{ url: string }> {
+    const upload = this.options._uploadFn ?? uploadTestResult;
+    return upload({
+      apiKey: this.options.apiKey,
+      report: report as Record<string, unknown>,
+      userAgent: this.userAgent(),
+      gitInfo: extractGitInfoFromReport(report as Record<string, unknown>),
+      name: this.options.testResult.name,
+      tags: this.options.testResult.tags,
+      environment: this.options.testResult.environment,
+      timeout: this.options.uploadTimeout,
+    });
   }
 
   // Post-order traversal of the slim step tree — children before parent,

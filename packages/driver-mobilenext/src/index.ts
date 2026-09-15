@@ -8,5 +8,5 @@ export {
   type DeviceFilter,
   type DeviceStatus,
 } from './fleet-api.js';
-export { uploadTestResult, extractGitInfoFromReport, type UploadTestResultParams, type GitInfo } from './upload-client.js';
+export { uploadTestResult, createTestResult, finishTestResult, extractGitInfoFromReport, extractGitInfoFromMetadata, type UploadTestResultParams, type CreateTestResultParams, type FinishTestResultParams, type TestRunStatus, type GitInfo } from './upload-client.js';
 export { MobileNextTestObserver, type MobileNextTestResultConfig } from './observer.js';

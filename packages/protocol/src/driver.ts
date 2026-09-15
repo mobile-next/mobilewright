@@ -212,6 +212,8 @@ export interface SourceLocation {
 export interface TestRunInfo {
   /** Total number of tests scheduled in this run. */
   totalTests: number;
+  /** Playwright `config.metadata` (e.g. `gitCommit` when `captureGitInfo` is on). */
+  metadata?: Record<string, unknown>;
 }
 
 /** Identifying information about a single test, delivered at `onTestEnd`. */

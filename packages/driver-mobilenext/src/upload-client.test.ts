@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { uploadTestResult, extractGitInfoFromReport } from './upload-client.js';
+import { uploadTestResult, createTestResult, finishTestResult, extractGitInfoFromReport, extractGitInfoFromMetadata } from './upload-client.js';
 
 type FetchCall = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
@@ -377,4 +377,103 @@ test('extractGitInfoFromReport maps Playwright gitCommit fields to GitInfo field
 test('extractGitInfoFromReport returns undefined when gitCommit has no recognizable fields', () => {
   const report = { config: { metadata: { gitCommit: {} } } };
   expect(extractGitInfoFromReport(report)).toBeUndefined();
+});
+
+function makeLiveMockFetch(testResultId: string) {
+  const { mockFetch: base, calls } = makeMockFetch(testResultId);
+  const mockFetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    if (init?.method === 'PATCH') {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      calls.push({ url: String(url), method: 'PATCH', headers, body: init?.body });
+      return new Response(JSON.stringify({ id: testResultId, status: 'passed' }), { status: 200 });
+    }
+    return base(url, init);
+  };
+  return { mockFetch: mockFetch as unknown as typeof fetch, calls };
+}
+
+test('createTestResult posts status running with git, tags and environment but no stats', async () => {
+  const { mockFetch, calls } = makeLiveMockFetch('live-1');
+
+  const created = await createTestResult({
+    apiKey: 'mob_key',
+    userAgent: 'mobilewright/9.9.9',
+    name: 'Nightly',
+    tags: ['ci'],
+    environment: 'staging',
+    gitInfo: { branch: 'main', commitSha: 'abc' },
+    _fetchFn: mockFetch,
+  });
+
+  expect(created.id).toBe('live-1');
+  expect(created.url).toBe('https://app.mobilenext.ai/dashboard/test-results/live-1');
+  const createCall = calls.find(c => c.url === 'https://api.mobilenext.ai/api/v1/test-results');
+  const body = JSON.parse(createCall?.body as string);
+  expect(body.status).toBe('running');
+  expect(body.git).toEqual({ branch: 'main', commitSha: 'abc' });
+  expect(body.tags).toEqual(['ci']);
+  expect(body.environment).toBe('staging');
+  expect(body.stats).toBeUndefined();
+});
+
+test('finishTestResult uploads report.json then patches stats without a status', async () => {
+  const { mockFetch, calls } = makeLiveMockFetch('live-1');
+  const stats = { startTime: '2026-01-01T00:00:00Z', duration: 1200, expected: 3, unexpected: 0, skipped: 0, flaky: 0 };
+
+  const result = await finishTestResult({
+    apiKey: 'mob_key',
+    testResultId: 'live-1',
+    report: { stats, suites: [] },
+    _fetchFn: mockFetch,
+  });
+
+  expect(result.url).toBe('https://app.mobilenext.ai/dashboard/test-results/live-1');
+  const methods = calls.map(c => `${c.method} ${c.url.replace('https://api.mobilenext.ai', '')}`);
+  expect(methods).toEqual([
+    'POST /api/v1/test-results/live-1/assets',
+    'PATCH /api/v1/test-results/live-1',
+  ]);
+  const patchBody = JSON.parse(calls[1]?.body as string);
+  expect(patchBody.stats).toEqual(stats);
+  expect(patchBody.status).toBeUndefined();
+});
+
+test('finishTestResult sends an explicit status when given', async () => {
+  const { mockFetch, calls } = makeLiveMockFetch('live-1');
+
+  await finishTestResult({
+    apiKey: 'mob_key',
+    testResultId: 'live-1',
+    report: {},
+    status: 'errored',
+    _fetchFn: mockFetch,
+  });
+
+  const patchCall = calls.find(c => c.method === 'PATCH');
+  expect(JSON.parse(patchCall?.body as string).status).toBe('errored');
+});
+
+test('finishTestResult still patches when the report upload fails, then rethrows', async () => {
+  const { mockFetch, calls } = makeLiveMockFetch('live-1');
+  const failingAssets = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    if (String(url).endsWith('/assets')) {
+      return new Response('nope', { status: 500 });
+    }
+    return mockFetch(url, init);
+  };
+
+  await expect(finishTestResult({
+    apiKey: 'mob_key',
+    testResultId: 'live-1',
+    report: { stats: { startTime: '', duration: 1, expected: 1, unexpected: 0, skipped: 0, flaky: 0 } },
+    _fetchFn: failingAssets as unknown as typeof fetch,
+  })).rejects.toThrow(/report.json/);
+
+  expect(calls.some(c => c.method === 'PATCH')).toBe(true);
+});
+
+test('extractGitInfoFromMetadata reads Playwright config metadata directly', () => {
+  const gitInfo = extractGitInfoFromMetadata({ gitCommit: { hash: 'abc', branch: 'main' } });
+  expect(gitInfo).toEqual({ commitSha: 'abc', branch: 'main' });
+  expect(extractGitInfoFromMetadata(undefined)).toBeUndefined();
 });

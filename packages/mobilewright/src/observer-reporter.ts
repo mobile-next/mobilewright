@@ -73,13 +73,13 @@ export default class ObserverReporter implements Reporter {
     this.options = options;
   }
 
-  onBegin(_config: FullConfig, suite: Suite): void {
+  onBegin(config: FullConfig, suite: Suite): void {
     const observer = getActiveDriver()?.observer;
     if (!observer?.onRunStart) {
       return;
     }
     try {
-      const started = observer.onRunStart({ totalTests: suite.allTests().length });
+      const started = observer.onRunStart({ totalTests: suite.allTests().length, metadata: config.metadata });
       void Promise.resolve(started).catch((err) => warnObserverFailure('onRunStart', err));
     } catch (err) {
       warnObserverFailure('onRunStart', err);
