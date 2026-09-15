@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createServer } from 'node:http';
 import { DevicePool } from '../application/device-pool.js';
 import { DevicePoolHttpServer } from './http-server.js';
 import { HttpDevicePoolClient } from './http-client.js';
@@ -92,5 +93,17 @@ test('client.allocate rejects when its signal aborts while the pool is still wai
     await expect(pending).rejects.toThrow(/aborted/);
   } finally {
     await stop();
+  }
+});
+
+test('client.release rejects instead of hanging when the coordinator never answers', async () => {
+  const silentServer = createServer(() => { /* never responds */ });
+  await new Promise<void>((resolve) => silentServer.listen(0, '127.0.0.1', resolve));
+  const { port } = silentServer.address() as { port: number };
+  const client = new HttpDevicePoolClient({ baseUrl: `http://127.0.0.1:${port}`, requestTimeout: 100 });
+  try {
+    await expect(client.release('alloc-1')).rejects.toThrow(/timed out/);
+  } finally {
+    silentServer.close();
   }
 });

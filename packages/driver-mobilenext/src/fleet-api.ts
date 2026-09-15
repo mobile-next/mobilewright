@@ -76,7 +76,7 @@ interface AllocatePostResponse {
 export interface FleetApiClientOptions {
   apiKey: string;
   apiUrl?: string;
-  /** Timeout waiting for a provisioning device to become in_use, in ms. Default: 300000 (5 min). */
+  /** Timeout waiting for a provisioning device to become in_use, in ms. Default: 900000 (15 min). */
   allocationTimeout?: number;
   /** Timeout for a single HTTP request, in ms. Bounds a stalled fetch. Default: 30000. */
   requestTimeout?: number;

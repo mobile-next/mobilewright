@@ -7,15 +7,21 @@ import type {
 
 export interface HttpDevicePoolClientOptions {
   baseUrl: string;
+  /** Bounds release/install-tracking calls so a stalled coordinator cannot hang fixture teardown. Default: 30000. */
+  requestTimeout?: number;
 }
+
+const DEFAULT_REQUEST_TIMEOUT = 30_000;
 
 export class HttpDevicePoolClient implements DevicePoolClient {
   private readonly baseUrl: string;
   private readonly agent: Agent;
+  private readonly requestTimeout: number;
   private readonly openAllocateRequests = new Map<string, ClientRequest>();
 
   constructor(options: HttpDevicePoolClientOptions) {
     this.baseUrl = options.baseUrl;
+    this.requestTimeout = options.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
     this.agent = new Agent({ keepAlive: true });
   }
 
@@ -108,6 +114,7 @@ export class HttpDevicePoolClient implements DevicePoolClient {
         res.on('error', reject);
       });
       req.on('error', reject);
+      req.setTimeout(this.requestTimeout, () => req.destroy(new Error(`POST ${path} timed out after ${this.requestTimeout}ms`)));
       req.write(JSON.stringify(body));
       req.end();
     });

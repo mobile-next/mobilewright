@@ -144,6 +144,8 @@ export default defineConfig({
 });
 ```
 
+With the mobilenext driver, also raise `driver.allocationTimeout` (see below) when going above its 15-minute default.
+
 ---
 
 ## Cloud device timeouts (mobilenext)
@@ -152,7 +154,7 @@ These timeouts apply only when using the `mobilenext` driver.
 
 ### Driver allocation timeout
 
-Bounds a single provisioning wait inside the fleet API (default 15 min). Normally `use.allocationTimeout` above is the one to set; this only needs lowering if you want the fleet call to give up before the pool does.
+Bounds a single provisioning wait inside the fleet API (default 15 min). Normally `use.allocationTimeout` above is the one to set. The two run side by side and the shorter one wins, so if you raise `use.allocationTimeout` above 15 minutes, raise this one to match or the fleet call gives up first.
 
 ```ts
 import { defineConfig } from 'mobilewright';
