@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FleetApiClient, type SessionDevice } from './fleet-api.js';
+import { NoDeviceAvailableError } from '@mobilewright/protocol';
 
 interface RecordedCall {
   method: string;
@@ -160,4 +161,16 @@ test('a failed request surfaces the API error code and message', async () => {
   const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn });
 
   await expect(client.createSession()).rejects.toThrow(/insufficient_credits — Not enough credits/);
+});
+
+test('a 429 concurrency limit is a retriable NoDeviceAvailableError, so the pool re-queues instead of failing the test', async () => {
+  const { fetchFn } = stubFetch([
+    { status: 429, json: { error: { code: 'concurrency_limit', message: '1/1 concurrent allocations' } } },
+  ]);
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn });
+
+  const pending = client.allocateDevice('sess-1', [{ attribute: 'platform', operator: 'EQUALS', value: 'ios' }]);
+
+  await expect(pending).rejects.toBeInstanceOf(NoDeviceAvailableError);
+  await expect(pending).rejects.toThrow(/concurrency_limit/);
 });
