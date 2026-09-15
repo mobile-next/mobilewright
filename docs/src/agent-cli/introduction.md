@@ -82,16 +82,25 @@ Collect these lines and you have a test.
 
 ## Agent skill
 
-The package ships a `SKILL.md` that teaches coding agents the command set. Install it
-into the current project with:
+The package ships a `SKILL.md` that teaches coding agents the command set. Initialize the
+workspace and install it into the current project with:
 
 ```bash
 mobilewright-cli install
 ```
 
-This writes `.claude/skills/mobilewright-cli/SKILL.md` and creates the
-`.mobilewright-cli/` workspace directory for snapshots and videos. The skill path is also
-printed at the top of `mobilewright-cli --help`.
+```
+✅ Workspace initialized at `/path/to/project`.
+✅ Added `.mobilewright-cli/` to `.gitignore`.
+✅ Installed skill at `/path/to/project/.claude/skills/mobilewright-cli/SKILL.md`.
+```
+
+| Option | Description |
+|--------|-------------|
+| `--skills <target>` | `claude` (default) installs to `.claude/skills/`, `agents` to `.agents/skills/` |
+| `-g, --global` | Install the skill under your home directory instead of the project |
+
+The skill path is also printed at the top of `mobilewright-cli --help`.
 
 ## Choosing a device
 

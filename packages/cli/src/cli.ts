@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { existsSync, mkdirSync, openSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -16,6 +16,7 @@ import { loadSession, saveSession } from './session.js';
 import { centerOfTarget, parseTarget, resolveRef, type Target } from './target.js';
 import { locatorForStrategy, quote } from './codegen.js';
 import { formatReport, videoPath, writeSnapshotFile, WORKSPACE_DIR, type Report } from './report.js';
+import { install, parseSkillTarget, SKILL_TARGETS } from './install.js';
 
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
@@ -149,13 +150,16 @@ function targetCode(target: Target, c: Connected, method: string, pointMethod: s
 // ── setup ──────────────────────────────────────────────────────────────
 program
   .command('install')
-  .description('install the mobilewright-cli agent skill into .claude/skills of the current project')
-  .action(() => {
-    const dest = join(process.cwd(), '.claude', 'skills', 'mobilewright-cli', 'SKILL.md');
-    mkdirSync(dirname(dest), { recursive: true });
-    copyFileSync(SKILL_PATH, dest);
-    mkdirSync(join(process.cwd(), WORKSPACE_DIR), { recursive: true });
-    emit({ result: `installed ${dest}` }, { ok: true, skill: dest });
+  .description('initialize the workspace and install the mobilewright-cli agent skill')
+  .option('--skills <target>', `where to install the skill: ${SKILL_TARGETS.join(' (default), ')}`, 'claude')
+  .option('-g, --global', 'install the skill into the home directory instead of the workspace')
+  .action((opts: { skills: string; global?: boolean }) => {
+    try {
+      const lines = install({ skills: parseSkillTarget(opts.skills), global: !!opts.global }, SKILL_PATH);
+      console.log(globals().json ? JSON.stringify({ ok: true, lines }, null, 2) : lines.join('\n'));
+    } catch (err) {
+      fail(err);
+    }
   });
 
 program
