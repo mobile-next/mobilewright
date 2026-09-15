@@ -163,18 +163,24 @@ export class MobileNextTestObserver implements TestObserver {
       return;
     }
 
+    const liveId = await this.liveTestResultId;
     const rawReport = await result.jsonReport?.();
     if (!rawReport) {
       console.warn('\n  [mobilewright] No JSON report available; skipping test result upload.');
+      if (liveId !== undefined) {
+        // Finalize the live run anyway so it never stays "running".
+        await this.finishLiveRun(liveId, {} as JsonReport, 'errored').catch((err: unknown) => {
+          console.warn(`\n  [mobilewright] Failed to finish test result: ${err}`);
+        });
+      }
       return;
     }
     const report = rawReport as JsonReport;
     this.injectSnippets(report);
 
-    const liveId = await this.liveTestResultId;
     try {
       const uploadResult = liveId !== undefined
-        ? await this.finishLiveRun(liveId, report, result)
+        ? await this.finishLiveRun(liveId, report, terminalStatus(result.status))
         : await this.uploadWholeRun(report);
       console.log(`\n  Report uploaded: ${uploadResult.url}`);
     } catch (err) {
@@ -182,13 +188,13 @@ export class MobileNextTestObserver implements TestObserver {
     }
   }
 
-  private finishLiveRun(testResultId: string, report: JsonReport, result: RunResultInfo): Promise<{ url: string }> {
+  private finishLiveRun(testResultId: string, report: JsonReport, status: TestRunStatus | undefined): Promise<{ url: string }> {
     const finish = this.options._finishFn ?? finishTestResult;
     return finish({
       apiKey: this.options.apiKey,
       testResultId,
       report: report as Record<string, unknown>,
-      status: terminalStatus(result.status),
+      status,
       timeout: this.options.uploadTimeout,
     });
   }

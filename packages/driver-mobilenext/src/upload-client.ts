@@ -35,6 +35,7 @@ export function extractGitInfoFromMetadata(metadata: Record<string, unknown> | u
 
 const debug = createDebug('mw:reporter:upload');
 
+const FINISH_PATCH_RESERVE_MS = 10_000;
 const BASE_URL = 'https://api.mobilenext.ai';
 const DASHBOARD_BASE_URL = 'https://app.mobilenext.ai';
 
@@ -255,19 +256,23 @@ async function patchTestResult(testResultId: string, params: FinishTestResultPar
 
 export async function finishTestResult(params: FinishTestResultParams): Promise<{ url: string }> {
   const fetchFn = params._fetchFn ?? fetch;
-  const signal = params.timeout ? AbortSignal.timeout(params.timeout) : undefined;
+  // Reserve part of the overall timeout for the final PATCH so it still gets a
+  // usable deadline when the report upload itself times out.
+  const patchTimeout = params.timeout ? Math.min(FINISH_PATCH_RESERVE_MS, Math.ceil(params.timeout / 2)) : undefined;
+  const uploadSignal = params.timeout && patchTimeout ? AbortSignal.timeout(params.timeout - patchTimeout) : undefined;
+  const patchSignal = (): AbortSignal | undefined => patchTimeout ? AbortSignal.timeout(patchTimeout) : undefined;
   const url = dashboardUrl(params.testResultId);
 
   // The PATCH runs even when the report upload fails, so the run never stays "running".
   try {
-    await uploadReportAssets(params.testResultId, params, fetchFn, signal);
+    await uploadReportAssets(params.testResultId, params, fetchFn, uploadSignal);
   } catch (err) {
-    await patchTestResult(params.testResultId, params, fetchFn, signal).catch((patchErr: unknown) => {
+    await patchTestResult(params.testResultId, params, fetchFn, patchSignal()).catch((patchErr: unknown) => {
       debug('finish after failed upload also failed: %s', patchErr);
     });
     throw err;
   }
-  await patchTestResult(params.testResultId, params, fetchFn, signal);
+  await patchTestResult(params.testResultId, params, fetchFn, patchSignal());
 
   debug('upload complete url=%s', url);
   return { url };
