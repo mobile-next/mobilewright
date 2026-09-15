@@ -1,5 +1,5 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { WORKSPACE_DIR } from './report.js';
 
@@ -53,6 +53,6 @@ export function install(opts: InstallOptions, skillSource: string, cwd = process
   const dest = skillDestination(opts, cwd);
   mkdirSync(join(dest, '..'), { recursive: true });
   copyFileSync(skillSource, dest);
-  lines.push(`✅ Installed skill at \`${dest}\`.`);
+  lines.push(`✅ Installed skill at \`${dirname(dest)}\`.`);
   return lines;
 }

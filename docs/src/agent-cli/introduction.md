@@ -92,7 +92,7 @@ mobilewright-cli install
 ```
 ✅ Workspace initialized at `/path/to/project`.
 ✅ Added `.mobilewright-cli/` to `.gitignore`.
-✅ Installed skill at `/path/to/project/.claude/skills/mobilewright-cli/SKILL.md`.
+✅ Installed skill at `/path/to/project/.claude/skills/mobilewright-cli`.
 ```
 
 | Option | Description |

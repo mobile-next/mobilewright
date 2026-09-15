@@ -24,7 +24,7 @@ test('a workspace install creates the output dir, copies the skill and reports e
   expect(existsSync(join(cwd, '.mobilewright-cli'))).toBe(true);
   expect(readFileSync(join(cwd, '.agents', 'skills', 'mobilewright-cli', 'SKILL.md'), 'utf8')).toBe('# skill');
   expect(lines[0]).toBe(`✅ Workspace initialized at \`${cwd}\`.`);
-  expect(lines[1]).toMatch(/^✅ Installed skill at/);
+  expect(lines[1]).toBe(`✅ Installed skill at \`${join(cwd, '.agents', 'skills', 'mobilewright-cli')}\`.`);
 });
 
 test('.gitignore gets the output dir once, and only inside a git checkout', () => {
