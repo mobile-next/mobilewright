@@ -239,6 +239,11 @@ export interface TestStepInfo {
   steps: TestStepInfo[];
 }
 
+/** Which attempt of a test is starting, delivered at `onTestBegin`. */
+export interface TestAttemptInfo {
+  retry: number;
+}
+
 /** Outcome of a single test attempt, delivered at `onTestEnd`. */
 export interface TestResultInfo {
   status: 'passed' | 'failed' | 'timedOut' | 'skipped' | 'interrupted';
@@ -269,7 +274,15 @@ export interface RunResultInfo {
  */
 export interface TestObserver {
   onRunStart?(run: TestRunInfo): void | Promise<void>;
+  /** A test attempt is starting. Fires again for each retry, with a higher `retry`. */
+  onTestBegin?(test: TestInfo, attempt: TestAttemptInfo): void;
   onTestEnd?(test: TestInfo, result: TestResultInfo): void;
+  /** A chunk of stdout from the run; `test` is set when the chunk was produced inside a test. */
+  onStdOut?(chunk: string, test?: TestInfo): void;
+  /** A chunk of stderr from the run; `test` is set when the chunk was produced inside a test. */
+  onStdErr?(chunk: string, test?: TestInfo): void;
+  /** A global error not tied to a single test (worker crash, config load failure, unhandled error). */
+  onError?(error: string): void;
   onRunEnd?(result: RunResultInfo): void | Promise<void>;
 }
 

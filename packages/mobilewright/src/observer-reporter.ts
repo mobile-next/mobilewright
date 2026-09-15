@@ -86,6 +86,18 @@ export default class ObserverReporter implements Reporter {
     }
   }
 
+  onTestBegin(test: TestCase, result: TestResult): void {
+    const observer = getActiveDriver()?.observer;
+    if (!observer?.onTestBegin) {
+      return;
+    }
+    try {
+      observer.onTestBegin(toTestInfo(test), { retry: result.retry });
+    } catch (err) {
+      warnObserverFailure('onTestBegin', err);
+    }
+  }
+
   onTestEnd(test: TestCase, result: TestResult): void {
     const observer = getActiveDriver()?.observer;
     if (!observer?.onTestEnd) {
@@ -95,6 +107,42 @@ export default class ObserverReporter implements Reporter {
       observer.onTestEnd(toTestInfo(test), toResultInfo(result));
     } catch (err) {
       warnObserverFailure('onTestEnd', err);
+    }
+  }
+
+  onStdOut(chunk: string | Buffer, test: void | TestCase): void {
+    const observer = getActiveDriver()?.observer;
+    if (!observer?.onStdOut) {
+      return;
+    }
+    try {
+      observer.onStdOut(chunk.toString(), test ? toTestInfo(test) : undefined);
+    } catch (err) {
+      warnObserverFailure('onStdOut', err);
+    }
+  }
+
+  onStdErr(chunk: string | Buffer, test: void | TestCase): void {
+    const observer = getActiveDriver()?.observer;
+    if (!observer?.onStdErr) {
+      return;
+    }
+    try {
+      observer.onStdErr(chunk.toString(), test ? toTestInfo(test) : undefined);
+    } catch (err) {
+      warnObserverFailure('onStdErr', err);
+    }
+  }
+
+  onError(error: TestError): void {
+    const observer = getActiveDriver()?.observer;
+    if (!observer?.onError) {
+      return;
+    }
+    try {
+      observer.onError(errorText(error));
+    } catch (err) {
+      warnObserverFailure('onError', err);
     }
   }
 
