@@ -393,12 +393,32 @@ test.describe('MobilecliDriver.allocate()', () => {
     expect(allocated.deviceId).toBe('real-1');
   });
 
-  test('throws NoDeviceAvailableError when no device matches the deviceType', async () => {
+  test('throws a non-retriable error when no device matches the deviceType', async () => {
     const driver = createDriverWithDevices([{ id: 'sim-1', type: 'simulator' }]);
 
-    await expect(driver.allocate({ platform: 'ios', deviceType: 'real' }, new Set())).rejects.toThrow(
+    const error = await driver.allocate({ platform: 'ios', deviceType: 'real' }, new Set()).catch((e: Error) => e);
+
+    expect(error).not.toBeInstanceOf(NoDeviceAvailableError);
+    expect((error as Error).message).toContain('sim-1');
+  });
+
+  test('throws NoDeviceAvailableError when the only matching device is taken', async () => {
+    const driver = createDriverWithDevices([{ id: 'sim-1', type: 'simulator' }]);
+
+    await expect(driver.allocate({ platform: 'ios' }, new Set(['sim-1']))).rejects.toThrow(
       NoDeviceAvailableError,
     );
+  });
+
+  test('a deviceNamePattern that matches nothing fails immediately, listing the devices it saw', async () => {
+    const driver = createDriverWithDevices([{ id: 'PixelPro_AVD', name: 'PixelPro AVD' }]);
+
+    const error = await driver
+      .allocate({ platform: 'ios', deviceNamePattern: 'PixelPro_AVD' }, new Set())
+      .catch((e: Error) => e);
+
+    expect(error).not.toBeInstanceOf(NoDeviceAvailableError);
+    expect((error as Error).message).toContain('PixelPro AVD (PixelPro_AVD, online)');
   });
 
   test('picks the device whose OS version satisfies the expression', async () => {
@@ -417,7 +437,7 @@ test.describe('MobilecliDriver.allocate()', () => {
     const driver = createDriverWithDevices([{ id: 'unknown-version', osVersion: undefined }]);
 
     await expect(driver.allocate({ platform: 'ios', osVersion: '17' }, new Set())).rejects.toThrow(
-      NoDeviceAvailableError,
+      /no device matches criteria/,
     );
   });
 });

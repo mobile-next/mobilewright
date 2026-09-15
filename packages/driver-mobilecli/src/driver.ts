@@ -349,7 +349,7 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       const pattern = typeof deviceName === 'string' ? new RegExp(deviceName) : deviceName;
       candidates = candidates.filter((d) => pattern.test(d.name));
       if (candidates.length === 0) {
-        const available = online.map((d) => d.name).join(', ');
+        const available = online.map((d) => `${d.name} (${d.id})`).join(', ');
         throw new Error(
           `No online ${platform} device matching ${deviceName} found.\n` +
             (available ? `Available: ${available}` : `No online ${platform} devices found.`),
@@ -438,14 +438,24 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
 
     const namePattern = criteria.deviceNamePattern ? new RegExp(criteria.deviceNamePattern) : undefined;
 
-    const match = devices
+    const eligible = devices
       .filter((d) => d.state === 'online')
-      .filter((d) => !takenDeviceIds.has(d.id))
       .filter((d) => !criteria.deviceId || d.id === criteria.deviceId)
       .filter((d) => !namePattern || namePattern.test(d.name))
       .filter((d) => !criteria.deviceType || d.type === criteria.deviceType)
-      .filter((d) => !criteria.osVersion || (d.osVersion !== undefined && osVersionSatisfies(d.osVersion, criteria.osVersion)))
-      .at(0);
+      .filter((d) => !criteria.osVersion || (d.osVersion !== undefined && osVersionSatisfies(d.osVersion, criteria.osVersion)));
+
+    if (eligible.length === 0) {
+      // No device can ever satisfy these criteria, so waiting for one to free up
+      // is pointless — a plain Error is not re-queued by the device pool.
+      const available = devices.map((d) => `${d.name} (${d.id}, ${d.state})`).join(', ');
+      throw new Error(
+        `no device matches criteria ${JSON.stringify(criteria)}.\n` +
+          (available ? `Available: ${available}` : 'No devices found.'),
+      );
+    }
+
+    const match = eligible.filter((d) => !takenDeviceIds.has(d.id)).at(0);
 
     if (!match) {
       throw new NoDeviceAvailableError(
