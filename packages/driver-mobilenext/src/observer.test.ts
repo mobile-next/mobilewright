@@ -474,3 +474,21 @@ test('waits for the running result created at start even when onRunStart was not
   expect(spies.finished[0]?.testResultId).toBe('live-1');
   cleanup();
 });
+
+test('finishes the running test result as errored when no JSON report is available', async () => {
+  const spies = makeLiveSpies();
+  const observer = new MobileNextTestObserver({
+    apiKey: 'key',
+    testResult: { uploadReport: 'on' },
+    _createFn: spies.createFn, _finishFn: spies.finishFn, _uploadFn: spies.uploadFn,
+  });
+
+  await observer.onRunStart({ totalTests: 1 });
+  await observer.onRunEnd(runResultWithoutReport('passed'));
+
+  expect(spies.uploaded).toHaveLength(0);
+  expect(spies.finished).toHaveLength(1);
+  expect(spies.finished[0]?.testResultId).toBe('live-1');
+  expect(spies.finished[0]?.status).toBe('errored');
+  expect(spies.finished[0]?.report).toEqual({});
+});

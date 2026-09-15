@@ -477,3 +477,28 @@ test('extractGitInfoFromMetadata reads Playwright config metadata directly', () 
   expect(gitInfo).toEqual({ commitSha: 'abc', branch: 'main' });
   expect(extractGitInfoFromMetadata(undefined)).toBeUndefined();
 });
+
+test('finishTestResult still patches after the report upload times out', async () => {
+  const { mockFetch, calls } = makeLiveMockFetch('live-1');
+  const hangingAssets = (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    if (String(url).endsWith('/assets')) {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+      });
+    }
+    return mockFetch(url, init);
+  };
+
+  await expect(finishTestResult({
+    apiKey: 'mob_key',
+    testResultId: 'live-1',
+    report: {},
+    status: 'errored',
+    timeout: 200,
+    _fetchFn: hangingAssets as unknown as typeof fetch,
+  })).rejects.toThrow(/timeout|abort/i);
+
+  const patchCall = calls.find(c => c.method === 'PATCH');
+  expect(patchCall).toBeDefined();
+  expect(JSON.parse(patchCall?.body as string).status).toBe('errored');
+});
