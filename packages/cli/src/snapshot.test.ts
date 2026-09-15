@@ -47,5 +47,5 @@ test('node identity maps back to its ref so find can reuse snapshot refs', () =>
 test('lineFor renders a bare container that the snapshot itself would skip', () => {
   const { lines } = renderSnapshot(loginScreen);
   expect(lines.map((l) => l.ref)).not.toContain('e1');
-  expect(formatSnapshot([lineFor(loginScreen[0], 'e1')])).toBe('- other [ref=e1]');
+  expect(formatSnapshot([lineFor(loginScreen[0], 'e1')])).toBe('- listitem [ref=e1]');
 });
