@@ -17,7 +17,7 @@ export interface AllocationHandle {
  * Port consumed by the test fixture. The HTTP adapter is one implementation.
  */
 export interface DevicePoolClient {
-  allocate(criteria: AllocationCriteria): Promise<AllocationHandle>;
+  allocate(criteria: AllocationCriteria, signal?: AbortSignal): Promise<AllocationHandle>;
   release(allocationId: string): Promise<void>;
   isAppInstalled(allocationId: string, bundleId: string): Promise<boolean>;
   recordAppInstalled(allocationId: string, bundleId: string): Promise<void>;

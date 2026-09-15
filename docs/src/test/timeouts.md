@@ -16,15 +16,15 @@ Mobilewright follows Playwright's timeout model. There are several independent t
 | Action timeout | 5 000 | `use.actionTimeout` | Limits a single locator action (`tap`, `fill`, etc.) |
 | Expect timeout | 5 000 | `expect.timeout` | Limits a single assertion (`toBeVisible`, `toHaveText`, etc.) |
 | App launch timeout | 20 000 | `use.appLaunchTimeout` | Limits waiting for the app to reach the foreground |
-| Install timeout | none | `use.installTimeout` | Limits app installation (`installApps`) |
-| Allocation timeout | 5 min | `driver.allocationTimeout` | Limits waiting for a cloud device (mobilenext only) |
+| Install timeout | 60 000 | `use.installTimeout` | Limits app installation (`installApps`) |
+| Allocation timeout | 15 min | `use.allocationTimeout` | Limits waiting for a device: queueing behind other workers plus cloud provisioning |
 | Upload timeout | none | `driver.uploadTimeout` | Limits test result upload (mobilenext only) |
 
 ---
 
 ## Test timeout
 
-A test fails if it does not complete within the test timeout. This includes fixture setup, the test body, and `beforeEach` / `afterEach` hooks.
+A test fails if it does not complete within the test timeout. This includes the test body and `beforeEach` / `afterEach` hooks. Device setup (allocation, install, launch) runs on its own clocks — see the allocation, install and app launch timeouts below — so waiting for a cloud device never eats into the test's budget.
 
 ```ts
 // mobilewright.config.ts
@@ -120,7 +120,7 @@ export default defineConfig({
 
 ## Install timeout
 
-When `installApps` is set, Mobilewright installs the app before each test run. Installation can be slow over USB or on cloud devices. By default there is no limit.
+When `installApps` is set, Mobilewright installs the app before each test run. Installation can be slow over USB or on cloud devices. Default: 60 seconds.
 
 ```ts
 export default defineConfig({
@@ -132,13 +132,27 @@ export default defineConfig({
 
 ---
 
+## Allocation timeout
+
+Limits how long a worker waits for a device. This covers time spent queued behind other workers (for example when the account's concurrency is lower than `workers`) and cloud provisioning. It runs independently of the test timeout. Default: 15 minutes.
+
+```ts
+export default defineConfig({
+  use: {
+    allocationTimeout: 20 * 60_000, // 20 minutes
+  },
+});
+```
+
+---
+
 ## Cloud device timeouts (mobilenext)
 
 These timeouts apply only when using the `mobilenext` driver.
 
-### Allocation timeout
+### Driver allocation timeout
 
-Cloud devices are allocated from a shared pool. Under load, a device may not be immediately available. This timeout limits how long Mobilewright waits before giving up.
+Bounds a single provisioning wait inside the fleet API (default 15 min). Normally `use.allocationTimeout` above is the one to set; this only needs lowering if you want the fleet call to give up before the pool does.
 
 ```ts
 import { defineConfig } from 'mobilewright';

@@ -102,6 +102,13 @@ export class DevicePoolHttpServer {
       res.end(JSON.stringify({ error: (err as Error).message }));
       return;
     }
+    // The worker may have died (test timeout, crash, Ctrl-C) while its request sat in the pool
+    // queue. 'close' already fired, so a listener attached now would never run — hand the slot
+    // straight back instead of leaking it to a client that will never release it.
+    if (res.destroyed) {
+      void this.pool.release(handle.allocationId);
+      return;
+    }
     this.responsesByAllocationId.set(handle.allocationId, res);
 
     const onClose = () => {

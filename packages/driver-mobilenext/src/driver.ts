@@ -102,7 +102,7 @@ export interface MobileNextDriverOptions {
   apiKey?: string;
   /** Fleet API base URL override. Mainly for testing. */
   apiUrl?: string;
-  /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 300000 (5 min). */
+  /** Timeout waiting for a cloud device to be allocated from the pool, in ms. Default: 900000 (15 min). */
   allocationTimeout?: number;
   /** Controls automatic test-result upload to mobilenext after each run. Omit to upload on every run. */
   testResult?: MobileNextTestResultConfig;

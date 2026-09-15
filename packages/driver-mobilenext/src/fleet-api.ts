@@ -11,7 +11,7 @@ const USER_AGENT = `mobilewright/${_pkg.version}`;
 export const DEFAULT_API_URL = 'https://api.mobilenext.ai';
 
 const HTTP_TOO_MANY_REQUESTS = 429;
-const DEFAULT_ALLOCATION_TIMEOUT = 300_000;
+const DEFAULT_ALLOCATION_TIMEOUT = 15 * 60_000;
 const DEFAULT_REQUEST_TIMEOUT = 30_000;
 const POLL_INTERVAL = 5_000;
 

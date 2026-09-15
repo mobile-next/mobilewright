@@ -10,6 +10,8 @@ import {
   loadConfig,
   toArray,
   type DevicePoolClient,
+  type AllocationCriteria,
+  type AllocationHandle,
 } from 'mobilewright';
 import { expect, setSoftFailureHandler } from '@mobilewright/core';
 import type { Device, Screen } from '@mobilewright/core';
@@ -19,6 +21,7 @@ import {
   assertSupportedPlatform,
   annotationsForDevice,
   connectOptionsFor,
+  allocationTimeoutFor,
   videoPlan,
   parseViewTreeOption,
 } from './fixture-helpers.js';
@@ -60,6 +63,21 @@ type MobilewrightTestFixtures = {
   device: Device;
 };
 
+async function allocateWithinTimeout(client: DevicePoolClient, criteria: AllocationCriteria, timeoutMs: number): Promise<AllocationHandle> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await client.allocate(criteria, controller.signal);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`device allocation timed out after ${timeoutMs}ms (use.allocationTimeout)`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 let cachedClient: DevicePoolClient | undefined;
 function getClient(): DevicePoolClient {
   if (!cachedClient) {
@@ -91,7 +109,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(parseViewTreeOption(config.viewTree));
   }, { option: true }],
 
-  device: async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
+  // Setup runs outside the test timeout (timeout: 0): each stage carries its own bound instead —
+  // allocationTimeout for queue + provisioning, installTimeout, appLaunchTimeout. A cloud queue
+  // can hold a worker for many minutes, and that wait must not eat the test body's budget.
+  device: [async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const merged = mergeDeviceConfig(config, { platform, deviceId, deviceName, deviceType, osVersion, installApps }, testInfo.project.name);
     const supportedPlatform = assertSupportedPlatform(merged.platform);
@@ -102,13 +123,13 @@ export const test = base.extend<MobilewrightTestFixtures>({
 
     const client = getClient();
     debug('allocating device (platform=%s)', supportedPlatform);
-    const handle = await client.allocate({
+    const handle = await allocateWithinTimeout(client, {
       platform: supportedPlatform,
       deviceNamePattern: merged.deviceName?.source,
       deviceId: merged.deviceId,
       deviceType: merged.deviceType,
       osVersion: merged.osVersion,
-    });
+    }, allocationTimeoutFor(merged));
     debug('allocated device %s', handle.deviceId);
 
     testInfo.annotations.push(...annotationsForDevice(handle));
@@ -142,7 +163,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       await device.disconnect();
       await client.release(handle.allocationId);
     }
-  },
+  }, { timeout: 0 }],
 
   screen: async ({ device, video, viewTree }, use, testInfo) => {
     const plan = videoPlan(video, testInfo.outputDir, testInfo.testId);

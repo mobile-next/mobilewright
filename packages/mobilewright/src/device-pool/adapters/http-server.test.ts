@@ -3,6 +3,7 @@ import { request as httpRequest } from 'node:http';
 import { DevicePool } from '../application/device-pool.js';
 import type { DeviceAllocator } from '@mobilewright/protocol';
 import type { AllocatedDevice } from '../application/ports.js';
+import { NoDeviceAvailableError } from '../application/ports.js';
 import { DevicePoolHttpServer } from './http-server.js';
 
 function makeDriver(devices: AllocatedDevice[]): DeviceAllocator {
@@ -223,6 +224,98 @@ test('/shutdown drains the pool and rejects subsequent allocates', async () => {
 
     const after = await postJson(server.url, '/allocate', { criteria: { platform: 'ios' } });
     expect(after.status).toBe(503);
+  } finally {
+    await server.stop();
+  }
+});
+
+function makeDriverThatAllocatesOnDemand(device: AllocatedDevice): DeviceAllocator & { finishAllocation: () => void } {
+  let finish: () => void = () => {};
+  return {
+    allocate: () => new Promise<AllocatedDevice>((resolve) => { finish = () => resolve(device); }),
+    async release() {},
+    finishAllocation: () => finish(),
+  };
+}
+
+function postAllocateAndDisconnectImmediately(url: string, body: string): Promise<void> {
+  return new Promise((resolve) => {
+    const req = httpRequest(`${url}/allocate`, { method: 'POST', headers: { 'content-type': 'application/json' } });
+    req.on('error', () => {});
+    req.write(body);
+    req.end();
+    // Give the server a tick to read the body and park on pool.allocate, then vanish like a killed worker.
+    setTimeout(() => { req.destroy(); resolve(); }, 50);
+  });
+}
+
+test('a client that disconnects while waiting for allocation does not leak the slot', async () => {
+  const driver = makeDriverThatAllocatesOnDemand({ deviceId: 'd1', platform: 'ios' });
+  const pool = new DevicePool({ driver, maxSlots: 1 });
+  const server = await startServer(pool);
+  try {
+    await postAllocateAndDisconnectImmediately(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    driver.finishAllocation();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const nextLine = await postAllocateAndReadFirstLine(server.url, JSON.stringify({ criteria: { platform: 'ios' } }));
+    expect(JSON.parse(nextLine).deviceId).toBe('d1');
+  } finally {
+    await server.stop();
+  }
+});
+
+// Mirrors a cloud account with concurrency 1 driven by 3 workers: the first allocate lands a device,
+// every further allocate is refused with the retriable error until that device is released.
+function makeSingleDeviceCloud(device: AllocatedDevice): DeviceAllocator {
+  let held = false;
+  return {
+    async allocate() {
+      if (held) { throw new NoDeviceAvailableError('concurrency_limit — 1/1'); }
+      held = true;
+      await new Promise((r) => setTimeout(r, 30));
+      return device;
+    },
+    async release() { held = false; },
+  };
+}
+
+test('with a 1-device cloud and 3 workers, queued workers are served after the holder releases', async () => {
+  const pool = new DevicePool({ driver: makeSingleDeviceCloud({ deviceId: 'd1', platform: 'ios' }), maxSlots: 3 });
+  const server = await startServer(pool);
+  const criteria = JSON.stringify({ criteria: { platform: 'ios' } });
+  try {
+    const holder = await startAllocateRequest(server.url, criteria);
+    const queuedB = postAllocateAndReadFirstLine(server.url, criteria);
+    const queuedC = postAllocateAndReadFirstLine(server.url, criteria);
+    await new Promise((r) => setTimeout(r, 100));
+
+    await postReleaseRequest(server.url, holder.allocationId);
+
+    const b = JSON.parse(await queuedB);
+    expect(b.deviceId).toBe('d1');
+    await postReleaseRequest(server.url, b.allocationId);
+    const c = JSON.parse(await queuedC);
+    expect(c.deviceId).toBe('d1');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('with a 1-device cloud, a queued worker that dies does not block the workers behind it', async () => {
+  const pool = new DevicePool({ driver: makeSingleDeviceCloud({ deviceId: 'd1', platform: 'ios' }), maxSlots: 3 });
+  const server = await startServer(pool);
+  const criteria = JSON.stringify({ criteria: { platform: 'ios' } });
+  try {
+    const holder = await startAllocateRequest(server.url, criteria);
+    await postAllocateAndDisconnectImmediately(server.url, criteria); // dies while queued
+    const survivor = postAllocateAndReadFirstLine(server.url, criteria);
+    await new Promise((r) => setTimeout(r, 100));
+
+    await postReleaseRequest(server.url, holder.allocationId);
+
+    const s = JSON.parse(await Promise.race([survivor, new Promise<string>((_, rej) => setTimeout(() => rej(new Error('survivor never served')), 2000))]));
+    expect(s.deviceId).toBe('d1');
   } finally {
     await server.stop();
   }
