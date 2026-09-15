@@ -4,6 +4,10 @@ import WebSocket from 'ws';
 const debug = createDebug('mw:driver-mobilenext');
 
 const WS_CLOSE_NORMAL = 1000;
+// How long a clean close handshake may take before the socket is torn down outright. Without this,
+// a peer behind a dead network never answers the close frame and disconnect() waits for the OS TCP
+// timeout (~16 min on macOS).
+const DEFAULT_DISCONNECT_GRACE = 5_000;
 
 export class RpcError extends Error {
   constructor(
@@ -45,6 +49,7 @@ export class RpcClient {
   constructor(
     private url: string,
     private requestTimeout = 30_000,
+    private disconnectGrace = DEFAULT_DISCONNECT_GRACE,
   ) {}
 
   async connect(): Promise<void> {
@@ -159,7 +164,11 @@ export class RpcClient {
     }
     this.ws = null;
     return new Promise<void>((resolve) => {
-      ws.once('close', () => resolve());
+      const timer = setTimeout(() => ws.terminate(), this.disconnectGrace);
+      ws.once('close', () => {
+        clearTimeout(timer);
+        resolve();
+      });
       ws.close(WS_CLOSE_NORMAL);
     });
   }
