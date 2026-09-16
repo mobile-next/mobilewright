@@ -466,8 +466,13 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     }, 10_000);
 
     // slow uploads can exceed the fleet's device idle timeout; any device.* call resets it
-    const keepAliveTimer = setInterval(() => {
-      this.call('device.info').catch(() => {});
+    // async so a synchronous throw from call() (e.g. no session after disconnect) is caught too
+    const keepAliveTimer = setInterval(async () => {
+      try {
+        await this.call('device.info');
+      } catch {
+        // best effort, the upload decides success
+      }
     }, 30_000);
 
     let response: Response;
