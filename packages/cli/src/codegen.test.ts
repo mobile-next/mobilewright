@@ -26,6 +26,10 @@ test('quotes inside names are escaped', () => {
   expect(locatorForNode(node({ type: 'XCUIElementTypeStaticText', text: 'Don\'t' }))).toBe('screen.getByText(\'Don\\\'t\')');
 });
 
+test('line breaks and control characters inside names are escaped', () => {
+  expect(locatorForNode(node({ type: 'android.widget.TextView', text: 'Line 1\nLine 2\r\tend' }))).toBe('screen.getByText(\'Line 1\\nLine 2\\r\\u0009end\')');
+});
+
 test('find flags render as the same chained locator a test would write', () => {
   expect(locatorForStrategy(buildStrategy({ role: 'button', name: 'Go' }))).toBe('screen.getByRole(\'button\', { name: \'Go\' })');
   expect(locatorForStrategy(buildStrategy({ text: '/sign in/i', exact: true }))).toBe('screen.getByText(/sign in/i, { exact: true })');

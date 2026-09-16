@@ -50,7 +50,7 @@ mobilewright-cli screenshot -o welcome.png
 After every action the CLI prints the Mobilewright code it ran, the device state and
 a link to a fresh snapshot of the screen:
 
-```
+````
 ### Ran Mobilewright code
 ```js
 await screen.getByRole('button', { name: 'Sign in' }).tap();
@@ -60,7 +60,7 @@ await screen.getByRole('button', { name: 'Sign in' }).tap();
 - App: com.example.app
 ### Snapshot
 - [Snapshot](.mobilewright-cli/screen-2026-09-14T20-13-21-867Z.yml)
-```
+````
 
 `mobilewright-cli snapshot` prints the same tree inline; the file an action links to looks like:
 
@@ -236,8 +236,9 @@ mobilewright-cli expect count 3 --role listitem --timeout 10000
 | `--json` | Machine-readable output |
 | `--version` | Print the version |
 
-With `--json`, `devices` prints the device array; every other command prints one object:
-`{ ok, code, result, device, app, snapshot }` on success, `{ error }` on failure.
+With `--json`, commands print one object: `{ ok, code, result, device, app, snapshot }` on
+success, `{ error }` on failure. The exceptions: `devices` prints the device array, `install`
+prints `{ ok, lines }`, `video-stop` prints `{ ok, video }`, and `logs` always prints JSON lines.
 
 ## From exploration to a test
 

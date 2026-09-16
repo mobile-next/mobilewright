@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createRequire } from 'node:module';
 import type { HardwareButton, SwipeDirection } from '@mobilewright/protocol';
 import { Locator, expect, queryAll } from '@mobilewright/core';
@@ -28,6 +29,7 @@ const MATCHERS = ['visible', 'hidden', 'enabled', 'disabled', 'checked', 'select
 type Matcher = typeof MATCHERS[number];
 const DEFAULT_LOG_LIMIT = '100';
 const VIDEO_STOP_TIMEOUT_MS = 10_000;
+const VIDEO_STOP_POLL_MS = 200;
 
 interface GlobalOptions {
   session: string;
@@ -350,8 +352,13 @@ program
       detached: true,
       stdio: ['ignore', openSync(join(dirname(output), '.screenrecord.log'), 'a'), openSync(join(dirname(output), '.screenrecord.log'), 'a')],
     });
+    // spawn failures (ENOENT, EACCES, EMFILE) leave pid undefined and report via 'error'
+    child.on('error', () => {});
+    if (child.pid === undefined) {
+      throw new Error(`could not start the screen recorder, see ${join(dirname(output), '.screenrecord.log')}`);
+    }
     child.unref();
-    saveSession(globals().session, { ...loadSession(globals().session), video: { pid: child.pid!, output } });
+    saveSession(globals().session, { ...loadSession(globals().session), video: { pid: child.pid, output } });
     return { code: `await device.startRecording({ output: ${quote(filename ?? output)} });`, result: `recording to ${output}`, snapshotPath: null };
   }));
 
@@ -367,7 +374,7 @@ function isRunning(pid: number): boolean {
 program
   .command('video-stop')
   .description('stop the screen recording and print the MP4 path')
-  .action(() => {
+  .action(async () => {
     const name = globals().session;
     const session = loadSession(name);
     if (!session.video) {
@@ -379,7 +386,10 @@ program
     }
     const deadline = Date.now() + VIDEO_STOP_TIMEOUT_MS;
     while (isRunning(pid) && Date.now() < deadline) {
-      spawnSync('sleep', ['0.2']);
+      await sleep(VIDEO_STOP_POLL_MS);
+    }
+    if (isRunning(pid)) {
+      fail(`recorder (pid ${pid}) did not stop within ${VIDEO_STOP_TIMEOUT_MS / 1000}s, run "video-stop" again`);
     }
     saveSession(name, { ...session, video: undefined });
     if (!existsSync(output)) {

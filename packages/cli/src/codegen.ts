@@ -5,7 +5,16 @@ import { ROLE_TYPE_MAP, bareTypeName } from '@mobilewright/core';
 const ROLES_WITH_NAME = new Set(['button', 'textfield', 'switch', 'checkbox', 'radio', 'slider', 'tab', 'link']);
 
 function q(value: string | RegExp): string {
-  return value instanceof RegExp ? value.toString() : `'${value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'')}'`;
+  if (value instanceof RegExp) {
+    return value.toString();
+  }
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, '\\\'')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/[\u0000-\u001f\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return `'${escaped}'`;
 }
 
 function roleOf(node: ViewNode): string | undefined {

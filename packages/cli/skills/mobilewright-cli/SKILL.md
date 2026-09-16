@@ -22,7 +22,7 @@ mobilewright-cli expect visible --text "Welcome back"
 
 After every action the CLI prints:
 
-```
+````
 ### Ran Mobilewright code
 ```js
 await screen.getByRole('button', { name: 'Sign in' }).tap();
@@ -32,7 +32,7 @@ await screen.getByRole('button', { name: 'Sign in' }).tap();
 - App: com.example.app
 ### Snapshot
 - [Snapshot](.mobilewright-cli/screen-2026-09-14T20-13-21-867Z.yml)
-```
+````
 
 Read the snapshot file to learn the refs. A snapshot line looks like
 `- button "Sign in" [ref=e9] [testid="login"]`. Roles are `button`, `textfield`, `text`,
@@ -131,7 +131,9 @@ mobilewright-cli -s phone tap e3
 ### JSON output
 
 `--json` prints one object per command: `{ ok, code, result, device, app, snapshot }` on
-success and `{ error }` on failure.
+success and `{ error }` on failure. The exceptions: `devices` prints the device array,
+`install` prints `{ ok, lines }`, `video-stop` prints `{ ok, video }`, and `logs` always
+prints JSON lines.
 
 ## Writing a test from a session
 
