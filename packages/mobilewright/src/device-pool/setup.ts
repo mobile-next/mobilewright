@@ -2,7 +2,7 @@ import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { DevicePool } from './application/device-pool.js';
 import { DevicePoolHttpServer } from './adapters/http-server.js';
 import { COORDINATOR_URL_ENV } from './client-factory.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, DEFAULT_ALLOCATION_TIMEOUT } from '../config.js';
 import type { FullConfig } from '@playwright/test';
 
 interface ActiveCoordinator {
@@ -24,7 +24,7 @@ export default async function setup(playwrightConfig: FullConfig): Promise<() =>
   // Use the resolved worker count from Playwright's FullConfig so CLI flags
   // like --workers 2 are respected, not just the value in the config file.
   const maxSlots = playwrightConfig.workers;
-  const pool = new DevicePool({ driver, maxSlots });
+  const pool = new DevicePool({ driver, maxSlots, allocationTimeoutMs: config.use?.allocationTimeout ?? DEFAULT_ALLOCATION_TIMEOUT });
   const server = new DevicePoolHttpServer({ pool });
   const port = await server.listen();
 

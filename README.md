@@ -406,7 +406,8 @@ The `use` object holds per-action defaults shared by every test:
 | `animations` | `'on' \| 'off'` | Toggle system animations on the device; left unchanged if omitted |
 | `actionTimeout` | `number` | Default timeout for locator actions (tap, fill, …) in ms. Default: `5000` |
 | `appLaunchTimeout` | `number` | Timeout waiting for the app to reach foreground after launch, in ms. Default: `20000` |
-| `installTimeout` | `number` | Timeout for app installation in ms (optional) |
+| `installTimeout` | `number` | Timeout for app installation in ms. Default: `60000` |
+| `allocationTimeout` | `number` | Timeout waiting for a device (queue + cloud provisioning), on its own clock. Default: `900000` (15 min) |
 
 The `expect` object sets assertion defaults:
 

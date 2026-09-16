@@ -8,6 +8,7 @@ import {
   assertSupportedPlatform,
   annotationsForDevice,
   connectOptionsFor,
+  allocationTimeoutFor,
   videoPlan,
   parseViewTreeOption,
 } from './fixture-helpers.js';
@@ -110,6 +111,18 @@ test.describe('connectOptionsFor', () => {
       installTimeout: 3,
       deviceSettings: { animations: 'off' },
     });
+  });
+});
+
+test.describe('timeout defaults', () => {
+  test('installTimeout defaults to 60s when not configured', () => {
+    const options = connectOptionsFor({ deviceId: 'd1', platform: 'ios' }, {});
+    expect(options.installTimeout).toBe(60_000);
+  });
+
+  test('allocationTimeout defaults to 15 min and honours use.allocationTimeout', () => {
+    expect(allocationTimeoutFor({})).toBe(15 * 60_000);
+    expect(allocationTimeoutFor({ use: { allocationTimeout: 1234 } })).toBe(1234);
   });
 });
 

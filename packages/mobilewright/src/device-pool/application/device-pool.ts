@@ -1,3 +1,4 @@
+import createDebug from 'debug';
 import type { DeviceAllocator } from '@mobilewright/protocol';
 import { osVersionSatisfies } from '@mobilewright/protocol';
 import { DeviceSlot } from '../domain/device-slot.js';
@@ -7,6 +8,8 @@ import type {
   AllocationCriteria,
   AllocationHandle,
 } from './ports.js';
+
+const debug = createDebug('mw:device-pool');
 
 export interface DevicePoolOptions {
   driver: DeviceAllocator;
@@ -191,6 +194,7 @@ export class DevicePool {
       // are currently taken. Re-queue the waiter so it is served when an
       // existing slot releases its device.
       if (err instanceof NoDeviceAvailableError) {
+        debug('no device available, re-queued waiter until a slot releases (criteria=%j)', waiter.criteria);
         this.waiters.push(waiter);
         // Only pump if a free slot appeared concurrently while we were allocating.
         const hasFreeSlot = this.findFreeSlot(waiter.criteria) !== -1;

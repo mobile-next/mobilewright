@@ -39,9 +39,17 @@ export interface MobilewrightUseOptions {
   actionTimeout?: number;
   /** Timeout waiting for the app to reach foreground after launch, in ms. Default: 20000. */
   appLaunchTimeout?: number;
-  /** Timeout for app installation (installApps) in ms. Default: none. */
+  /** Timeout for app installation (installApps) in ms. Default: 60000. */
   installTimeout?: number;
+  /**
+   * Timeout waiting for a device to be allocated, in ms — covers queueing behind other workers and
+   * cloud provisioning. Runs on its own clock, not the test timeout. Default: 900000 (15 min).
+   */
+  allocationTimeout?: number;
 }
+
+export const DEFAULT_INSTALL_TIMEOUT = 60_000;
+export const DEFAULT_ALLOCATION_TIMEOUT = 15 * 60_000;
 
 export interface MobilewrightExpectConfig {
   /** Default timeout for assertions (toBeVisible, toHaveText, etc.) in ms. Default: 5000. */

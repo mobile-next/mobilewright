@@ -95,7 +95,7 @@ import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 
 driver: new MobileNextDriver({
   apiKey: process.env.MOBILENEXT_API_KEY,
-  allocationTimeout: 300_000, // wait for a cloud device, ms (default: 5 min)
+  allocationTimeout: 900_000, // wait for a cloud device, ms (default: 15 min)
   uploadTimeout: 60_000,      // upload test results, ms (default: none)
 })
 ```
@@ -153,7 +153,8 @@ export default defineConfig({
   use: {
     actionTimeout: 5_000,     // tap, fill, etc. — default 5000
     appLaunchTimeout: 20_000, // wait for app foreground — default 20000
-    installTimeout: 120_000,  // installApps — default none
+    installTimeout: 120_000,  // installApps — default 60000
+    allocationTimeout: 15 * 60_000, // wait for a device (queue + provisioning) — default 15 min
     animations: 'off',        // system animations: 'on' | 'off'
   },
   expect: {

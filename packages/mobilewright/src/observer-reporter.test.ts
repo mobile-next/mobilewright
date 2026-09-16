@@ -2,24 +2,44 @@ import { test, expect } from '@playwright/test';
 import { writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { TestCase, TestResult, TestStep, FullConfig, FullResult, Suite } from '@playwright/test/reporter';
-import type { MobilewrightDriver, TestObserver, TestRunInfo, TestInfo, TestResultInfo, RunResultInfo } from '@mobilewright/protocol';
+import type { TestCase, TestResult, TestStep, TestError, FullConfig, FullResult, Suite } from '@playwright/test/reporter';
+import type { MobilewrightDriver, TestObserver, TestRunInfo, TestInfo, TestAttemptInfo, TestResultInfo, RunResultInfo } from '@mobilewright/protocol';
 import ObserverReporter from './observer-reporter.js';
 import { setActiveDriver } from './driver-registry.js';
 
 interface RecordingObserver extends TestObserver {
   runStarts: TestRunInfo[];
+  testBegins: Array<{ test: TestInfo; attempt: TestAttemptInfo }>;
   testEnds: Array<{ test: TestInfo; result: TestResultInfo }>;
+  stdouts: Array<{ chunk: string; test?: TestInfo }>;
+  stderrs: Array<{ chunk: string; test?: TestInfo }>;
+  errors: string[];
   runEnds: RunResultInfo[];
 }
 
 function makeRecordingObserver(): RecordingObserver {
   const observer: RecordingObserver = {
     runStarts: [],
+    testBegins: [],
     testEnds: [],
+    stdouts: [],
+    stderrs: [],
+    errors: [],
     runEnds: [],
     onRunStart(run) {
       observer.runStarts.push(run);
+    },
+    onTestBegin(testInfo, attempt) {
+      observer.testBegins.push({ test: testInfo, attempt });
+    },
+    onStdOut(chunk, testInfo) {
+      observer.stdouts.push({ chunk, test: testInfo });
+    },
+    onStdErr(chunk, testInfo) {
+      observer.stderrs.push({ chunk, test: testInfo });
+    },
+    onError(error) {
+      observer.errors.push(error);
     },
     onTestEnd(testInfo, resultInfo) {
       observer.testEnds.push({ test: testInfo, result: resultInfo });
@@ -80,6 +100,52 @@ test('onBegin forwards the scheduled test count to observer.onRunStart', () => {
   reporter.onBegin({} as FullConfig, fakeSuite(3));
 
   expect(observer.runStarts).toEqual([{ totalTests: 3 }]);
+});
+
+test('onTestBegin forwards the test and its retry number to observer.onTestBegin', () => {
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  reporter.onTestBegin(fakeTestCase({ id: 'spec-2' }), fakeTestResult({ retry: 2 }));
+
+  expect(observer.testBegins).toHaveLength(1);
+  expect(observer.testBegins[0]!.test.id).toBe('spec-2');
+  expect(observer.testBegins[0]!.attempt).toEqual({ retry: 2 });
+});
+
+test('onStdOut and onStdErr forward chunks as strings, with the owning test when there is one', () => {
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  reporter.onStdOut(Buffer.from('hello'), fakeTestCase({ id: 'spec-3' }));
+  reporter.onStdErr('warn', undefined);
+
+  expect(observer.stdouts).toHaveLength(1);
+  expect(observer.stdouts[0]!.chunk).toBe('hello');
+  expect(observer.stdouts[0]!.test?.id).toBe('spec-3');
+  expect(observer.stderrs).toEqual([{ chunk: 'warn', test: undefined }]);
+});
+
+test('onError forwards the error message to observer.onError', () => {
+  const observer = makeRecordingObserver();
+  setActiveDriver({ observer } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  reporter.onError({ message: 'worker crashed' } as TestError);
+
+  expect(observer.errors).toEqual(['worker crashed']);
+});
+
+test('reporter hooks are no-ops for an observer that only implements onRunEnd', () => {
+  setActiveDriver({ observer: { onRunEnd: () => Promise.resolve() } } as unknown as MobilewrightDriver);
+
+  const reporter = new ObserverReporter();
+  reporter.onTestBegin(fakeTestCase(), fakeTestResult());
+  reporter.onStdOut('x', undefined);
+  reporter.onStdErr('y', undefined);
+  reporter.onError({ message: 'z' } as TestError);
 });
 
 test('onTestEnd maps the test case and result into the slim protocol shapes', () => {

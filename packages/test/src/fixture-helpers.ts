@@ -2,7 +2,7 @@ import { openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PlaywrightWorkerOptions } from '@playwright/test';
 import type { AllocatedDevice, Platform } from '@mobilewright/protocol';
-import type { MobilewrightConfig } from 'mobilewright';
+import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, type MobilewrightConfig } from 'mobilewright';
 
 type VideoOption = PlaywrightWorkerOptions['video'] | undefined;
 type ProjectName = string;
@@ -77,9 +77,13 @@ export function connectOptionsFor(handle: AllocatedDevice, merged: MobilewrightC
     actionTimeout: merged.use?.actionTimeout,
     expectTimeout: merged.expect?.timeout,
     appLaunchTimeout: merged.use?.appLaunchTimeout,
-    installTimeout: merged.use?.installTimeout,
+    installTimeout: merged.use?.installTimeout ?? DEFAULT_INSTALL_TIMEOUT,
     deviceSettings: { animations: merged.use?.animations },
   };
+}
+
+export function allocationTimeoutFor(merged: MobilewrightConfig): number {
+  return merged.use?.allocationTimeout ?? DEFAULT_ALLOCATION_TIMEOUT;
 }
 
 export function videoPlan(video: VideoOption, outputDir: string, testId: string): VideoPlan {

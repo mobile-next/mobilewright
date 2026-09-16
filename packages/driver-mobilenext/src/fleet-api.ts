@@ -1,5 +1,6 @@
 import createDebug from 'debug';
 import { createRequire } from 'node:module';
+import { NoDeviceAvailableError } from '@mobilewright/protocol';
 
 const debug = createDebug('mw:driver-mobilenext:fleet-api');
 
@@ -9,7 +10,8 @@ const USER_AGENT = `mobilewright/${_pkg.version}`;
 
 export const DEFAULT_API_URL = 'https://api.mobilenext.ai';
 
-const DEFAULT_ALLOCATION_TIMEOUT = 300_000;
+const HTTP_TOO_MANY_REQUESTS = 429;
+const DEFAULT_ALLOCATION_TIMEOUT = 15 * 60_000;
 const DEFAULT_REQUEST_TIMEOUT = 30_000;
 const POLL_INTERVAL = 5_000;
 
@@ -74,7 +76,7 @@ interface AllocatePostResponse {
 export interface FleetApiClientOptions {
   apiKey: string;
   apiUrl?: string;
-  /** Timeout waiting for a provisioning device to become in_use, in ms. Default: 300000 (5 min). */
+  /** Timeout waiting for a provisioning device to become in_use, in ms. Default: 900000 (15 min). */
   allocationTimeout?: number;
   /** Timeout for a single HTTP request, in ms. Bounds a stalled fetch. Default: 30000. */
   requestTimeout?: number;
@@ -224,7 +226,14 @@ export class FleetApiClient {
 
       if (!res.ok) {
         const detail = await this.errorDetail(res);
-        throw new Error(`${method} ${path} failed with ${res.status}${detail ? `: ${detail}` : ''}`);
+        const message = `${method} ${path} failed with ${res.status}${detail ? `: ${detail}` : ''}`;
+        // 429 means the account's concurrency limit is reached, not that the request was bad. The
+        // device pool re-queues NoDeviceAvailableError until a held device is released, instead of
+        // failing every test a worker picks up while another worker holds the only slot.
+        if (res.status === HTTP_TOO_MANY_REQUESTS) {
+          throw new NoDeviceAvailableError(message);
+        }
+        throw new Error(message);
       }
       if (res.status === 204) {
         debug('%s %s -> %d (no content)', method, path, res.status);

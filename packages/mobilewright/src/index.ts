@@ -20,5 +20,5 @@ export { MobilewrightError } from './errors.js';
 // Internal — used by @mobilewright/test fixtures. Not part of the public API.
 export { createDevicePoolClient } from './device-pool/client-factory.js';
 export { connectDevice, installAndLaunchApps } from './launchers.js';
-export { toArray } from './config.js';
+export { toArray, DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT } from './config.js';
 export type { DevicePoolClient, AllocationHandle, AllocationCriteria } from './device-pool/application/ports.js';

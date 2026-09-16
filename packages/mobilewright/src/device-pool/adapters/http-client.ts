@@ -7,20 +7,30 @@ import type {
 
 export interface HttpDevicePoolClientOptions {
   baseUrl: string;
+  /** Bounds release/install-tracking calls so a stalled coordinator cannot hang fixture teardown. Default: 30000. */
+  requestTimeout?: number;
 }
+
+const DEFAULT_REQUEST_TIMEOUT = 30_000;
 
 export class HttpDevicePoolClient implements DevicePoolClient {
   private readonly baseUrl: string;
   private readonly agent: Agent;
+  private readonly requestTimeout: number;
   private readonly openAllocateRequests = new Map<string, ClientRequest>();
 
   constructor(options: HttpDevicePoolClientOptions) {
     this.baseUrl = options.baseUrl;
+    this.requestTimeout = options.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
     this.agent = new Agent({ keepAlive: true });
   }
 
-  allocate(criteria: AllocationCriteria): Promise<AllocationHandle> {
+  allocate(criteria: AllocationCriteria, signal?: AbortSignal): Promise<AllocationHandle> {
     return new Promise<AllocationHandle>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new Error('device allocation aborted'));
+        return;
+      }
       const url = new URL('/allocate', this.baseUrl);
       const req = request({
         method: 'POST',
@@ -54,6 +64,9 @@ export class HttpDevicePoolClient implements DevicePoolClient {
         res.on('error', reject);
       });
       req.on('error', reject);
+      // Tearing down the request while it sits in the pool queue lets the server hand the slot to the
+      // next waiter instead of granting it to a caller that has given up.
+      signal?.addEventListener('abort', () => req.destroy(new Error('device allocation aborted')), { once: true });
       req.write(JSON.stringify({ criteria }));
       req.end();
     });
@@ -101,6 +114,7 @@ export class HttpDevicePoolClient implements DevicePoolClient {
         res.on('error', reject);
       });
       req.on('error', reject);
+      req.setTimeout(this.requestTimeout, () => req.destroy(new Error(`POST ${path} timed out after ${this.requestTimeout}ms`)));
       req.write(JSON.stringify(body));
       req.end();
     });
