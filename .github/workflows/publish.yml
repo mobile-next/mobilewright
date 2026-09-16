@@ -13,7 +13,7 @@ jobs:
       id-token: write
     env:
       # Publish order respects dependencies: inspector before mobilewright, etc.
-      PACKAGES: protocol mobilewright-core inspector driver-mobilecli driver-mobilenext mobilewright test
+      PACKAGES: protocol mobilewright-core inspector driver-mobilecli driver-mobilenext cli mobilewright test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
