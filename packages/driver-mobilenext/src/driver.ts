@@ -465,6 +465,11 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
       debug('still uploading %s: %s / %s MB (%d%%)', filename, uploadedMB, totalMB, percent);
     }, 10_000);
 
+    // slow uploads can exceed the fleet's device idle timeout; any device.* call resets it
+    const keepAliveTimer = setInterval(() => {
+      this.call('device.info').catch(() => {});
+    }, 30_000);
+
     let response: Response;
     try {
       response = await fetch(upload.uploadUrl, {
@@ -478,6 +483,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
       } as RequestInit);
     } finally {
       clearInterval(progressTimer);
+      clearInterval(keepAliveTimer);
     }
     if (!response.ok) {
       throw new Error(`Upload failed with status ${response.status}`);
