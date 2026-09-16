@@ -11,7 +11,7 @@ Mobilewright tests on real devices, emulators and simulators through the
 on the TestingBot dashboard with video and logs, and no TestingBot-specific code is needed in
 your tests.
 
-Requires `mobilewright` ≥ 0.0.53 and Node.js ≥ 18.
+Requires `mobilewright` ≥ 0.0.53 and Node.js ≥ 22.12.
 
 ## Setup
 

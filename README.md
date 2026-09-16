@@ -74,7 +74,7 @@ await device.close();
 
 ## Prerequisites
 
-- Node.js >= 20.19
+- Node.js >= 22.12
 - A booted iOS simulator, Android emulator, or connected real device
 
 Run `mobilewright doctor` to verify your environment is ready:

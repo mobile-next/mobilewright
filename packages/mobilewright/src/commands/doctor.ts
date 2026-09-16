@@ -216,11 +216,16 @@ function checkGit(): CheckResult {
   });
 }
 
+export function isSupportedNodeVersion(version: string): boolean {
+  const [major = 0, minor = 0] = version.replace(/^v/, '').split('.').map(Number);
+  return major > 22 || (major === 22 && minor >= 12);
+}
+
 function checkNode(): CheckResult {
   const nodePath = which('node');
   if (!nodePath) {
     return check('node', 'Node.js', 'system', 'error', {
-      details: 'Node.js 18+ is required.',
+      details: 'Node.js 22.12+ is required.',
       fix: isMac()
         ? [
           'brew install node',
@@ -234,12 +239,11 @@ function checkNode(): CheckResult {
     });
   }
   const version = run('node', ['--version']);
-  const major   = parseInt(version?.replace('v', '').split('.')[0] ?? '0', 10);
-  const ok      = major >= 18;
+  const ok      = isSupportedNodeVersion(version ?? '');
   return check('node', 'Node.js', 'system', ok ? 'ok' : 'warning', {
     version,
     path: nodePath,
-    details: !ok ? 'Node.js 18 or newer is required.' : null,
+    details: !ok ? 'Node.js 22.12 or newer is required.' : null,
     fix:     !ok
       ? isMac()
         ? ['brew upgrade node']

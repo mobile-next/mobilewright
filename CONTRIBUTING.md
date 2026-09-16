@@ -19,7 +19,7 @@ Please **do not** file public GitHub issues for security vulnerabilities. Instea
 
 ## Development setup
 
-Requirements: Node.js 18+ and a clone of this repo.
+Requirements: Node.js 22.12+ and a clone of this repo.
 
 ```bash
 git clone https://github.com/mobile-next/mobilewright.git

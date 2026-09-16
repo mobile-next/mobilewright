@@ -21,7 +21,7 @@ Mobilewright drives real simulators, emulators and devices, so it needs a workin
 
 **Everywhere**
 
-- Node.js 18 or newer.
+- Node.js 22.12 or newer.
 - A booted simulator or emulator, or a device connected over USB. Mobilewright does not start one for you.
 
 **For iOS**

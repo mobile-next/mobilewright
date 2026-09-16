@@ -1,15 +1,12 @@
 import { access } from 'node:fs/promises';
 import { mkdtempSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
 import { MobileNextDriver, type MobileNextDriverOptions } from '@mobilewright/driver-mobilenext';
 import { setActiveDriver } from './driver-registry.js';
-
-const _require = createRequire(import.meta.url);
 
 type ReporterEntry = [string] | [string, unknown];
 
@@ -222,7 +219,7 @@ function injectObserverReporter(config: MobilewrightConfig): MobilewrightConfig 
 
   const baseReporters: ReporterEntry[] = userReporters.length > 0 ? userReporters : [['list']];
   const shimEntry: ReporterEntry = [
-    _require.resolve('./observer-reporter.js'),
+    fileURLToPath(new URL('./observer-reporter.js', import.meta.url)),
     { jsonResultsPath, cleanupJsonResults },
   ];
 
@@ -265,8 +262,8 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   }
   setActiveDriver(driver);
 
-  const ourSetup = _require.resolve('./device-pool/setup.js');
-  const ourTeardown = _require.resolve('./device-pool/teardown.js');
+  const ourSetup = fileURLToPath(new URL('./device-pool/setup.js', import.meta.url));
+  const ourTeardown = fileURLToPath(new URL('./device-pool/teardown.js', import.meta.url));
   const userSetups = toArray(config.globalSetup);
   const userTeardowns = toArray(config.globalTeardown);
 
