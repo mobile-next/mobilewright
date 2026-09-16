@@ -166,6 +166,11 @@ export const test = base.extend<MobilewrightTestFixtures>({
   }, { timeout: 0 }],
 
   screen: async ({ device, video, viewTree }, use, testInfo) => {
+    // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests screen
+    if (!device) {
+      throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
+    }
+
     const plan = videoPlan(video, testInfo.outputDir, testInfo.testId);
     const videoPath = plan.path;
 
