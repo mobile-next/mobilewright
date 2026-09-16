@@ -7,6 +7,28 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.59] (2026-09-16)
+* Feat: add `@mobilewright/cli`, a token-efficient agent CLI for driving devices ([#307](https://github.com/mobile-next/mobilewright/pull/307))
+* Feat: CLI prints Mobilewright code after every action, adds agent skill, apps, logs, video and element screenshots ([#308](https://github.com/mobile-next/mobilewright/pull/308))
+* Feat: report test runs as running while they execute ([#312](https://github.com/mobile-next/mobilewright/pull/312))
+* Feat: forward `onTestBegin`, `onStdOut`, `onStdErr` and `onError` to driver `TestObserver` ([#311](https://github.com/mobile-next/mobilewright/pull/311))
+* Fix: queue workers on cloud concurrency limit instead of failing tests ([#310](https://github.com/mobile-next/mobilewright/pull/310))
+* Fix: log why device allocation silently waits when no device matches ([#313](https://github.com/mobile-next/mobilewright/pull/313))
+* Fix: throw clear error in `screen` fixture when device setup did not complete ([#314](https://github.com/mobile-next/mobilewright/pull/314))
+* Fix: flatten `screen.gesture()` pointers for mobilecli gestures ([#305](https://github.com/mobile-next/mobilewright/pull/305))
+* Fix: fail fast when no device can match the allocation criteria ([#309](https://github.com/mobile-next/mobilewright/pull/309)), thanks to [@rahul-system](https://github.com/rahul-system)
+* Fix: keep device allocation alive during slow app uploads ([#315](https://github.com/mobile-next/mobilewright/pull/315))
+* Fix: address review comments on the agent CLI ([#316](https://github.com/mobile-next/mobilewright/pull/316))
+* Fix: catch synchronous errors in the upload keepalive timer ([#317](https://github.com/mobile-next/mobilewright/pull/317))
+* Chore: require Node.js >= 22.12, now tested in CI ([#303](https://github.com/mobile-next/mobilewright/pull/303), [#319](https://github.com/mobile-next/mobilewright/pull/319))
+* Chore: upgrade bundled mobilecli to 1.0.11 ([#318](https://github.com/mobile-next/mobilewright/pull/318))
+* Perf(Android): tap, long press, swipe, button, keys and text go through the embedded agent instead of `adb shell input` ([mobilecli#412](https://github.com/mobile-next/mobilecli/pull/412)), thanks to [@akexorcist](https://github.com/akexorcist)
+* Perf(iOS): stop tearing down and relaunching the agent on every call ([mobilecli#406](https://github.com/mobile-next/mobilecli/pull/406)), thanks to [@bjjeong](https://github.com/bjjeong)
+* Fix(iOS): restore iOS 14 support ([devicekit-ios#75](https://github.com/mobile-next/devicekit-ios/pull/75), [devicekit-ios#76](https://github.com/mobile-next/devicekit-ios/pull/76)), thanks to [@hakanor](https://github.com/hakanor)
+* Fix(Android): report the real app name for the foreground app, including on devices with more than one display ([mobilecli#403](https://github.com/mobile-next/mobilecli/pull/403), [mobilecli#423](https://github.com/mobile-next/mobilecli/pull/423)), thanks to [@akexorcist](https://github.com/akexorcist)
+* Fix: don't hang on a locked keyring when reading credentials ([mobilecli#408](https://github.com/mobile-next/mobilecli/pull/408)), thanks to [@EnglandLobster](https://github.com/EnglandLobster)
+* Docs: add TestingBot cloud provider page ([#306](https://github.com/mobile-next/mobilewright/pull/306))
+
 ## [0.0.58] (2026-09-10)
 * Feat: add `expect.soft` for non-fatal assertions ([#300](https://github.com/mobile-next/mobilewright/pull/300))
 * Feat: send scarf.sh pixel on `mobilewright test` when telemetry is enabled ([#301](https://github.com/mobile-next/mobilewright/pull/301))
