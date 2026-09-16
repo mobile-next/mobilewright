@@ -448,6 +448,8 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       .at(0);
 
     if (!match) {
+      debug('no device matches criteria=%j taken=%j devices=%j', criteria, [...takenDeviceIds],
+        devices.map((d) => ({ id: d.id, name: d.name, state: d.state, type: d.type, osVersion: d.osVersion })));
       throw new NoDeviceAvailableError(
         `no online device available matching criteria ${JSON.stringify(criteria)}`,
       );
