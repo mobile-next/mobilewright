@@ -18,6 +18,8 @@ import type { Device, Screen } from '@mobilewright/core';
 import {
   assertValidZipFile,
   mergeDeviceConfig,
+  assertReinstallAppConfig,
+  prepareApp,
   assertSupportedPlatform,
   annotationsForDevice,
   connectOptionsFor,
@@ -53,6 +55,7 @@ type MobilewrightTestFixtures = {
   screen: Screen;
   bundleId: string | undefined;
   autoAppLaunch: boolean | undefined;
+  reinstallApp: boolean | undefined;
   platform: 'ios' | 'android' | undefined;
   deviceId: string | undefined;
   deviceName: RegExp | undefined;
@@ -97,6 +100,11 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(config.autoAppLaunch);
   }, { option: true }],
 
+  reinstallApp: [async ({}, use, testInfo) => {
+    const config = await loadConfig(process.cwd(), testInfo.config.configFile);
+    await use(config.reinstallApp);
+  }, { option: true }],
+
   platform: [undefined, { option: true }],
   deviceId: [undefined, { option: true }],
   deviceName: [undefined, { option: true }],
@@ -112,12 +120,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
   // Setup runs outside the test timeout (timeout: 0): each stage carries its own bound instead —
   // allocationTimeout for queue + provisioning, installTimeout, appLaunchTimeout. A cloud queue
   // can hold a worker for many minutes, and that wait must not eat the test body's budget.
-  device: [async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, installApps }, use, testInfo) => {
+  device: [async ({ platform, deviceId, deviceName, deviceType, osVersion, bundleId, autoAppLaunch, reinstallApp, installApps }, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
     const merged = mergeDeviceConfig(config, { platform, deviceId, deviceName, deviceType, osVersion, installApps }, testInfo.project.name);
     const supportedPlatform = assertSupportedPlatform(merged.platform);
 
-    for (const appPath of toArray(merged.installApps)) {
+    const appPreparation = { bundleId, autoAppLaunch, reinstallApp, installApps: toArray(merged.installApps) };
+    assertReinstallAppConfig(appPreparation);
+    for (const appPath of appPreparation.installApps) {
       assertValidZipFile(appPath);
     }
 
@@ -139,22 +149,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
     debug('connected to device %s', handle.deviceId);
 
     try {
-      for (const appPath of toArray(merged.installApps)) {
-        const installed = await client.isAppInstalled(handle.allocationId, appPath);
-        if (!installed) {
-          await device.installApp(appPath);
-          await client.recordAppInstalled(handle.allocationId, appPath);
-        }
-      }
-
-      if (bundleId && autoAppLaunch !== false) {
-        try {
-          await device.terminateApp(bundleId);
-        } catch {
-          // app may not be running
-        }
-        await device.launchApp(bundleId);
-      }
+      await prepareApp(device, {
+        isInstalled: (appPath) => client.isAppInstalled(handle.allocationId, appPath),
+        recordInstalled: (appPath) => client.recordAppInstalled(handle.allocationId, appPath),
+      }, appPreparation);
 
       device.setStepFn((title, fn, location) => (base.step as any)(title, fn, { location }));
 

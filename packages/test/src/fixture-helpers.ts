@@ -15,6 +15,22 @@ type DeviceOptions = {
   installApps?: string | string[];
 };
 type Annotation = { type: string; description: string };
+type AppPreparation = {
+  bundleId?: string;
+  installApps: string[];
+  autoAppLaunch?: boolean;
+  reinstallApp?: boolean;
+};
+type AppDevice = {
+  installApp(path: string): Promise<void>;
+  uninstallApp(bundleId: string): Promise<void>;
+  launchApp(bundleId: string): Promise<void>;
+  terminateApp(bundleId: string): Promise<void>;
+};
+type AppInstaller = {
+  isInstalled(path: string): Promise<boolean>;
+  recordInstalled(path: string): Promise<void>;
+};
 type VideoPlan = { shouldRecord: boolean; path: string; shouldAttach(failed: boolean): boolean };
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
@@ -102,4 +118,48 @@ export function parseViewTreeOption(value: string | undefined): 'on-failure' | '
     throw new Error(`Invalid viewTree value: "${resolved}". Must be "on-failure" or "off".`);
   }
   return resolved;
+}
+
+export function assertReinstallAppConfig(opts: AppPreparation): void {
+  if (!opts.reinstallApp) {
+    return;
+  }
+  if (!opts.bundleId) {
+    throw new Error('reinstallApp requires bundleId (the app to uninstall before reinstalling)');
+  }
+  if (opts.installApps.length === 0) {
+    throw new Error('reinstallApp requires installApps (the packages to reinstall)');
+  }
+}
+
+/**
+ * Brings the app under test to its starting state for a test attempt:
+ * reinstallApp uninstalls only bundleId and reinstalls every installApps entry (other apps are
+ * replaced in place); autoAppLaunch terminates bundleId (if running) and launches it.
+ */
+export async function prepareApp(device: AppDevice, installer: AppInstaller, opts: AppPreparation): Promise<void> {
+  if (opts.reinstallApp && opts.bundleId) {
+    try {
+      await device.uninstallApp(opts.bundleId);
+    } catch {
+      // app may not be installed
+    }
+  }
+
+  for (const appPath of opts.installApps) {
+    const installed = await installer.isInstalled(appPath);
+    if (opts.reinstallApp || !installed) {
+      await device.installApp(appPath);
+      await installer.recordInstalled(appPath);
+    }
+  }
+
+  if (opts.bundleId && opts.autoAppLaunch !== false) {
+    try {
+      await device.terminateApp(opts.bundleId);
+    } catch {
+      // app may not be running
+    }
+    await device.launchApp(opts.bundleId);
+  }
 }

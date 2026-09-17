@@ -11,6 +11,8 @@ import {
   allocationTimeoutFor,
   videoPlan,
   parseViewTreeOption,
+  assertReinstallAppConfig,
+  prepareApp,
 } from './fixture-helpers.js';
 
 function writeTempFile(name: string, bytes: Buffer): string {
@@ -166,5 +168,75 @@ test.describe('parseViewTreeOption', () => {
 
   test('rejects any other value', () => {
     expect(() => parseViewTreeOption('always')).toThrow('Invalid viewTree value: "always"');
+  });
+});
+
+test.describe('assertReinstallAppConfig', () => {
+  test('passes when reinstallApp is off', () => {
+    expect(() => assertReinstallAppConfig({ reinstallApp: false, installApps: [] })).not.toThrow();
+  });
+
+  test('requires bundleId when reinstallApp is on', () => {
+    expect(() => assertReinstallAppConfig({ reinstallApp: true, installApps: ['app.apk'] })).toThrow('reinstallApp requires bundleId');
+  });
+
+  test('requires installApps when reinstallApp is on', () => {
+    expect(() => assertReinstallAppConfig({ reinstallApp: true, bundleId: 'com.example', installApps: [] })).toThrow('reinstallApp requires installApps');
+  });
+});
+
+test.describe('prepareApp', () => {
+  function createFakeDeviceThatRecordsCalls(failing: Set<string> = new Set()) {
+    const calls: string[] = [];
+    const record = (name: string) => async (arg: string) => {
+      calls.push(`${name}:${arg}`);
+      if (failing.has(name)) {
+        throw new Error(`${name} failed`);
+      }
+    };
+    const device = { installApp: record('install'), uninstallApp: record('uninstall'), launchApp: record('launch'), terminateApp: record('terminate') };
+    return { device, calls };
+  }
+
+  function createFakeInstallerThatRemembers(alreadyInstalled: string[]) {
+    const installed = new Set(alreadyInstalled);
+    return {
+      isInstalled: async (path: string) => installed.has(path),
+      recordInstalled: async (path: string) => { installed.add(path); },
+      installed,
+    };
+  }
+
+  test('skips apps the pool already installed and relaunches the app under test', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls();
+    const installer = createFakeInstallerThatRemembers(['a.apk']);
+    await prepareApp(device, installer, { bundleId: 'com.a', installApps: ['a.apk', 'b.apk'] });
+    expect(calls).toEqual(['install:b.apk', 'terminate:com.a', 'launch:com.a']);
+    expect([...installer.installed]).toEqual(['a.apk', 'b.apk']);
+  });
+
+  test('ignores a failing terminate before launch', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls(new Set(['terminate']));
+    await prepareApp(device, createFakeInstallerThatRemembers([]), { bundleId: 'com.a', installApps: [] });
+    expect(calls).toEqual(['terminate:com.a', 'launch:com.a']);
+  });
+
+  test('does not touch the app when autoAppLaunch is off', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls();
+    await prepareApp(device, createFakeInstallerThatRemembers([]), { bundleId: 'com.a', installApps: [], autoAppLaunch: false });
+    expect(calls).toEqual([]);
+  });
+
+  test('reinstallApp uninstalls only the app under test then reinstalls every app', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls();
+    const installer = createFakeInstallerThatRemembers(['a.apk', 'b.apk']);
+    await prepareApp(device, installer, { bundleId: 'com.a', installApps: ['a.apk', 'b.apk'], reinstallApp: true });
+    expect(calls).toEqual(['uninstall:com.a', 'install:a.apk', 'install:b.apk', 'terminate:com.a', 'launch:com.a']);
+  });
+
+  test('reinstallApp ignores a failing uninstall when the app is not installed', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls(new Set(['uninstall']));
+    await prepareApp(device, createFakeInstallerThatRemembers([]), { bundleId: 'com.a', installApps: ['a.apk'], reinstallApp: true, autoAppLaunch: false });
+    expect(calls).toEqual(['uninstall:com.a', 'install:a.apk']);
   });
 });
