@@ -22,6 +22,7 @@ type AppPreparation = {
   reinstallApp?: boolean;
 };
 type AppDevice = {
+  listApps(): Promise<Array<{ bundleId: string }>>;
   installApp(path: string): Promise<void>;
   uninstallApp(bundleId: string): Promise<void>;
   launchApp(bundleId: string): Promise<void>;
@@ -139,10 +140,10 @@ export function assertReinstallAppConfig(opts: AppPreparation): void {
  */
 export async function prepareApp(device: AppDevice, installer: AppInstaller, opts: AppPreparation): Promise<void> {
   if (opts.reinstallApp && opts.bundleId) {
-    try {
+    const apps = await device.listApps();
+    const isInstalled = apps.some((app) => app.bundleId === opts.bundleId);
+    if (isInstalled) {
       await device.uninstallApp(opts.bundleId);
-    } catch {
-      // app may not be installed
     }
   }
 

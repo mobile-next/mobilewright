@@ -16,6 +16,8 @@ type LegacyDriverConfig = { type: string } & Record<string, unknown>;
 // ─── Project ──────────────────────────────────────────────────────
 
 export interface MobilewrightUseOptions {
+  /** Uninstall the app (bundleId) and reinstall installApps before each test attempt. Default: false. */
+  reinstallApp?: boolean;
   /** Platform for this project. */
   platform?: 'ios' | 'android';
   /** Specific device identifier (local drivers only). Overrides the top-level deviceId for this project. */

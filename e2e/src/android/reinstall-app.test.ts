@@ -10,6 +10,8 @@ const PLAYGROUND_APK = join(homedir(), 'git/playground/android/app/build/outputs
 const USERNAME = 'reinstall-me';
 
 test.use({ platform: 'android', bundleId: 'com.mobilenext.playground', installApps: PLAYGROUND_APK });
+// Serial on one worker: the pool hands the released emulator back to the next test, so saved
+// preferences carry across tests. This assumes a single matching Android device, as in CI.
 test.describe.configure({ mode: 'serial' });
 
 async function openSharedPrefScreen(screen: Screen): Promise<void> {

@@ -186,7 +186,7 @@ test.describe('assertReinstallAppConfig', () => {
 });
 
 test.describe('prepareApp', () => {
-  function createFakeDeviceThatRecordsCalls(failing: Set<string> = new Set()) {
+  function createFakeDeviceThatRecordsCalls(failing: Set<string> = new Set(), installedBundleIds: string[] = []) {
     const calls: string[] = [];
     const record = (name: string) => async (arg: string) => {
       calls.push(`${name}:${arg}`);
@@ -194,7 +194,13 @@ test.describe('prepareApp', () => {
         throw new Error(`${name} failed`);
       }
     };
-    const device = { installApp: record('install'), uninstallApp: record('uninstall'), launchApp: record('launch'), terminateApp: record('terminate') };
+    const device = {
+      listApps: async () => installedBundleIds.map((bundleId) => ({ bundleId })),
+      installApp: record('install'),
+      uninstallApp: record('uninstall'),
+      launchApp: record('launch'),
+      terminateApp: record('terminate'),
+    };
     return { device, calls };
   }
 
@@ -228,15 +234,20 @@ test.describe('prepareApp', () => {
   });
 
   test('reinstallApp uninstalls only the app under test then reinstalls every app', async () => {
-    const { device, calls } = createFakeDeviceThatRecordsCalls();
+    const { device, calls } = createFakeDeviceThatRecordsCalls(new Set(), ['com.a', 'com.b']);
     const installer = createFakeInstallerThatRemembers(['a.apk', 'b.apk']);
     await prepareApp(device, installer, { bundleId: 'com.a', installApps: ['a.apk', 'b.apk'], reinstallApp: true });
     expect(calls).toEqual(['uninstall:com.a', 'install:a.apk', 'install:b.apk', 'terminate:com.a', 'launch:com.a']);
   });
 
-  test('reinstallApp ignores a failing uninstall when the app is not installed', async () => {
-    const { device, calls } = createFakeDeviceThatRecordsCalls(new Set(['uninstall']));
+  test('reinstallApp skips the uninstall when the app is not installed', async () => {
+    const { device, calls } = createFakeDeviceThatRecordsCalls();
     await prepareApp(device, createFakeInstallerThatRemembers([]), { bundleId: 'com.a', installApps: ['a.apk'], reinstallApp: true, autoAppLaunch: false });
-    expect(calls).toEqual(['uninstall:com.a', 'install:a.apk']);
+    expect(calls).toEqual(['install:a.apk']);
+  });
+
+  test('reinstallApp surfaces an uninstall failure instead of installing over old data', async () => {
+    const { device } = createFakeDeviceThatRecordsCalls(new Set(['uninstall']), ['com.a']);
+    await expect(prepareApp(device, createFakeInstallerThatRemembers([]), { bundleId: 'com.a', installApps: ['a.apk'], reinstallApp: true })).rejects.toThrow('uninstall failed');
   });
 });

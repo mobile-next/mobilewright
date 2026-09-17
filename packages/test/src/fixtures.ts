@@ -125,7 +125,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     const merged = mergeDeviceConfig(config, { platform, deviceId, deviceName, deviceType, osVersion, installApps }, testInfo.project.name);
     const supportedPlatform = assertSupportedPlatform(merged.platform);
 
-    const appPreparation = { bundleId, autoAppLaunch, reinstallApp, installApps: toArray(merged.installApps) };
+    const appPreparation = { bundleId, autoAppLaunch, reinstallApp: reinstallApp ?? merged.use?.reinstallApp, installApps: toArray(merged.installApps) };
     assertReinstallAppConfig(appPreparation);
     for (const appPath of appPreparation.installApps) {
       assertValidZipFile(appPath);
