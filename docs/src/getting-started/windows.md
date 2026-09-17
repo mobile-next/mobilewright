@@ -49,6 +49,7 @@ If the doctor still reports `JAVA_HOME` as missing, point it at the installed JD
 
 ```powershell
 $jdk = (Get-ChildItem "C:\Program Files\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1).FullName
+if (-not $jdk) { throw "No jdk-17* folder in C:\Program Files\Microsoft. Run: (Get-Command java).Source, and set JAVA_HOME to the folder above bin." }
 [System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk, "Machine")
 ```
 
