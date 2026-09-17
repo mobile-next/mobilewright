@@ -12,8 +12,20 @@ const API_KEY = 'phc_tRCQcTgqMzKfs6WVQcuuH8MQgKdEXrVR8yLPRoM7TFyv';
 const POSTHOG_URL = 'https://us.i.posthog.com/i/v0/e/';
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'mobilenext', 'mobilewright', 'config.json');
 
+/**
+ * Telemetry is off when MOBILEWRIGHT_DISABLE_TELEMETRY is set to any value, or when
+ * DO_NOT_TRACK is set to anything other than "0"/"false" (https://consoledonottrack.com).
+ */
+export function isTelemetryDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.MOBILEWRIGHT_DISABLE_TELEMETRY) {
+    return true;
+  }
+  const doNotTrack = env.DO_NOT_TRACK?.trim().toLowerCase();
+  return !!doNotTrack && doNotTrack !== '0' && doNotTrack !== 'false';
+}
+
 function getTelemetryId(): string | null {
-  if (process.env.MOBILEWRIGHT_DISABLE_TELEMETRY) {
+  if (isTelemetryDisabled()) {
     return null;
   }
 
@@ -59,7 +71,7 @@ export function telemetry(event: string, properties: Record<string, string> = {}
 }
 
 export function scarf(): void {
-  if (process.env.MOBILEWRIGHT_DISABLE_TELEMETRY) {
+  if (isTelemetryDisabled()) {
     return;
   }
 
