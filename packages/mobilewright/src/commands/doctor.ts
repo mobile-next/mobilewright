@@ -476,8 +476,7 @@ function checkJava(): CheckResult {
           '# Find and install Microsoft OpenJDK 17:',
           'winget search Microsoft.OpenJDK',
           'winget install Microsoft.OpenJDK.17',
-          '# Then set JAVA_HOME in System Environment Variables to:',
-          '# C:\\Program Files\\Microsoft\\jdk-17',
+          '# The installer sets JAVA_HOME — open a new terminal and re-run: npx mobilewright doctor',
         ],
     });
   }
@@ -514,8 +513,10 @@ function checkJavaHome(): CheckResult {
           'export JAVA_HOME=$(/usr/libexec/java_home -v 17)',
         ]
         : [
-          '# Set JAVA_HOME in System Environment Variables (run in admin PowerShell):',
-          '[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\\Program Files\\Microsoft\\jdk-17", "Machine")',
+          '# Set JAVA_HOME to the installed JDK (run in admin PowerShell).',
+          '# The folder name includes the full version, e.g. jdk-17.0.13.11-hotspot:',
+          '$jdk = (Get-ChildItem "C:\\Program Files\\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1).FullName',
+          '[System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk, "Machine")',
         ],
     });
   }
