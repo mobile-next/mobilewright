@@ -7,6 +7,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'getting-started/intro',
+        'getting-started/windows',
         'getting-started/writing-tests',
         'getting-started/running-tests',
         'getting-started/ci',

@@ -33,7 +33,7 @@ Mobilewright drives real simulators, emulators and devices, so it needs a workin
 
 - A JDK, version 11 or newer.
 - The Android SDK, with `ANDROID_HOME` set and `adb` on your `PATH`.
-- Works on macOS and Windows 11. On Linux, run Android tests through the [Docker image](../guides/docker.md).
+- Works on macOS and Windows 11. On Windows, follow [Setting up on Windows](./windows.md). On Linux, run Android tests through the [Docker image](../guides/docker.md).
 
 You do not need to install [mobilecli](https://github.com/mobile-next/mobilecli) — it ships with the `mobilewright` package as a per-platform binary.
 
@@ -182,6 +182,7 @@ This starts a local server at `localhost:9323` with an interactive report where 
 
 ## What's next
 
+- [Setting up on Windows](./windows.md) — Node, Android SDK and hardware acceleration on Windows 11.
 - [Writing Tests](./writing-tests.md) — locators, actions and assertions.
 - [Running Tests](./running-tests.md) — filtering, reporters and exit codes.
 - [Configuration](../test/configuration.md) — every config option.
