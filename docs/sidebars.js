@@ -41,7 +41,6 @@ const sidebars = {
         'guides/inspector',
         'guides/locators',
         'guides/screenshots',
-        'guides/telemetry',
         'guides/troubleshooting',
         'guides/webviews',
       ],

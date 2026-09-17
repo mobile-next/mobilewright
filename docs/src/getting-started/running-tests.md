@@ -69,6 +69,14 @@ Pass environment variables the normal way — they are visible to both the test 
 TEST_USER=value npx mobilewright test
 ```
 
+Mobilewright itself reads these variables:
+
+| Variable | Effect |
+|---|---|
+| `DEBUG` | Enables diagnostic logging, see [Troubleshooting](../guides/troubleshooting.md). |
+| `MOBILEWRIGHT_DISABLE_TELEMETRY` | Set to any value to disable anonymous usage telemetry. |
+| `DO_NOT_TRACK` | Set to any value except `0` or `false` to disable anonymous usage telemetry. |
+
 ## Exit codes
 
 | Code | Meaning |
