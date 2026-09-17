@@ -32,3 +32,19 @@ for (const quote of ['\'', '"', '`']) {
     expect(html).not.toContain('Playwright Test Report');
   });
 }
+
+// With `doNotInlineAssets` the bundle is written to report.js instead of being
+// inlined, so the title fallback has to be rewritten there too.
+test('brandReport replaces the document.title fallback in a non-inlined report.js', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mw-report-'));
+  try {
+    writeFileSync(join(dir, 'index.html'), '<html><head></head><body></body></html>', 'utf-8');
+    writeFileSync(join(dir, 'report.js'), 'x?0:document.title=`Playwright Test Report`;', 'utf-8');
+    brandReport(dir);
+    expect(readFileSync(join(dir, 'report.js'), 'utf-8')).toBe(
+      'x?0:document.title=`Mobilewright Test Report`;',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
