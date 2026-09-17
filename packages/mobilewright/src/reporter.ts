@@ -38,10 +38,11 @@ export function brandReport(reportPath: string): void {
     '<title>Mobilewright Test Report</title>',
   );
 
-  // 2. Replace the JS-side document.title fallback
+  // 2. Replace the JS-side document.title fallback. The bundler picks the
+  // quoting, so match any of the three string forms.
   html = html.replace(
-    /document\.title="Playwright Test Report"/g,
-    'document.title="Mobilewright Test Report"',
+    /document\.title=(["'`])Playwright Test Report\1/g,
+    (_match, quote: string) => `document.title=${quote}Mobilewright Test Report${quote}`,
   );
 
   // 3. Add favicon link and custom styles/scripts in <head>
@@ -53,6 +54,9 @@ export function brandReport(reportPath: string): void {
         display: flex;
         align-items: center;
         gap: 8px;
+        /* Playwright's superheader has no gap of its own — keep the brand off
+           the "Project:" label it is prepended to. */
+        margin-right: 16px;
         text-decoration: none;
         color: inherit;
       }
