@@ -55,7 +55,7 @@ jobs:
       - name: Smoke test CLI binary resolution
         run: |
           node packages/mobilewright/dist/cli.js devices
-          node packages/mobilewright/dist/cli.js doctor --json > doctor.json || true
+          node packages/mobilewright/dist/cli.js doctor --json | tee doctor.json || true
           node -e '
             const { checks } = JSON.parse(require("fs").readFileSync("doctor.json", "utf8"));
             const mobilecli = checks.find(c => c.id === "mobilecli");
