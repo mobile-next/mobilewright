@@ -21,11 +21,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         node-version: ['22.12', '24.x']
-    runs-on: ubuntu-latest
+        include:
+          # Windows is ~30% of docs traffic; one Node version is enough to catch win32-only breakage
+          - os: windows-latest
+            node-version: '22.12'
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    defaults:
+      run:
+        shell: bash
     steps:
+      # keep LF endings so the generated/ staleness check and eslint behave the same as on Linux
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
@@ -42,6 +52,16 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test
+      - name: Smoke test CLI binary resolution
+        run: |
+          node packages/mobilewright/dist/cli.js devices
+          node packages/mobilewright/dist/cli.js doctor --json > doctor.json || true
+          node -e '
+            const { checks } = JSON.parse(require("fs").readFileSync("doctor.json", "utf8"));
+            const mobilecli = checks.find(c => c.id === "mobilecli");
+            console.log(mobilecli);
+            if (mobilecli?.status !== "ok") process.exit(1);
+          '
 
   docker:
     strategy:
