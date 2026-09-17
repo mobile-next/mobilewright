@@ -12,9 +12,9 @@ function tempProject(): { cwd: string; skill: string } {
 }
 
 test('claude is the default target and agents maps to .agents', () => {
-  expect(skillDestination({ skills: 'claude', global: false }, '/p')).toBe('/p/.claude/skills/mobilewright-cli/SKILL.md');
-  expect(skillDestination({ skills: 'agents', global: false }, '/p')).toBe('/p/.agents/skills/mobilewright-cli/SKILL.md');
-  expect(skillDestination({ skills: 'claude', global: true }, '/p', '/home/me')).toBe('/home/me/.claude/skills/mobilewright-cli/SKILL.md');
+  expect(skillDestination({ skills: 'claude', global: false }, '/p')).toBe(join('/p', '.claude', 'skills', 'mobilewright-cli', 'SKILL.md'));
+  expect(skillDestination({ skills: 'agents', global: false }, '/p')).toBe(join('/p', '.agents', 'skills', 'mobilewright-cli', 'SKILL.md'));
+  expect(skillDestination({ skills: 'claude', global: true }, '/p', '/home/me')).toBe(join('/home/me', '.claude', 'skills', 'mobilewright-cli', 'SKILL.md'));
   expect(() => parseSkillTarget('cursor')).toThrow('unknown --skills value "cursor"');
 });
 

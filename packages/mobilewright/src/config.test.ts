@@ -1,4 +1,4 @@
-import { isAbsolute } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { test, expect } from '@playwright/test';
 import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
@@ -247,7 +247,7 @@ test('defineConfig uses PLAYWRIGHT_JSON_OUTPUT_FILE when the user json reporter 
 
   const shimEntry = reporters[reporters.length - 1]!;
   const shimOptions = shimEntry[1] as { jsonResultsPath: string };
-  expect(shimOptions.jsonResultsPath).toBe('/tmp/env-results.json');
+  expect(shimOptions.jsonResultsPath).toBe(resolve('/tmp/env-results.json'));
 });
 
 test('defineConfig uses PLAYWRIGHT_JSON_OUTPUT_DIR and _NAME when the user json reporter has no outputFile', () => {
@@ -266,7 +266,7 @@ test('defineConfig uses PLAYWRIGHT_JSON_OUTPUT_DIR and _NAME when the user json 
 
   const shimEntry = reporters[reporters.length - 1]!;
   const shimOptions = shimEntry[1] as { jsonResultsPath: string };
-  expect(shimOptions.jsonResultsPath).toBe('/tmp/reports/out.json');
+  expect(shimOptions.jsonResultsPath).toBe(resolve('/tmp/reports', 'out.json'));
 });
 
 test('defineConfig appends a tmp json reporter alongside an untouched stdout json entry when no env vars are set', () => {
