@@ -43,10 +43,13 @@ You do not need to install mobilecli — it ships with the `mobilewright` packag
 winget install Microsoft.OpenJDK.17
 ```
 
-Then set `JAVA_HOME` (admin PowerShell). Adjust the path if winget installed a different build:
+The installer sets `JAVA_HOME` for you. Open a new terminal and confirm with `npx mobilewright doctor`.
+
+If the doctor still reports `JAVA_HOME` as missing, point it at the installed JDK. The folder name includes the full version (for example `jdk-17.0.13.11-hotspot`), so look it up instead of typing it (admin PowerShell):
 
 ```powershell
-[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Microsoft\jdk-17", "Machine")
+$jdk = (Get-ChildItem "C:\Program Files\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1).FullName
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk, "Machine")
 ```
 
 ## 4. Install the Android SDK
