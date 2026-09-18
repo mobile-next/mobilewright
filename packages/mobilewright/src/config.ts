@@ -160,6 +160,25 @@ function normalizeReporters(reporter: MobilewrightConfig['reporter']): ReporterE
 }
 
 /**
+ * Routes `html` reporter entries through Mobilewright's branded HTML reporter,
+ * so a report configured in the config file is branded too — not just one
+ * requested with `mobilewright test --reporter html`.
+ */
+function rebrandHtmlReporters(
+  reporter: MobilewrightConfig['reporter'],
+): MobilewrightConfig['reporter'] {
+  const entries = normalizeReporters(reporter);
+  if (!entries.some(([name]) => name === 'html')) {
+    return reporter;
+  }
+  return entries.map((entry) =>
+    entry[0] === 'html'
+      ? ([fileURLToPath(new URL('./html-reporter.js', import.meta.url)), ...entry.slice(1)] as ReporterEntry)
+      : entry,
+  );
+}
+
+/**
  * Mirrors Playwright's own resolution of the JSON reporter's output file from
  * env vars, for a `json` reporter entry that has no explicit `outputFile`:
  * `PLAYWRIGHT_JSON_OUTPUT_FILE`, else `PLAYWRIGHT_JSON_OUTPUT_DIR` /
@@ -270,6 +289,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
   const base: MobilewrightConfig = {
     workers: 1,
     ...config,
+    ...(config.reporter !== undefined && { reporter: rebrandHtmlReporters(config.reporter) }),
     ...(driver && { driver }),
     globalSetup: userSetups.length > 0 ? [ourSetup, ...userSetups] : ourSetup,
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
