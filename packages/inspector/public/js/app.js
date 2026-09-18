@@ -69,7 +69,7 @@ class ScreenshotPane {
     this.#placeholderTitle = document.getElementById('placeholder-title')
     this.#placeholderSub = document.getElementById('placeholder-sub')
     this.#screenshotPane = document.getElementById('screenshot-pane')
-    window.addEventListener('resize', () => this.#constrainSize())
+    new ResizeObserver(() => this.#constrainSize()).observe(this.#screenshotPane)
   }
 
   onElementClick(cb) { this.#onClickCb = cb }
@@ -162,6 +162,7 @@ class DetailPane {
   #locatorsEl
   #propsEl
   #rawEl
+  #isRawExpanded = false  // survives re-renders, so the section stays open across row clicks
   #closeBtn
   #onCloseCb = null
 
@@ -289,20 +290,21 @@ class DetailPane {
 
       const toggle = document.createElement('button')
       toggle.className = 'detail-raw-toggle'
-      toggle.textContent = `▶ Raw Attributes (${Object.keys(el.raw).length})`
       this.#rawEl.appendChild(toggle)
 
       const content = document.createElement('div')
       content.className = 'detail-raw-content'
-      content.hidden = true
       content.textContent = JSON.stringify(el.raw, null, 2)
 
+      const renderExpanded = () => {
+        content.hidden = !this.#isRawExpanded
+        toggle.textContent = `${this.#isRawExpanded ? '▼' : '▶'} Raw Attributes (${Object.keys(el.raw).length})`
+      }
+      renderExpanded()
+
       toggle.addEventListener('click', () => {
-        const isHidden = content.hidden
-        content.hidden = !isHidden
-        toggle.textContent = isHidden
-          ? `▼ Raw Attributes (${Object.keys(el.raw).length})`
-          : `▶ Raw Attributes (${Object.keys(el.raw).length})`
+        this.#isRawExpanded = !this.#isRawExpanded
+        renderExpanded()
       })
 
       this.#rawEl.appendChild(content)
@@ -363,6 +365,8 @@ class ElementsPane {
     if (this.#selectedRow) {
       this.#selectedRow.classList.add('selected')
       this.#selectedRow.scrollIntoView({ block: 'nearest' })
+      // Focus follows selection so arrow keys work after clicking the screenshot too.
+      this.#selectedRow.focus({ preventScroll: true })
     }
   }
 
@@ -439,6 +443,11 @@ class ElementsPane {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         this.#onClickCb?.(el.index)
+      }
+      const neighbour = { ArrowUp: row.previousElementSibling, ArrowDown: row.nextElementSibling }[e.key]
+      if (neighbour) {
+        e.preventDefault()
+        this.#onClickCb?.(Number(neighbour.dataset.index))
       }
     })
     return row
@@ -743,6 +752,51 @@ function applyTheme(name) {
 }
 
 document.getElementById('theme-select')?.addEventListener('change', e => applyTheme(e.target.value))
+
+// ---- Resizable panes ----
+
+const KEYBOARD_RESIZE_STEP = 16
+
+// direction: 1 when the pane is left of its splitter, -1 when right of it.
+// CSS min/max-width on the pane does the clamping.
+function makeResizable(splitter, pane, cssVar, direction) {
+  const main = splitter.parentElement
+  const storageKey = 'mobilewright-inspector' + cssVar
+  const setWidth = px => {
+    main.style.setProperty(cssVar, px + 'px')
+    localStorage.setItem(storageKey, pane.offsetWidth)
+  }
+
+  const saved = localStorage.getItem(storageKey)
+  if (saved) {
+    main.style.setProperty(cssVar, saved + 'px')
+  }
+
+  splitter.addEventListener('pointerdown', e => {
+    e.preventDefault()
+    splitter.setPointerCapture(e.pointerId)
+    splitter.classList.add('dragging')
+    const startX = e.clientX
+    const startWidth = pane.offsetWidth
+    const onMove = ev => setWidth(startWidth + (ev.clientX - startX) * direction)
+    splitter.addEventListener('pointermove', onMove)
+    splitter.addEventListener('lostpointercapture', () => {
+      splitter.removeEventListener('pointermove', onMove)
+      splitter.classList.remove('dragging')
+    }, { once: true })
+  })
+
+  splitter.addEventListener('keydown', e => {
+    const step = { ArrowLeft: -KEYBOARD_RESIZE_STEP, ArrowRight: KEYBOARD_RESIZE_STEP }[e.key]
+    if (step) {
+      e.preventDefault()
+      setWidth(pane.offsetWidth + step * direction)
+    }
+  })
+}
+
+makeResizable(document.getElementById('screenshot-splitter'), document.getElementById('screenshot-pane'), '--screenshot-width', 1)
+makeResizable(document.getElementById('detail-splitter'), document.getElementById('detail-pane'), '--detail-width', -1)
 
 // ---- Bootstrap ----
 
