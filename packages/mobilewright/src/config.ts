@@ -16,6 +16,8 @@ type LegacyDriverConfig = { type: string } & Record<string, unknown>;
 // ─── Project ──────────────────────────────────────────────────────
 
 export interface MobilewrightUseOptions {
+  /** Uninstall the app (bundleId) and reinstall installApps before each test attempt. Default: false. */
+  reinstallApp?: boolean;
   /** Platform for this project. */
   platform?: 'ios' | 'android';
   /** Specific device identifier (local drivers only). Overrides the top-level deviceId for this project. */
@@ -96,8 +98,10 @@ export interface MobilewrightConfig {
   bundleId?: string;
   /** App paths (APK/IPA) to install on the device before launching. */
   installApps?: string | string[];
-  /** Automatically launch the app after connecting. Default: true. */
+  /** Terminate and launch the app (bundleId) before each test. Default: true. */
   autoAppLaunch?: boolean;
+  /** Uninstall the app (bundleId) and reinstall installApps before each test attempt. Default: false. */
+  reinstallApp?: boolean;
   /** Attach the accessibility tree as JSON to the test report. 'on-failure' attaches on test failure, 'off' disables. Default: 'off'. */
   viewTree?: 'on-failure' | 'off';
   /** Driver instance to use, e.g. `new MobileNextDriver({ apiKey })`. Default: `new MobilecliDriver()`. */
