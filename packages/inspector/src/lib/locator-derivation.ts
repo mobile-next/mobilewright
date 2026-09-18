@@ -22,6 +22,12 @@ export type Locator =
   | { kind: 'label';  value: string }
   | { kind: 'text';   value: string };
 
+interface ElementEntry {
+  node: ViewNode;
+  locator: Locator | null;
+  locators: Locator[];
+}
+
 /** Map node.type to a mobilewright role string. Returns null for unmapped types. */
 function deriveRole(node: ViewNode): string | null {
   // Same normalization core applies before matching: strips the Android package
@@ -75,14 +81,62 @@ export function deriveLocator(node: ViewNode): Locator | null {
   return deriveLocators(node)[0] ?? null;
 }
 
+type RoleLocator = Extract<Locator, { kind: 'role' }>;
+
+function roleKey(role: RoleLocator): string {
+  return `${role.value}:${role.name ?? ''}`;
+}
+
+function roleLocatorOf(locators: Locator[]): RoleLocator | undefined {
+  return locators.find((l): l is RoleLocator => l.kind === 'role');
+}
+
+/**
+ * When several elements share a test ID, getByTestId cannot tell them apart.
+ * If every element of such a group has a role locator that matches nothing else
+ * in the tree, promote role to the primary locator for the whole group.
+ */
+function preferUniqueRolesOverDuplicateTestIds(entries: ElementEntry[]): ElementEntry[] {
+  const testIdCounts = new Map<string, number>();
+  const roleCounts = new Map<string, number>();
+  const groupCanUseRoles = new Map<string, boolean>();
+
+  for (const { locator, locators } of entries) {
+    if (locator?.kind === 'testId') {
+      testIdCounts.set(locator.value, (testIdCounts.get(locator.value) ?? 0) + 1);
+    }
+    const role = roleLocatorOf(locators);
+    if (role) {
+      roleCounts.set(roleKey(role), (roleCounts.get(roleKey(role)) ?? 0) + 1);
+    }
+  }
+
+  for (const { locator, locators } of entries) {
+    if (locator?.kind !== 'testId') {
+      continue;
+    }
+    const role = roleLocatorOf(locators);
+    const hasUniqueRole = role !== undefined && roleCounts.get(roleKey(role)) === 1;
+    groupCanUseRoles.set(locator.value, (groupCanUseRoles.get(locator.value) ?? true) && hasUniqueRole);
+  }
+
+  return entries.map(entry => {
+    const { locator, locators } = entry;
+    const role = roleLocatorOf(locators);
+    const isDuplicateTestId = locator?.kind === 'testId' && (testIdCounts.get(locator.value) ?? 0) > 1;
+    if (!isDuplicateTestId || !role || !groupCanUseRoles.get(locator.value)) {
+      return entry;
+    }
+    return { ...entry, locator: role, locators: [role, ...locators.filter(l => l !== role)] };
+  });
+}
+
 /**
  * Flatten a ViewNode tree depth-first and annotate each node with its locators.
  * Nodes with no locatable field are included with locators: [].
  */
-export function deriveElementList(
-  roots: ViewNode[],
-): Array<{ node: ViewNode; locator: Locator | null; locators: Locator[] }> {
-  const result: Array<{ node: ViewNode; locator: Locator | null; locators: Locator[] }> = [];
+export function deriveElementList(roots: ViewNode[]): ElementEntry[] {
+  const result: ElementEntry[] = [];
 
   function walk(nodes: ViewNode[]): void {
     for (const node of nodes) {
@@ -93,5 +147,5 @@ export function deriveElementList(
   }
 
   walk(roots);
-  return result;
+  return preferUniqueRolesOverDuplicateTestIds(result);
 }

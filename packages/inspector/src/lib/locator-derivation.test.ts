@@ -269,3 +269,52 @@ test.describe('deriveElementList', () => {
     expect(roleName(result[2].locator)).toBe('Deep');
   });
 });
+
+// ---- Duplicate test IDs ----
+
+const SHARED_TEST_ID = 'PXGGridLayout-Info';
+
+function primaryKinds(roots: ViewNode[]): (string | undefined)[] {
+  return deriveElementList(roots).map(entry => entry.locator?.kind);
+}
+
+test.describe('deriveElementList — duplicate test IDs', () => {
+  test('shows role instead of testId when every duplicate has a unique role', () => {
+    const save = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Save' });
+    const cancel = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Cancel' });
+
+    const result = deriveElementList([save, cancel]);
+
+    expect(result.map(entry => roleName(entry.locator))).toEqual(['Save', 'Cancel']);
+    expect(result[0].locators.map(l => l.kind)).toEqual(['role', 'testId', 'label']);
+  });
+
+  test('keeps testId when two duplicates share the same role and name', () => {
+    const first = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Save' });
+    const second = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Save' });
+    const third = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Cancel' });
+
+    expect(primaryKinds([first, second, third])).toEqual(['testId', 'testId', 'testId']);
+  });
+
+  test('keeps testId when one duplicate has no role', () => {
+    const withRole = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Save' });
+    const withoutRole = node({ type: 'unknownwidget', identifier: SHARED_TEST_ID });
+
+    expect(primaryKinds([withRole, withoutRole])).toEqual(['testId', 'testId']);
+  });
+
+  test('keeps testId when a role also matches an element outside the duplicate group', () => {
+    const save = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Save' });
+    const cancel = node({ type: 'button', identifier: SHARED_TEST_ID, label: 'Cancel' });
+    const otherSave = node({ type: 'button', identifier: 'other', label: 'Save' });
+
+    expect(primaryKinds([save, cancel, otherSave])).toEqual(['testId', 'testId', 'testId']);
+  });
+
+  test('leaves a unique testId alone', () => {
+    const only = node({ type: 'button', identifier: 'only-one', label: 'Save' });
+
+    expect(primaryKinds([only])).toEqual(['testId']);
+  });
+});
