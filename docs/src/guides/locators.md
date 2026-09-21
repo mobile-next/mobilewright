@@ -112,13 +112,14 @@ of the collapsed framework class above — these are also recognized:
 
 - **Classes with no role.** Anything not listed above has no role mapping —
   `getByRole()` won't find it. Target it with `getByType('<raw.native.Class>')`,
-  `getByLabel()`, or `getByTestId()`. Examples: Android `Spinner`, `RadioGroup`,
-  `CheckedTextView`; iOS `Picker`, `DatePicker`.
+  `getByLabel()`, or `getByTestId()`. Examples: Android `RadioGroup`,
+  `CheckedTextView`; iOS `DatePicker`.
 
 - **iOS source filtering.** mobilecli currently surfaces only a subset of iOS
   classes — `Button`, `TextField`, `SecureTextField`, `SearchField`, `Switch`,
   `StaticText`, `Image`, `Icon`, `WebView`, `TextView`. Other rows in the iOS table
-  (`Slider`, `Table`, `CollectionView`, `Cell`, `Tab`, `NavigationBar`, `Link`)
+  (`Slider`, `ProgressIndicator`, `ActivityIndicator`, `Alert`, `Sheet`, `Picker`,
+  `PickerWheel`, `Table`, `CollectionView`, `Cell`, `Tab`, `NavigationBar`, `Link`)
   are filtered out before they reach the query engine, so `getByRole()`
   cannot match them yet even though the mapping exists.
 
