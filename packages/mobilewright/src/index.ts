@@ -8,6 +8,9 @@ export { expect } from '@mobilewright/core';
 // drop-in Playwright Page/Locator; Page/WebLocator remain as back-compat aliases.
 export { Device, Screen, Locator, MobileWebViewPage, MobileWebViewLocator, Page, WebLocator } from '@mobilewright/core';
 
+// The union of roles accepted by getByRole() — for typing helpers and page objects.
+export type { Role } from '@mobilewright/core';
+
 // Configuration
 export { defineConfig, loadConfig, type MobilewrightConfig, type MobilewrightProjectConfig, type MobilewrightUseOptions } from './config.js';
 
