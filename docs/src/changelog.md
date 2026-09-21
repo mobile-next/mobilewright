@@ -7,6 +7,20 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.60] (2026-09-21)
+* Feat: `getByRole()` accepts `progressbar`, `alert` and `combobox` ([#332](https://github.com/mobile-next/mobilewright/pull/332))
+* Feat: `Role` type is exported from `mobilewright` and `@mobilewright/test` ([#333](https://github.com/mobile-next/mobilewright/pull/333))
+* Feat(inspector): suggest a role locator when duplicate test IDs have unique roles ([#330](https://github.com/mobile-next/mobilewright/pull/330))
+* Feat(inspector): resizable panes, arrow-key row navigation, sticky raw attributes and favicon ([#329](https://github.com/mobile-next/mobilewright/pull/329))
+* Feat(iOS): slider, picker, alert, list, tab, link and navigation bar elements are returned in the view tree, so `getByRole()` can match them ([mobilecli#440](https://github.com/mobile-next/mobilecli/pull/440))
+* Fix: honour `DO_NOT_TRACK` and require Node.js >= 22.12.0 in every package ([#326](https://github.com/mobile-next/mobilewright/pull/326))
+* Fix(doctor): stop suggesting a nonexistent `JAVA_HOME` path on Windows ([#325](https://github.com/mobile-next/mobilewright/pull/325))
+* Fix(Android): the view tree is no longer stale after fast content changes, such as a Compose `LazyRow` loading its items ([mobilecli#439](https://github.com/mobile-next/mobilecli/pull/439))
+* Fix(Android): screen capture works on Android 12 and 13 ([mobilecli#435](https://github.com/mobile-next/mobilecli/pull/435))
+* Fix(Android): apps and urls launch on the default display ([mobilecli#442](https://github.com/mobile-next/mobilecli/pull/442))
+* Chore: upgrade bundled mobilecli to 1.0.13 ([#331](https://github.com/mobile-next/mobilewright/pull/331), [#334](https://github.com/mobile-next/mobilewright/pull/334))
+* Docs: add Windows setup page ([#323](https://github.com/mobile-next/mobilewright/pull/323))
+
 ## [0.0.59] (2026-09-16)
 * Feat: add `@mobilewright/cli`, a token-efficient agent CLI for driving devices ([#307](https://github.com/mobile-next/mobilewright/pull/307))
 * Feat: CLI prints Mobilewright code after every action, adds agent skill, apps, logs, video and element screenshots ([#308](https://github.com/mobile-next/mobilewright/pull/308))
