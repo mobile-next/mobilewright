@@ -115,13 +115,16 @@ of the collapsed framework class above — these are also recognized:
   `getByLabel()`, or `getByTestId()`. Examples: Android `RadioGroup`,
   `CheckedTextView`; iOS `DatePicker`.
 
-- **iOS source filtering.** mobilecli currently surfaces only a subset of iOS
-  classes — `Button`, `TextField`, `SecureTextField`, `SearchField`, `Switch`,
-  `StaticText`, `Image`, `Icon`, `WebView`, `TextView`. Other rows in the iOS table
-  (`Slider`, `ProgressIndicator`, `ActivityIndicator`, `Alert`, `Sheet`, `Picker`,
-  `PickerWheel`, `Table`, `CollectionView`, `Cell`, `Tab`, `NavigationBar`, `Link`)
-  are filtered out before they reach the query engine, so `getByRole()`
-  cannot match them yet even though the mapping exists.
+- **iOS source filtering.** mobilecli keeps the iOS dump small, so not every
+  element reaches the query engine. `Button`, `TextField`, `SecureTextField`,
+  `SearchField`, `TextView`, `Switch`, `WebView`, `Slider`, `Picker` and
+  `PickerWheel` are always included. Every other class in the iOS table is
+  included only when it has a label, name or `accessibilityIdentifier` — so
+  `getByRole('list')` finds a labeled `Table` but not an anonymous one.
+  `XCUIElementTypeOther` is included only when it carries an
+  `accessibilityIdentifier`. Requires mobilecli 1.0.13 or later; earlier
+  versions only surface `Button`, `TextField`, `SecureTextField`, `SearchField`,
+  `TextView`, `Switch`, `WebView`, `StaticText`, `Image` and `Icon`.
 
 - **`TextView` is platform-ambiguous.** On Android, `TextView` is a static label
   (`text`). On iOS, `XCUIElementTypeTextView` is an editable multiline input
