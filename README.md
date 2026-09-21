@@ -600,7 +600,7 @@ npm test
 | Android Views (XML layouts) | — | ✅ | Full native element types, all locators work |
 | React Native | ✅ | ✅ | Uses real native components; RN-specific types mapped to roles |
 | Expo | ✅ | ✅ | Same as React Native (Expo builds to RN) |
-| Flutter | ⏳ | ⏳ | Renders via Skia/Impeller, not native views — requires Dart VM Service driver |
+| Flutter | ✅ | ✅ | Must be a debug build for full support |
 | .NET MAUI | ✅ | ✅ | Compiles to native controls on both platforms |
 | Kotlin Multiplatform (shared UI) | ⏳ | ✅ | Android native works; iOS Compose Multiplatform support in progress |
 | Cordova / Capacitor | ✅ | ✅ | WebView content accessible via native accessibility tree |

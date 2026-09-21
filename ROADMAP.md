@@ -19,6 +19,7 @@ This is a living document of planned and in-progress features. Items are roughly
 | ✅ Device control | `setOrientation()`, `setGeolocation()`, `openUrl()`, `listApps()`, `getForegroundApp()` |
 | ✅ Video recording | Attached to the HTML report (`on`, `on failure`, `off`) |
 | ✅ WebView support | `getByWebView().getByRole('button')` — full locator API inside WebViews |
+| ✅ Flutter support | Full locator API for Flutter apps on iOS and Android, since 0.0.60 — app must be a debug build |
 | ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
 | ✅ Inspector | `mobilewright inspect` — browse the live view hierarchy and copy locators |
 | ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect` |
@@ -27,7 +28,6 @@ This is a living document of planned and in-progress features. Items are roughly
 
 | Feature | Description | Status |
 |---|---|---|
-| **Flutter Support** | Full locator support for Flutter apps via the Dart VM Service driver. Flutter renders via Skia/Impeller rather than native views, requiring a dedicated driver. | In Progress |
 | **Crashes** | Retrieve all crashes (or crashes specific to one app) from device | In Progress | 
 | **Disable Animations** | Turn off system and app animations before a test run for faster, less flaky execution. | In Progress |
 | **Filesystem** | Access filesystem on device, or within app container | Planned |
