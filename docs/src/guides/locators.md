@@ -41,6 +41,8 @@ the app uses `AppCompatEditText`).
 | `android.widget.CheckBox` | `checkbox` |
 | `android.widget.RadioButton` | `radio` |
 | `android.widget.SeekBar` | `slider` |
+| `android.widget.ProgressBar` | `progressbar` |
+| `android.widget.Spinner` | `combobox` |
 | `android.widget.ListView` | `list` |
 | `androidx.recyclerview.widget.RecyclerView` | `list` |
 | `android.widget.ScrollView` | `list` |
@@ -59,6 +61,7 @@ of the collapsed framework class above — these are also recognized:
 | `com.google.android.material.button.MaterialButton` | `button` |
 | `com.google.android.material.floatingactionbutton.FloatingActionButton` | `button` |
 | `androidx.appcompat.widget.AppCompatRadioButton` | `radio` |
+| `androidx.appcompat.widget.AppCompatSpinner` | `combobox` |
 | `androidx.appcompat.widget.AppCompatEditText` | `textfield` |
 | `com.google.android.material.textfield.TextInputEditText` | `textfield` |
 | `androidx.appcompat.widget.AppCompatTextView` | `text` |
@@ -89,6 +92,12 @@ of the collapsed framework class above — these are also recognized:
 | `XCUIElementTypeImage` | `image` |
 | `XCUIElementTypeSwitch` | `switch` |
 | `XCUIElementTypeSlider` | `slider` |
+| `XCUIElementTypeProgressIndicator` | `progressbar` |
+| `XCUIElementTypeActivityIndicator` | `progressbar` |
+| `XCUIElementTypeAlert` | `alert` |
+| `XCUIElementTypeSheet` | `alert` |
+| `XCUIElementTypePicker` | `combobox` |
+| `XCUIElementTypePickerWheel` | `combobox` |
 | `XCUIElementTypeTable` | `list` |
 | `XCUIElementTypeCollectionView` | `list` |
 | `XCUIElementTypeScrollView` | `list` |

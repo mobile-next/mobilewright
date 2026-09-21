@@ -397,6 +397,38 @@ test.describe('material and appcompat widget aliases', () => {
   });
 });
 
+test.describe('progressbar, alert and combobox roles', () => {
+  test('progressbar matches iOS indicators and Android ProgressBar', () => {
+    const tree = [
+      node({ type: 'ProgressIndicator' }),
+      node({ type: 'ActivityIndicator' }),
+      node({ type: 'android.widget.ProgressBar' }),
+      node({ type: 'Button' }),
+    ];
+    expect(queryAll(tree, { kind: 'role', value: 'progressbar' })).toHaveLength(3);
+  });
+
+  test('alert matches iOS Alert and Sheet', () => {
+    const tree = [
+      node({ type: 'Alert', label: 'Delete photo?' }),
+      node({ type: 'Sheet' }),
+      node({ type: 'StaticText', text: 'Delete photo?' }),
+    ];
+    expect(queryAll(tree, { kind: 'role', value: 'alert' })).toHaveLength(2);
+  });
+
+  test('combobox matches iOS pickers and Android spinners', () => {
+    const tree = [
+      node({ type: 'Picker' }),
+      node({ type: 'PickerWheel' }),
+      node({ type: 'android.widget.Spinner' }),
+      node({ type: 'androidx.appcompat.widget.AppCompatSpinner' }),
+      node({ type: 'android.widget.EditText' }),
+    ];
+    expect(queryAll(tree, { kind: 'role', value: 'combobox' })).toHaveLength(4);
+  });
+});
+
 test.describe('placeholder strategy', () => {
   const tree: ViewNode[] = [
     node({ type: 'TextField', placeholder: 'Enter email' }),

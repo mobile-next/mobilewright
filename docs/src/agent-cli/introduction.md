@@ -156,7 +156,7 @@ Used by `find` and `expect`. Combine several to narrow the match.
 | Option | Description |
 |--------|-------------|
 | `--text <text>` | Visible text. Use `/regex/i` for a pattern |
-| `--role <role>` | Semantic role: `button`, `textfield`, `text`, `image`, `switch`, `checkbox`, `radio`, `slider`, `list`, `listitem`, `tab`, `link`, `header` |
+| `--role <role>` | Semantic role: `button`, `textfield`, `text`, `image`, `switch`, `checkbox`, `radio`, `slider`, `progressbar`, `alert`, `combobox`, `list`, `listitem`, `tab`, `link`, `header` |
 | `--name <name>` | With `--role`: accessible name, plain or `/regex/` |
 | `--test-id <id>` | Accessibility identifier (iOS) or resource-id (Android) |
 | `--label <label>` | Accessibility label |

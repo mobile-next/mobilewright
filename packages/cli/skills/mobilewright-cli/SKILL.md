@@ -36,7 +36,7 @@ await screen.getByRole('button', { name: 'Sign in' }).tap();
 
 Read the snapshot file to learn the refs. A snapshot line looks like
 `- button "Sign in" [ref=e9] [testid="login"]`. Roles are `button`, `textfield`, `text`,
-`image`, `switch`, `checkbox`, `radio`, `slider`, `list`, `listitem`, `tab`, `link`, `header`.
+`image`, `switch`, `checkbox`, `radio`, `slider`, `progressbar`, `alert`, `combobox`, `list`, `listitem`, `tab`, `link`, `header`.
 Attributes: `testid`, `placeholder`, `value`, `hidden`, `disabled`, `checked`, `selected`, `focused`.
 
 Collect the `Ran Mobilewright code` lines to write a test: they are the exact calls
