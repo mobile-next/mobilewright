@@ -332,6 +332,32 @@ test.describe('Locator', () => {
       const text = await locator.getText();
       expect(text).toBe('Welcome back!');
     });
+
+    function textFieldTree(field: Partial<ViewNode>): ViewNode[] {
+      return [node({
+        type: 'Window',
+        children: [node({ type: 'android.widget.EditText', identifier: 'username', ...field })],
+      })];
+    }
+
+    function getTextOfUsernameField(tree: ViewNode[]): Promise<string> {
+      return new Locator(createMockDriver(tree), { kind: 'testId', value: 'username' }).getText();
+    }
+
+    test('returns empty string for an empty text field, not its label', async () => {
+      const emptyFieldWithLabel = textFieldTree({ label: 'username_desc' });
+      expect(await getTextOfUsernameField(emptyFieldWithLabel)).toBe('');
+    });
+
+    test('returns the typed text of a filled text field', async () => {
+      const filledField = textFieldTree({ label: 'username_desc', text: 'bob@example.com' });
+      expect(await getTextOfUsernameField(filledField)).toBe('bob@example.com');
+    });
+
+    test('still falls back to the label for elements that are not text fields', async () => {
+      const iconButton = [node({ type: 'android.widget.ImageButton', identifier: 'username', label: 'Search' })];
+      expect(await getTextOfUsernameField(iconButton)).toBe('Search');
+    });
   });
 
   test.describe('collection methods', () => {

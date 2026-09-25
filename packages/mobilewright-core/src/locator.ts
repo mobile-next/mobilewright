@@ -1,5 +1,5 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
+import { isTextField, queryAll, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
 import { runStep, type StepLocation } from './stackTrace.js';
 
@@ -301,6 +301,8 @@ export class Locator {
 
   async getText(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
+    // An empty field is empty; its label (Android content-desc) is a name, not content.
+    if (isTextField(node)) return node.text ?? node.value ?? '';
     return node.text ?? node.label ?? node.value ?? '';
   }
 
