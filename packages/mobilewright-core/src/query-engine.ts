@@ -122,8 +122,16 @@ function matchesStrategy(
         : node.label === strategy.value;
 
     case 'testId':
-      if (node.identifier === strategy.value) return true;
-      if (node.resourceId && node.resourceId === strategy.value) return true;
+      if (node.identifier === strategy.value) {
+        return true;
+      }
+      if (node.resourceId && node.resourceId === strategy.value) {
+        return true;
+      }
+      // Android reports "<package>:id/<name>"; let getByTestId('<name>') match it.
+      if (node.identifier?.endsWith(`:id/${strategy.value}`)) {
+        return true;
+      }
       return false;
 
     case 'text': {
