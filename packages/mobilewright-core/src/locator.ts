@@ -302,7 +302,9 @@ export class Locator {
   async getText(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
     // An empty field is empty; its label (Android content-desc) is a name, not content.
-    if (isTextField(node)) return node.text ?? node.value ?? '';
+    if (isTextField(node)) {
+      return node.text ?? node.value ?? '';
+    }
     return node.text ?? node.label ?? node.value ?? '';
   }
 
