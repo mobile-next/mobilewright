@@ -93,6 +93,27 @@ test.describe('queryAll', () => {
     expect(results[0].label).toBe('Email');
   });
 
+  test.describe('testId on Android fully-qualified resource-ids', () => {
+    const androidTree = [
+      node({ type: 'android.widget.EditText', identifier: 'com.example.app:id/password_field' }),
+    ];
+
+    test('matches the short name', () => {
+      const results = queryAll(androidTree, { kind: 'testId', value: 'password_field' });
+      expect(results).toHaveLength(1);
+    });
+
+    test('still matches the full resource-id', () => {
+      const results = queryAll(androidTree, { kind: 'testId', value: 'com.example.app:id/password_field' });
+      expect(results).toHaveLength(1);
+    });
+
+    test('does not match a partial name', () => {
+      const results = queryAll(androidTree, { kind: 'testId', value: 'field' });
+      expect(results).toHaveLength(0);
+    });
+  });
+
   test('finds by text (exact string)', () => {
     const results = queryAll(sampleTree, {
       kind: 'text',
