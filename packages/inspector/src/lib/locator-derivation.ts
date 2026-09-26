@@ -22,7 +22,7 @@ export type Locator =
   | { kind: 'label';  value: string }
   | { kind: 'text';   value: string };
 
-interface ElementEntry {
+export interface ElementEntry {
   node: ViewNode;
   locator: Locator | null;
   locators: Locator[];

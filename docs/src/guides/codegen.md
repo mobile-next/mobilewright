@@ -44,9 +44,9 @@ Codegen taps that element on the device and adds a line to the test:
 await screen.getByRole('button', { name: 'Sign in' }).tap();
 ```
 
-Locators follow the Inspector's priority (`getByTestId` > `getByRole` > `getByLabel`
-> `getByText`). When a locator matches more than one element, codegen adds `.nth()`
-so the test taps the same one. Where no element has a usable locator, the click is
+Locators follow the Inspector's priority (`getByTestId` > `getByRole` > `getByLabel` > `getByText`).
+When a locator matches more than one element, codegen adds `.nth()` so the test taps the
+same one. Where no element has a usable locator, the click is
 recorded by coordinates:
 
 ```ts

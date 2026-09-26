@@ -626,6 +626,8 @@ export class Inspector {
       if (res.status === 503) return  // another inspect in flight, skip this tick — no state changed yet
       if (res.status === 304) {
         // Screenshot, elements and screen are exactly what is already shown; keep hover and selection.
+        // Still reset the status, which may show an earlier failed refresh.
+        this.#setStatus(`${this.#state.elements.length} elements`)
         this.#consecutiveErrors = 0
         return
       }
@@ -764,7 +766,12 @@ export class Inspector {
     this.#setRefreshButtonDisabled(true)
     this.#deviceSelect.disabled = true
     try {
-      const res = await fetch(`/api/devices/select?${new URLSearchParams({ device: device.id })}`, { method: 'POST' })
+      // The server only accepts JSON POSTs (it keeps other sites from driving the device), hence the empty body.
+      const res = await fetch(`/api/devices/select?${new URLSearchParams({ device: device.id })}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error ?? res.statusText)

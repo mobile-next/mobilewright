@@ -1,5 +1,5 @@
 import type { Device } from '@mobilewright/core';
-import type { DeviceInfo } from '@mobilewright/protocol';
+import type { DeviceInfo, ScreenSize } from '@mobilewright/protocol';
 import { logger } from './logger.js';
 
 /** Platform launcher injected from mobilewright to avoid a circular dependency. */
@@ -52,6 +52,11 @@ export class DeviceManager {
   #resolveInspectDone: (() => void) | null = null;
   /** True while a select() call is awaiting launcher.launch(); blocks concurrent select(). */
   #selecting = false;
+  /**
+   * The active device's screen size, fetched once per connection: it never changes while connected,
+   * yet asking costs ~250ms. ponytail: stale after the device rotates; key by orientation if needed.
+   */
+  #screenSize: Promise<ScreenSize> | null = null;
   /** True after close() is called; prevents new connections after shutdown. */
   #closed = false;
 
@@ -100,8 +105,7 @@ export class DeviceManager {
         logger.info(`Closing previous device ${this.#activeDeviceInfo?.id}`);
         try {
           await this.#activeDevice.close();
-          this.#activeDevice = null;
-          this.#activeDeviceInfo = null;
+          this.#forgetActiveDevice();
         } catch (err) {
           logger.error(`Failed to close device ${this.#activeDeviceInfo?.id}: ${(err as Error).message}`);
           throw new DeviceError((err as Error).message, 'connect_failed');
@@ -158,13 +162,36 @@ export class DeviceManager {
       logger.info(`Closing device ${this.#activeDeviceInfo?.id}`);
       try {
         await this.#activeDevice.close();
-        this.#activeDevice = null;
-        this.#activeDeviceInfo = null;
+        this.#forgetActiveDevice();
       } catch (err) {
         logger.error(`Failed to close device ${this.#activeDeviceInfo?.id}: ${(err as Error).message}`);
         throw new DeviceError((err as Error).message, 'connect_failed');
       }
     }
+  }
+
+  /** The active device's screen size, asked once per connection; a failed ask is retried next call. */
+  screenSize(): Promise<ScreenSize> {
+    const device = this.#activeDevice;
+    if (!device) {
+      return Promise.reject(new DeviceError('No device selected', 'not_found'));
+    }
+    if (!this.#screenSize) {
+      const size = device.screenSize();
+      this.#screenSize = size;
+      size.catch(() => {
+        if (this.#screenSize === size) {
+          this.#screenSize = null;
+        }
+      });
+    }
+    return this.#screenSize;
+  }
+
+  #forgetActiveDevice(): void {
+    this.#activeDevice = null;
+    this.#activeDeviceInfo = null;
+    this.#screenSize = null;
   }
 
   /** The currently connected device, or null if none selected. */

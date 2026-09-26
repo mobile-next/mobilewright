@@ -209,3 +209,62 @@ test.describe('DeviceError', () => {
     expect(new DeviceError('msg', 'in_progress').code).toBe('in_progress');
   });
 });
+
+// ---- screenSize ----
+
+function deviceReportingScreenSize(onCall: () => void, size = { width: 390, height: 844, scale: 3 }): Device {
+  return { ...fakeDevice(), screenSize: async () => { onCall(); return size; } } as unknown as Device;
+}
+
+test.describe('DeviceManager.screenSize', () => {
+  test('asks the device for its screen size once per connection', async () => {
+    let calls = 0;
+    const dm = new DeviceManager({
+      ios: { devices: async () => [], launch: async () => deviceReportingScreenSize(() => calls++) },
+      android: makeLauncher(),
+    });
+    await dm.select('sim-1', 'ios');
+
+    await dm.screenSize();
+    const size = await dm.screenSize();
+
+    expect(calls).toBe(1);
+    expect(size).toEqual({ width: 390, height: 844, scale: 3 });
+  });
+
+  test('asks again after switching to another device', async () => {
+    let calls = 0;
+    const dm = new DeviceManager({
+      ios: { devices: async () => [], launch: async () => deviceReportingScreenSize(() => calls++) },
+      android: makeLauncher(),
+    });
+    await dm.select('sim-1', 'ios');
+    await dm.screenSize();
+
+    await dm.select('sim-2', 'ios');
+    await dm.screenSize();
+
+    expect(calls).toBe(2);
+  });
+
+  test('retries on the next call when asking failed', async () => {
+    let calls = 0;
+    const flaky = { ...fakeDevice(), screenSize: async () => {
+      calls++;
+      if (calls === 1) {
+        throw new Error('device busy');
+      }
+      return { width: 1, height: 2, scale: 1 };
+    } } as unknown as Device;
+    const dm = new DeviceManager({ ios: { devices: async () => [], launch: async () => flaky }, android: makeLauncher() });
+    await dm.select('sim-1', 'ios');
+
+    await expect(dm.screenSize()).rejects.toThrow('device busy');
+    await expect(dm.screenSize()).resolves.toEqual({ width: 1, height: 2, scale: 1 });
+  });
+
+  test('rejects when no device is selected', async () => {
+    const dm = new DeviceManager({ ios: makeLauncher(), android: makeLauncher() });
+    await expect(dm.screenSize()).rejects.toThrow('No device selected');
+  });
+});

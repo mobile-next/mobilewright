@@ -72,7 +72,9 @@ class Recorder {
   #editor = document.getElementById('code-editor')
   #recordBtn = document.getElementById('record-btn')
   #statusBar = document.getElementById('status-bar')
-  #deviceButtons = [...document.querySelectorAll('.device-btn')]
+  // Every control above the device screen, and the subset that are hardware buttons.
+  #deviceControls = [...document.querySelectorAll('.device-btn')]
+  #hardwareButtons = [...document.querySelectorAll('.device-btn[data-button]')]
   #assertButtons = [...document.querySelectorAll('.assert-btn')]
   #treeBtn = document.getElementById('tree-btn')
   #copyBtn = document.getElementById('copy-btn')
@@ -94,7 +96,7 @@ class Recorder {
       screenshotPane,
       elementsPane: viewTree,
       detailPane: noDetailPane,
-      onActiveDeviceChange: device => this.#enableDeviceButtonsFor(device),
+      onActiveDeviceChange: device => this.#enableDeviceControlsFor(device),
       continuousRefresh: true,
     })
     this.#editor.value = INITIAL_SOURCE
@@ -142,7 +144,7 @@ class Recorder {
     this.#treeBtn.addEventListener('click', () => this.#setTreeOpen(this.#treePane.hidden))
     this.#copyBtn.addEventListener('click', () => this.#copyTest())
     this.#setTreeOpen(readTreeOpen())
-    for (const btn of this.#deviceButtons.filter(b => b.dataset.button)) {
+    for (const btn of this.#hardwareButtons) {
       const button = btn.dataset.button
       btn.addEventListener('click', () => this.#perform(btn.title, '/api/press-button', { button }, `await screen.pressButton('${button}');`))
     }
@@ -163,7 +165,9 @@ class Recorder {
     if (this.#clickMode !== 'tap') {
       // Assertions only read the screen; an element without text/value does nothing.
       if (mode.accepts(el)) {
-        this.#appendLine(mode.code(el))
+        if (this.#isRecording) {
+          this.#appendLine(mode.code(el))
+        }
         this.#setClickMode('tap')
       }
       return
@@ -258,8 +262,8 @@ class Recorder {
   }
 
   // iOS has no back or app-switch button, so those stay disabled there.
-  #enableDeviceButtonsFor(device) {
-    for (const btn of this.#deviceButtons) {
+  #enableDeviceControlsFor(device) {
+    for (const btn of this.#deviceControls) {
       const isAndroidOnly = 'androidOnly' in btn.dataset
       btn.disabled = !device || (isAndroidOnly && device.platform !== 'android')
     }
