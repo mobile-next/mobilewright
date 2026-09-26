@@ -733,6 +733,8 @@ main {
 .codicon-multiple-windows::before    { content: '\eb23'; }
 .codicon-arrow-left::before          { content: '\ea9b'; }
 .codicon-list-tree::before           { content: '\eb86'; }
+.codicon-files::before               { content: '\eaf0'; }
+.codicon-check::before               { content: '\eab2'; }
 .codicon-location::before            { content: '\eb1a'; }
 .codicon-chevron-down::before        { content: '\eab4'; }
 .codicon-chevron-right::before       { content: '\eab6'; }

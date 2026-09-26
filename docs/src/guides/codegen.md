@@ -94,5 +94,6 @@ await screen.getByRole('listitem', { name: 'Inbox' }).longPress();
 
 ## Stopping codegen
 
-Copy the test out of the editor, then press `Ctrl+C` in the terminal. Codegen
+Click **Copy** in the toolbar to copy the test to the clipboard, then press `Ctrl+C` in
+the terminal. Codegen
 disconnects from the device and shuts the server down.

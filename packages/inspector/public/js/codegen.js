@@ -11,6 +11,8 @@ const TEST_BODY_END = '});'
 
 const TREE_OPEN_STORAGE_KEY = 'mobilewright-codegen-tree-open'
 
+const COPIED_FEEDBACK_MS = 1500
+
 const GESTURE_NAMES = { tap: 'Tap', doubleTap: 'Double tap', longPress: 'Long press' }
 
 // The Inspector hides its detail pane on every refresh, which continuous refresh would do constantly,
@@ -73,6 +75,7 @@ class Recorder {
   #deviceButtons = [...document.querySelectorAll('.device-btn')]
   #assertButtons = [...document.querySelectorAll('.assert-btn')]
   #treeBtn = document.getElementById('tree-btn')
+  #copyBtn = document.getElementById('copy-btn')
   #treePane = document.getElementById('tree-pane')
   #geoForm = document.getElementById('geo-popover')
   #detailPane = new DetailPane()
@@ -137,6 +140,7 @@ class Recorder {
       btn.addEventListener('click', () => this.#performGesture(btn.dataset.gesture, this.#detailElement))
     }
     this.#treeBtn.addEventListener('click', () => this.#setTreeOpen(this.#treePane.hidden))
+    this.#copyBtn.addEventListener('click', () => this.#copyTest())
     this.#setTreeOpen(readTreeOpen())
     for (const btn of this.#deviceButtons.filter(b => b.dataset.button)) {
       const button = btn.dataset.button
@@ -205,6 +209,23 @@ class Recorder {
   async #setGeolocation(geolocation, codeLine) {
     this.#geoForm.hidePopover()
     await this.#perform('Set location', '/api/geolocation', { geolocation }, codeLine)
+  }
+
+  async #copyTest() {
+    const icon = this.#copyBtn.querySelector('.codicon')
+    try {
+      await navigator.clipboard.writeText(this.#editor.value)
+    } catch (err) {
+      this.#statusBar.textContent = `Copy failed: ${err.message}`
+      this.#statusBar.className = 'error'
+      return
+    }
+    icon.classList.replace('codicon-files', 'codicon-check')
+    this.#copyBtn.title = 'Copied'
+    setTimeout(() => {
+      icon.classList.replace('codicon-check', 'codicon-files')
+      this.#copyBtn.title = 'Copy test'
+    }, COPIED_FEEDBACK_MS)
   }
 
   #setTreeOpen(isOpen) {
