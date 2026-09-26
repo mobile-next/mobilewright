@@ -97,15 +97,35 @@ test.describe('DeviceManager.select', () => {
     expect(dm.deviceInfo).toEqual({ id: 'sim-1', platform: 'ios' });
   });
 
-  test('throws DeviceError(blocked) when inspect in flight', async () => {
+  test('waits for an in-flight inspect to finish, then connects', async () => {
+    // Codegen refreshes back to back, so an inspect is almost always running when the user switches.
+    const launched = fakeDevice();
+    let launchCalls = 0;
+    const dm = new DeviceManager({
+      ios: { devices: async () => [], launch: async () => { launchCalls++; return launched as unknown as Device; } },
+      android: { devices: async () => [], launch: async () => { throw new Error(); } },
+    });
+    dm.beginInspect();
+    const selecting = dm.select('sim-1', 'ios');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(launchCalls).toBe(0);
+
+    dm.endInspect();
+    await selecting;
+
+    expect(dm.device).toBe(launched);
+  });
+
+  test('blocks new inspects while waiting to switch devices', async () => {
     const dm = new DeviceManager({
       ios: { devices: async () => [], launch: async () => fakeDevice() as unknown as Device },
       android: { devices: async () => [], launch: async () => { throw new Error(); } },
     });
     dm.beginInspect();
-    const err = await dm.select('sim-1', 'ios').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(DeviceError);
-    expect((err as DeviceError).code).toBe('blocked');
+    const selecting = dm.select('sim-1', 'ios');
+    dm.endInspect();
+    expect(dm.beginInspect()).toBe(false);
+    await selecting;
   });
 
   test('throws DeviceError(in_progress) when select already running', async () => {
@@ -177,15 +197,15 @@ test.describe('DeviceManager.beginInspect / endInspect', () => {
 
 test.describe('DeviceError', () => {
   test('is instanceof Error', () => {
-    expect(new DeviceError('msg', 'blocked')).toBeInstanceOf(Error);
+    expect(new DeviceError('msg', 'not_found')).toBeInstanceOf(Error);
   });
 
   test('has name=DeviceError', () => {
-    expect(new DeviceError('msg', 'blocked').name).toBe('DeviceError');
+    expect(new DeviceError('msg', 'not_found').name).toBe('DeviceError');
   });
 
   test('has code property', () => {
-    expect(new DeviceError('msg', 'blocked').code).toBe('blocked');
+    expect(new DeviceError('msg', 'not_found').code).toBe('not_found');
     expect(new DeviceError('msg', 'in_progress').code).toBe('in_progress');
   });
 });

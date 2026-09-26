@@ -11,7 +11,7 @@ export interface MobilewrightLauncher {
 }
 
 /** Discriminated union of error codes thrown by DeviceManager. */
-export type DeviceErrorCode = 'blocked' | 'in_progress' | 'not_found' | 'connect_failed';
+export type DeviceErrorCode = 'in_progress' | 'not_found' | 'connect_failed';
 
 /** Structured error thrown by DeviceManager for expected failure modes. */
 export class DeviceError extends Error {
@@ -45,8 +45,11 @@ export class DeviceManager {
   #activeDevice: Device | null = null;
   /** Identity of the currently connected device, or null when no device is selected. */
   #activeDeviceInfo: DeviceInfoRecord | null = null;
-  /** True while an inspect operation is in progress; blocks concurrent select(). */
+  /** True while an inspect operation is in progress; select() waits for it to finish. */
   #inspectInFlight = false;
+  /** Resolves when the in-flight inspect ends; null when none is running. */
+  #inspectDone: Promise<void> | null = null;
+  #resolveInspectDone: (() => void) | null = null;
   /** True while a select() call is awaiting launcher.launch(); blocks concurrent select(). */
   #selecting = false;
   /** True after close() is called; prevents new connections after shutdown. */
@@ -77,16 +80,22 @@ export class DeviceManager {
 
   /**
    * Connect to a device, closing any previous connection first.
-   * Throws DeviceError if an inspect is in flight, a select is already in progress,
-   * or the previous device cannot be cleanly disconnected.
+   * Waits for an in-flight inspect to finish (codegen refreshes back to back, so one is nearly
+   * always running) and blocks new ones until the switch is done.
+   * Throws DeviceError if a select is already in progress or the previous device cannot be
+   * cleanly disconnected.
    */
   async select(deviceId: string, platform: 'ios' | 'android'): Promise<Device> {
-    if (this.#closed) throw new DeviceError('DeviceManager is closed', 'connect_failed');
-    if (this.#inspectInFlight) throw new DeviceError('Device switch blocked: inspect in progress', 'blocked');
-    if (this.#selecting) throw new DeviceError('Device switch already in progress', 'in_progress');
+    if (this.#closed) {
+      throw new DeviceError('DeviceManager is closed', 'connect_failed');
+    }
+    if (this.#selecting) {
+      throw new DeviceError('Device switch already in progress', 'in_progress');
+    }
 
     this.#selecting = true;
     try {
+      await this.#inspectDone;
       if (this.#activeDevice) {
         logger.info(`Closing previous device ${this.#activeDeviceInfo?.id}`);
         try {
@@ -123,14 +132,20 @@ export class DeviceManager {
    * Returns false if an inspect is already in flight or a device switch is in progress.
    */
   beginInspect(): boolean {
-    if (this.#inspectInFlight || this.#selecting) return false;
+    if (this.#inspectInFlight || this.#selecting) {
+      return false;
+    }
     this.#inspectInFlight = true;
+    this.#inspectDone = new Promise(resolve => { this.#resolveInspectDone = resolve; });
     return true;
   }
 
-  /** Clear the inspect-in-flight flag set by beginInspect(). */
+  /** Clear the inspect-in-flight flag set by beginInspect(), releasing a waiting select(). */
   endInspect(): void {
     this.#inspectInFlight = false;
+    this.#resolveInspectDone?.();
+    this.#resolveInspectDone = null;
+    this.#inspectDone = null;
   }
 
   /**

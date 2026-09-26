@@ -764,11 +764,7 @@ export class Inspector {
     this.#setRefreshButtonDisabled(true)
     this.#deviceSelect.disabled = true
     try {
-      const res = await fetch(`/api/devices/${encodeURIComponent(device.id)}/select`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: device.platform }),
-      })
+      const res = await fetch(`/api/devices/select?${new URLSearchParams({ device: device.id })}`, { method: 'POST' })
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error ?? res.statusText)

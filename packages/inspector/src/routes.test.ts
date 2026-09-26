@@ -120,44 +120,56 @@ test.describe('GET /api/devices', () => {
   });
 });
 
-// ---- POST /api/devices/:id/select ----
+// ---- POST /api/devices/select?device= ----
 
-test.describe('POST /api/devices/:id/select', () => {
+test.describe('POST /api/devices/select', () => {
   let server: http.Server;
   let base: string;
+  let dm: DeviceManager;
+  const launchedWith: string[] = [];
 
   test.beforeAll(async () => {
-    const dm = new DeviceManager({
+    dm = new DeviceManager({
       ios: {
         devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
-        launch: async () => ({ screen: {}, close: async () => {} }) as never,
+        launch: async ({ deviceId }) => { launchedWith.push(`ios:${deviceId}`); return ({ screen: {}, close: async () => {} }) as never; },
       },
-      android: { devices: async () => [], launch: async () => { throw new Error(); } },
+      android: {
+        devices: async () => [{ id: 'Pixel_9a', name: 'Pixel 9a' } as never],
+        launch: async ({ deviceId }) => { launchedWith.push(`android:${deviceId}`); return ({ screen: {}, close: async () => {} }) as never; },
+      },
     })
     ;({ server, base } = await startServer(dm));
   });
 
   test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
 
-  test('returns 400 when platform is missing', async () => {
-    const { status } = await post(`${base}/api/devices/sim-1/select`, {});
-    expect(status).toBe(400);
-  });
+  test.beforeEach(() => { launchedWith.length = 0; });
 
-  test('returns 400 when platform is invalid', async () => {
-    const { status } = await post(`${base}/api/devices/sim-1/select`, { platform: 'windows' });
+  test('returns 400 when device is missing', async () => {
+    const { status } = await post(`${base}/api/devices/select`, {});
     expect(status).toBe(400);
   });
 
   test('returns 404 when device id is unknown', async () => {
-    const { status } = await post(`${base}/api/devices/unknown/select`, { platform: 'ios' });
+    const { status } = await post(`${base}/api/devices/select?device=unknown`, {});
     expect(status).toBe(404);
   });
 
-  test('returns 200 when device exists and connect succeeds', async () => {
-    const { status, body } = await post(`${base}/api/devices/sim-1/select`, { platform: 'ios' });
+  test('connects with the platform the device is listed under', async () => {
+    const { status, body } = await post(`${base}/api/devices/select?device=Pixel_9a`, {});
     expect(status).toBe(200);
     expect((body as { ok: boolean }).ok).toBe(true);
+    expect(launchedWith).toEqual(['android:Pixel_9a']);
+  });
+
+  test('switches devices while an inspect is running, once it finishes', async () => {
+    dm.beginInspect();
+    const switching = post(`${base}/api/devices/select?device=sim-1`, {});
+    setTimeout(() => dm.endInspect(), 20);
+    const { status } = await switching;
+    expect(status).toBe(200);
+    expect(launchedWith).toEqual(['ios:sim-1']);
   });
 });
 
