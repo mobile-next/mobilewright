@@ -22,7 +22,8 @@ This is a living document of planned and in-progress features. Items are roughly
 | ✅ Flutter support | Full locator API for Flutter apps on iOS and Android, since 0.0.60 — app must be a debug build |
 | ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
 | ✅ Inspector | `mobilewright inspect` — browse the live view hierarchy and copy locators |
-| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect` |
+| ✅ Codegen | `mobilewright codegen` — record taps, device buttons and assertions into a test |
+| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect`, `codegen` |
 
 ## What's coming
 
@@ -34,7 +35,6 @@ This is a living document of planned and in-progress features. Items are roughly
 | **Mobilewright CLI** | Command-line tool for managing fleets of real devices — provisioning, grouping, and running tests across many devices in parallel. | Planned |
 | **Mobilewright MCP** | MCP server exposing Mobilewright capabilities to AI agents and coding assistants. | Planned |
 | **Device Logs** | Programmatic access to device system logs (iOS `os_log`, Android `logcat`). Filter, capture, and assert on log output from within your test. | Planned |
-| **Codegen** | Record interactions on a real device or simulator and automatically generate Mobilewright TypeScript test code. Similar to `playwright codegen`. | Planned |
 | **Tracing** | Step-by-step execution traces with per-action logs, screenshots, and timing attached to a visual timeline. Open with `mobilewright show-trace`. | Planned |
 | **Network Capture** | Record `.har` files and inspect HTTP/HTTPS traffic during test runs. | Planned |
 | **Network Interception** | Stub, modify, or block HTTP/HTTPS requests in flight to test error states and offline behavior without a live backend. | Planned |

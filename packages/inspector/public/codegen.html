@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mobilewright Codegen</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="codegen">
+  <header>
+    <h1><img src="/logo.png" alt="" width="22" height="18" />Mobilewright Codegen</h1>
+    <div id="device-picker">
+      <select id="device-select" aria-label="Device">
+        <option value="">No devices found</option>
+      </select>
+    </div>
+    <div id="theme-controls">
+      <label for="theme-select">Theme</label>
+      <select id="theme-select">
+        <option value="void">Void</option>
+        <option value="aurora">Aurora</option>
+        <option value="crimson">Crimson</option>
+        <option value="arctic">Arctic</option>
+        <option value="synthwave">Synthwave</option>
+      </select>
+    </div>
+    <div id="status-bar" aria-live="polite"></div>
+  </header>
+
+  <main>
+    <section id="screenshot-pane">
+      <div id="device-toolbar" role="toolbar" aria-label="Device buttons">
+        <button class="tool-btn device-btn" data-button="HOME" title="Home" aria-label="Home" disabled>
+          <span class="codicon codicon-home" aria-hidden="true"></span>
+        </button>
+        <button class="tool-btn device-btn" data-button="APP_SWITCH" data-android-only title="App switch" aria-label="App switch" disabled>
+          <span class="codicon codicon-multiple-windows" aria-hidden="true"></span>
+        </button>
+        <button class="tool-btn device-btn" data-button="BACK" data-android-only title="Back" aria-label="Back" disabled>
+          <span class="codicon codicon-arrow-left" aria-hidden="true"></span>
+        </button>
+        <button id="geo-btn" class="tool-btn device-btn" popovertarget="geo-popover" title="Set location" aria-label="Set location" disabled>
+          <span class="codicon codicon-location" aria-hidden="true"></span>
+        </button>
+      </div>
+      <form id="geo-popover" popover aria-label="Set location">
+        <label>Latitude <input name="latitude" type="number" step="any" min="-90" max="90" placeholder="-17.833" required /></label>
+        <label>Longitude <input name="longitude" type="number" step="any" min="-180" max="180" placeholder="177.947" required /></label>
+        <div class="geo-actions">
+          <button type="button" id="geo-reset-btn" class="tool-btn">Reset location</button>
+          <button type="submit" class="tool-btn geo-set-btn">Set</button>
+        </div>
+      </form>
+      <div id="screenshot-container">
+        <div id="no-device-msg">
+          <svg class="placeholder-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="14" y="4" width="36" height="56" rx="6" stroke="currentColor" stroke-width="2.5"/>
+            <rect x="20" y="10" width="24" height="36" rx="2" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+            <circle cx="32" cy="54" r="2.5" fill="currentColor" opacity="0.5"/>
+            <line x1="28" y1="7" x2="36" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+          </svg>
+          <p class="placeholder-title" id="placeholder-title">Select a device</p>
+          <p class="placeholder-sub" id="placeholder-sub">Pick a connected device or simulator above</p>
+        </div>
+        <img id="screenshot-img" alt="Device screenshot" hidden />
+        <svg id="highlight-overlay" hidden></svg>
+      </div>
+    </section>
+    <div class="splitter" id="screenshot-splitter" role="separator" aria-orientation="vertical" aria-label="Resize device pane" tabindex="0"></div>
+    <section id="editor-pane">
+      <div id="recorder-toolbar" role="toolbar" aria-label="Recorder">
+        <button id="record-btn" class="tool-btn" aria-pressed="true" title="Stop recording">
+          <span class="codicon codicon-circle-large-filled" aria-hidden="true"></span>Record
+        </button>
+        <span class="tool-separator"></span>
+        <button id="assert-text-btn" class="tool-btn assert-btn" data-mode="assertText" title="Assert text" aria-label="Assert text" aria-pressed="false">
+          <span class="codicon codicon-whole-word" aria-hidden="true"></span>
+        </button>
+        <button id="assert-value-btn" class="tool-btn assert-btn" data-mode="assertValue" title="Assert value" aria-label="Assert value" aria-pressed="false">
+          <span class="codicon codicon-symbol-constant" aria-hidden="true"></span>
+        </button>
+        <button class="tool-btn" title="Assert snapshot (coming soon)" aria-label="Assert snapshot" disabled>
+          <span class="codicon codicon-gist" aria-hidden="true"></span>
+        </button>
+        <span class="tool-separator"></span>
+        <button id="tree-btn" class="tool-btn" title="View tree" aria-label="View tree" aria-pressed="false" aria-controls="tree-pane">
+          <span class="codicon codicon-list-tree" aria-hidden="true"></span>
+        </button>
+        <button id="copy-btn" class="tool-btn" title="Copy test" aria-label="Copy test">
+          <span class="codicon codicon-files" aria-hidden="true"></span>
+        </button>
+      </div>
+      <textarea id="code-editor" spellcheck="false" aria-label="Generated test code"></textarea>
+    </section>
+    <div class="splitter" id="tree-splitter" role="separator" aria-orientation="vertical" aria-label="Resize view tree" tabindex="0"></div>
+    <section id="tree-pane" aria-label="View tree" hidden>
+      <div id="view-tree"></div>
+      <div class="splitter horizontal" id="detail-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize element details" tabindex="0"></div>
+      <section id="detail-pane" hidden>
+        <div id="detail-header">
+          <span id="detail-type"></span>
+          <button id="detail-close" aria-label="Close detail panel">&times;</button>
+        </div>
+        <div id="detail-body">
+          <div id="detail-actions" role="group" aria-label="Element actions">
+            <button class="tool-btn gesture-btn" data-gesture="tap">Tap</button>
+            <button class="tool-btn gesture-btn" data-gesture="doubleTap">Double tap</button>
+            <button class="tool-btn gesture-btn" data-gesture="longPress">Long press</button>
+          </div>
+          <div id="detail-locators"></div>
+          <div id="detail-properties"></div>
+          <div id="detail-raw" hidden></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/js/codegen.js" type="module"></script>
+</body>
+</html>

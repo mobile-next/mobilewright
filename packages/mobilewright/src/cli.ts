@@ -306,33 +306,47 @@ program
     if (checks.some(c => c.status === 'error')) process.exitCode = 1;
   });
 
-// ── inspect ────────────────────────────────────────────────────────────
+// ── inspect / codegen ──────────────────────────────────────────────────
+// Both commands share the inspector server; they differ only in the page opened.
+async function openInspectorPage(portOption: string, title: string, path: string): Promise<void> {
+  const { start } = await import('@mobilewright/inspector');
+  const { default: open } = await import('open');
+  const { ios, android } = await import('./launchers.js');
+
+  const port = Number(portOption);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`error: --port must be a valid port number, got: ${portOption}`);
+    process.exit(1);
+  }
+
+  const inspector = await start({ ios, android, port });
+  const url = inspector.url + path;
+  console.log(`${title} running at ${url}`);
+  try { await open(url); } catch { /* no browser available; URL already printed */ }
+
+  async function shutdown(): Promise<void> {
+    await inspector.close();
+    process.exit(0);
+  }
+
+  process.on('SIGINT', () => { void shutdown(); });
+  process.on('SIGTERM', () => { void shutdown(); });
+}
+
 program
   .command('inspect')
   .description('open the Mobilewright Inspector in your browser')
   .option('-p, --port <port>', 'port to listen on', '4621')
   .action(async (opts: { port: string }) => {
-    const { start } = await import('@mobilewright/inspector');
-    const { default: open } = await import('open');
-    const { ios, android } = await import('./launchers.js');
+    await openInspectorPage(opts.port, 'Mobilewright Inspector', '');
+  });
 
-    const port = Number(opts.port);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) {
-      console.error(`error: --port must be a valid port number, got: ${opts.port}`);
-      process.exit(1);
-    }
-
-    const inspector = await start({ ios, android, port });
-    console.log(`Mobilewright Inspector running at ${inspector.url}`);
-    try { await open(inspector.url); } catch { /* no browser available; URL already printed */ }
-
-    async function shutdown(): Promise<void> {
-      await inspector.close();
-      process.exit(0);
-    }
-
-    process.on('SIGINT', () => { void shutdown(); });
-    process.on('SIGTERM', () => { void shutdown(); });
+program
+  .command('codegen')
+  .description('record taps on a device and generate a test in your browser')
+  .option('-p, --port <port>', 'port to listen on; 0 picks a random free port', '0')
+  .action(async (opts: { port: string }) => {
+    await openInspectorPage(opts.port, 'Mobilewright Codegen', '/codegen');
   });
 
 // ── init ───────────────────────────────────────────────────────────────

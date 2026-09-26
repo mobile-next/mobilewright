@@ -30,7 +30,7 @@ npx mobilewright inspect --port 8080
 1. **Pick a device** from the selector at the top. Any connected device,
    simulator, or emulator shows up here.
 2. Click **Refresh** to capture the current screen, or enable **Auto-refresh**
-   and choose an interval (5 s – 1 min) to keep it in sync as you navigate the app.
+   and choose an interval (1 s – 1 min) to keep it in sync as you navigate the app.
 3. The left pane shows the screenshot; the right pane lists every element with its
    recommended locator.
 4. Click a row to highlight that element's bounding box on the screenshot, or click

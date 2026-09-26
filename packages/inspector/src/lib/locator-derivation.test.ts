@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { ViewNode } from '@mobilewright/protocol';
-import { deriveLocator, deriveElementList } from './locator-derivation.js';
+import { deriveLocator, deriveElementList, locatorMatchPosition } from './locator-derivation.js';
 
 function node(overrides: Partial<ViewNode> = {}): ViewNode {
   return {
@@ -316,5 +316,49 @@ test.describe('deriveElementList — duplicate test IDs', () => {
     const only = node({ type: 'button', identifier: 'only-one', label: 'Save' });
 
     expect(primaryKinds([only])).toEqual(['testId']);
+  });
+});
+
+// ---- locatorMatchPosition ----
+
+test.describe('locatorMatchPosition', () => {
+  test('a locator that matches one element is at position 0 of 1', () => {
+    const ok = node({ text: 'OK' });
+    const tree = [node({ text: 'Cancel' }), ok];
+    expect(locatorMatchPosition(tree, ok, { kind: 'text', value: 'OK' })).toEqual({ index: 0, count: 1 });
+  });
+
+  test('the second of two identical buttons is at position 1 of 2', () => {
+    const first = node({ type: 'button', label: 'Delete' });
+    const second = node({ type: 'button', label: 'Delete' });
+    const tree = [node({ type: 'other', children: [first] }), second];
+    expect(locatorMatchPosition(tree, second, { kind: 'label', value: 'Delete' })).toEqual({ index: 1, count: 2 });
+  });
+
+  test('counts elements the query engine matches even when their own locator differs', () => {
+    // getByText also matches labels, so the label-only node counts as a match too.
+    const labelled = node({ label: 'Save' });
+    const text = node({ text: 'Save' });
+    expect(locatorMatchPosition([labelled, text], text, { kind: 'text', value: 'Save' })).toEqual({ index: 1, count: 2 });
+  });
+
+  test('returns null when the locator does not match the element itself', () => {
+    const el = node({ text: 'Hello' });
+    expect(locatorMatchPosition([el], el, { kind: 'text', value: 'Goodbye' })).toBeNull();
+  });
+});
+
+// ---- deriveElementList depth ----
+
+test.describe('deriveElementList — depth', () => {
+  test('reports how deep each element sits in the view tree', () => {
+    const tree = [
+      node({ type: 'window', children: [
+        node({ type: 'other', children: [node({ text: 'Profit!' })] }),
+        node({ type: 'button', label: 'Add' }),
+      ] }),
+    ];
+    const depths = deriveElementList(tree).map(entry => [entry.node.type, entry.depth]);
+    expect(depths).toEqual([['window', 0], ['other', 1], ['statictext', 2], ['button', 1]]);
   });
 });

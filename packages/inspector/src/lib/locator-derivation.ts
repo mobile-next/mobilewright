@@ -3,7 +3,7 @@
 // and reuses its ROLE_TYPE_MAP so role derivation cannot drift from role matching.
 
 import type { ViewNode } from '@mobilewright/protocol';
-import { ROLE_TYPE_MAP, bareTypeName } from '@mobilewright/core';
+import { ROLE_TYPE_MAP, bareTypeName, queryAll } from '@mobilewright/core';
 
 // core declares ROLE_TYPE_MAP `as const`, so each value is a readonly tuple of
 // string literals. Widen to plain strings once, here, so membership can be tested
@@ -22,10 +22,12 @@ export type Locator =
   | { kind: 'label';  value: string }
   | { kind: 'text';   value: string };
 
-interface ElementEntry {
+export interface ElementEntry {
   node: ViewNode;
   locator: Locator | null;
   locators: Locator[];
+  /** Nesting level in the view tree; roots are 0. With the depth-first order this rebuilds the tree. */
+  depth: number;
 }
 
 /** Map node.type to a mobilewright role string. Returns null for unmapped types. */
@@ -138,14 +140,37 @@ function preferUniqueRolesOverDuplicateTestIds(entries: ElementEntry[]): Element
 export function deriveElementList(roots: ViewNode[]): ElementEntry[] {
   const result: ElementEntry[] = [];
 
-  function walk(nodes: ViewNode[]): void {
+  function walk(nodes: ViewNode[], depth: number): void {
     for (const node of nodes) {
       const nodeLocators = deriveLocators(node);
-      result.push({ node, locator: nodeLocators[0] ?? null, locators: nodeLocators });
-      if (node.children?.length) walk(node.children);
+      result.push({ node, locator: nodeLocators[0] ?? null, locators: nodeLocators, depth });
+      if (node.children?.length) {
+        walk(node.children, depth + 1);
+      }
     }
   }
 
-  walk(roots);
+  walk(roots, 0);
   return preferUniqueRolesOverDuplicateTestIds(result);
+}
+
+/** Where a node sits among every node its locator matches. */
+export interface MatchPosition {
+  index: number;
+  count: number;
+}
+
+/**
+ * Position of `node` among all matches of `locator`, computed with core's own query
+ * engine, so `index` is exactly what `.nth(index)` resolves to when the test runs.
+ * Returns null when the locator does not match the node at all.
+ * ponytail: one full-tree query per element, O(n²) per refresh; index the tree if screens get huge.
+ */
+export function locatorMatchPosition(roots: ViewNode[], node: ViewNode, locator: Locator): MatchPosition | null {
+  const matches = queryAll(roots, locator);
+  const index = matches.indexOf(node);
+  if (index === -1) {
+    return null;
+  }
+  return { index, count: matches.length };
 }

@@ -7,7 +7,7 @@
 </head>
 <body>
   <header>
-    <h1>Mobilewright Inspector</h1>
+    <h1><img src="/logo.png" alt="" width="22" height="18" />Mobilewright Inspector</h1>
     <div id="device-picker">
       <select id="device-select" aria-label="Device">
         <option value="">No devices found</option>
@@ -20,6 +20,7 @@
         Auto-refresh
       </label>
       <select id="auto-refresh-interval" aria-label="Auto-refresh interval" disabled>
+        <option value="1000">1 s</option>
         <option value="5000">5 s</option>
         <option value="10000">10 s</option>
         <option value="20000">20 s</option>
@@ -75,6 +76,6 @@
     </section>
   </main>
 
-  <script src="/js/app.js" type="module"></script>
+  <script src="/js/inspect.js" type="module"></script>
 </body>
 </html>

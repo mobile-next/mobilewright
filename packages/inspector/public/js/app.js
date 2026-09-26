@@ -1,4 +1,4 @@
-// Mobilewright Inspector frontend. No framework, no build step.
+// Shared Mobilewright Inspector frontend, used by inspect.js and codegen.js. No framework, no build step.
 
 // ---- Pure locator utilities ----
 
@@ -9,7 +9,7 @@ function locatorKey(locator) {
   return `${locator.kind}:${locator.value}`
 }
 
-function escQ(s) {
+export function escQ(s) {
   return s
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
@@ -31,6 +31,19 @@ function locatorLabel(locator) {
   return ''
 }
 
+// The code that selects this element: its best locator, plus .nth() when the query engine
+// resolves that locator to several elements (el.match comes from the server).
+export function locatorCode(el) {
+  if (!el.locator) {
+    return null
+  }
+  const base = locatorLabel(el.locator)
+  if (el.match && el.match.count > 1) {
+    return `${base}.nth(${el.match.index})`
+  }
+  return base
+}
+
 function buildDuplicateSet(elements) {
   const counts = new Map()
   for (const el of elements) {
@@ -46,7 +59,7 @@ function buildDuplicateSet(elements) {
 // ---- ScreenshotPane ----
 // Owns the screenshot image, SVG highlight overlay, and placeholder state.
 
-class ScreenshotPane {
+export class ScreenshotPane {
   #img
   #overlay
   #placeholder
@@ -54,6 +67,7 @@ class ScreenshotPane {
   #placeholderSub
   #logicalWidth = 0
   #logicalHeight = 0
+  #deviceScale = 0  // device pixels per logical point, e.g. 3 on most iPhones
   #elements = []
   #hiddenIndices = new Set()
   #selectedIndex = null
@@ -61,8 +75,12 @@ class ScreenshotPane {
   #screenshotPane  // cached pane element for #constrainSize
   // O(1) lookup from element index to its SVG rect; rebuilt on each renderHighlights call.
   #rectByIndex = new Map()
+  #showAllHighlights
+  #hoverRect = null
 
-  constructor() {
+  // showAllHighlights: false draws no element boxes, only the one passed to showHoverBox (codegen).
+  constructor({ showAllHighlights = true } = {}) {
+    this.#showAllHighlights = showAllHighlights
     this.#img = document.getElementById('screenshot-img')
     this.#overlay = document.getElementById('highlight-overlay')
     this.#placeholder = document.getElementById('no-device-msg')
@@ -73,6 +91,54 @@ class ScreenshotPane {
   }
 
   onElementClick(cb) { this.#onClickCb = cb }
+
+  // Report clicks / pointer moves on the screenshot as integer device coordinates (logical points, not image pixels).
+  // The third argument is whether Shift was held.
+  onScreenTap(cb) {
+    this.#img.addEventListener('click', e => cb(...this.#devicePointOf(e), e.shiftKey))
+  }
+
+  onScreenHover(cb) {
+    this.#img.addEventListener('mousemove', e => cb(...this.#devicePointOf(e), e.shiftKey))
+    this.#img.addEventListener('mouseleave', () => cb(null, null, false))
+  }
+
+  // The smallest visible element under (x, y) that passes `accepts`, or null.
+  elementAt(x, y, accepts = () => true) {
+    let best = null
+    for (const el of this.#visibleElements()) {
+      const b = el.bounds
+      const isInside = x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
+      if (isInside && accepts(el) && (!best || b.width * b.height < best.bounds.width * best.bounds.height)) {
+        best = el
+      }
+    }
+    return best
+  }
+
+  showHoverBox(el) {
+    this.#hoverRect?.remove()
+    this.#hoverRect = null
+    if (!el) {
+      return
+    }
+    const { x, y, width, height } = el.bounds
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    rect.setAttribute('x', x)
+    rect.setAttribute('y', y)
+    rect.setAttribute('width', width)
+    rect.setAttribute('height', height)
+    rect.classList.add('hover-rect')
+    this.#hoverRect = rect
+    this.#overlay.appendChild(rect)
+  }
+
+  #devicePointOf(e) {
+    const box = this.#img.getBoundingClientRect()
+    const scaleX = (this.#logicalWidth || this.#img.naturalWidth) / box.width
+    const scaleY = (this.#logicalHeight || this.#img.naturalHeight) / box.height
+    return [Math.round((e.clientX - box.left) * scaleX), Math.round((e.clientY - box.top) * scaleY)]
+  }
 
   get isScreenshotHidden() { return this.#img.hidden }
 
@@ -85,9 +151,10 @@ class ScreenshotPane {
     this.#placeholder.classList.toggle('loading', loading)
   }
 
-  showScreenshot(dataUrl, logicalWidth = 0, logicalHeight = 0) {
+  showScreenshot(dataUrl, logicalWidth = 0, logicalHeight = 0, deviceScale = 0) {
     this.#logicalWidth = logicalWidth
     this.#logicalHeight = logicalHeight
+    this.#deviceScale = deviceScale
     this.#placeholder.hidden = true
     this.#placeholder.classList.remove('loading')
     this.#img.hidden = false
@@ -112,7 +179,11 @@ class ScreenshotPane {
 
   #buildRects() {
     this.#overlay.innerHTML = ''
+    this.#hoverRect = null
     this.#rectByIndex.clear()
+    if (!this.#showAllHighlights) {
+      return
+    }
     for (const el of this.#visibleElements()) {
       const { x, y, width, height } = el.bounds
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -140,11 +211,27 @@ class ScreenshotPane {
     )
   }
 
+  // Ask for a half-size screenshot when the pane can show at most half of the device's
+  // pixel height anyway; the full-size image would only be downscaled by the browser.
+  preferredScreenshotScale() {
+    const devicePixelHeight = this.#logicalHeight * this.#deviceScale
+    if (!devicePixelHeight) {
+      return 1
+    }
+    const panePixelHeight = this.#availableHeight() * window.devicePixelRatio
+    return panePixelHeight <= devicePixelHeight / 2 ? 0.5 : 1
+  }
+
+  // Height left for the screenshot below anything stacked above it in the pane (codegen's device toolbar).
+  #availableHeight() {
+    const cs = getComputedStyle(this.#screenshotPane)
+    const container = this.#img.parentElement
+    return this.#screenshotPane.clientHeight - container.offsetTop - parseFloat(cs.paddingBottom)
+  }
+
   #constrainSize() {
     if (this.#img.hidden) return
-    const cs = getComputedStyle(this.#screenshotPane)
-    const availH = this.#screenshotPane.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
-    this.#img.style.maxHeight = availH + 'px'
+    this.#img.style.maxHeight = this.#availableHeight() + 'px'
     const vw = this.#logicalWidth || this.#img.naturalWidth
     const vh = this.#logicalHeight || this.#img.naturalHeight
     this.#overlay.setAttribute('width', this.#img.offsetWidth)
@@ -156,7 +243,7 @@ class ScreenshotPane {
 // ---- DetailPane ----
 // Shows element properties, all locator strategies, raw attributes.
 
-class DetailPane {
+export class DetailPane {
   #pane
   #typeEl
   #locatorsEl
@@ -392,7 +479,7 @@ class ElementsPane {
     if (!el.locator) row.classList.add('no-locator')
     if (hiddenIndices.has(el.index)) row.classList.add('element-hidden')
 
-    const locLabel = el.locator ? locatorLabel(el.locator) : null
+    const locLabel = locatorCode(el)
     row.setAttribute('aria-label', locLabel ?? `${el.type ?? 'unknown'} (no locator)`)
 
     const badge = document.createElement('span')
@@ -457,7 +544,7 @@ class ElementsPane {
 // ---- Inspector ----
 // Orchestrates device management, the refresh cycle, and shared selection/visibility state.
 
-class Inspector {
+export class Inspector {
   #state = {
     devices: [],
     activeId: null,
@@ -471,37 +558,60 @@ class Inspector {
   // Pruned on each refresh to keys present in the new element list.
   #userOverrides = new Map()
   #autoRefreshTimer = null
+  // Etag of the payload on screen. Cleared whenever the screen stops showing it, so a 304 never
+  // leaves a placeholder or another device's state up.
+  #shownEtag = null
   #tickInFlight = false
   #refreshInFlight = false
   #connectInFlight = false
   #consecutiveErrors = 0
   static #MAX_CONSECUTIVE_ERRORS = 3
+  static #MIN_FRAME_MS = 100
+  // Continuous mode has no refresh controls, so the device list is polled on its own to pick up
+  // devices connected after the page opened (and disconnects between frames).
+  static #DEVICE_LIST_REFRESH_MS = 5000
 
-  #screenshotPane = new ScreenshotPane()
-  #elementsPane = new ElementsPane()
-  #detailPane = new DetailPane()
+  #screenshotPane
+  #elementsPane
+  #detailPane
   #deviceSelect = document.getElementById('device-select')
   #refreshBtn = document.getElementById('refresh-btn')
   #autoRefreshToggle = document.getElementById('auto-refresh-toggle')
   #autoRefreshInterval = document.getElementById('auto-refresh-interval')
   #statusBar = document.getElementById('status-bar')
 
-  constructor() {
+  #onActiveDeviceChangeCb
+  #isContinuousRefresh
+
+  // Panes are injectable so pages without an element list (codegen) can pass no-op stand-ins.
+  // onActiveDeviceChange(device | null) fires whenever the active device may have changed; it must be idempotent.
+  // continuousRefresh: request the next screenshot as soon as the previous one arrives, forever,
+  // for pages without the refresh controls (codegen).
+  constructor({ screenshotPane = new ScreenshotPane(), elementsPane = new ElementsPane(), detailPane = new DetailPane(), onActiveDeviceChange = null, continuousRefresh = false } = {}) {
+    this.#isContinuousRefresh = continuousRefresh
+    this.#screenshotPane = screenshotPane
+    this.#elementsPane = elementsPane
+    this.#detailPane = detailPane
+    this.#onActiveDeviceChangeCb = onActiveDeviceChange
     this.#screenshotPane.onElementClick(i => this.#selectElement(i))
     this.#elementsPane.onElementClick(i => this.#selectElement(i))
     this.#elementsPane.onToggleHidden(i => this.#toggleHidden(i))
     this.#detailPane.onClose(() => { this.#state.selectedIndex = null; this.#screenshotPane.setSelectedIndex(null); this.#elementsPane.setSelectedIndex(null) })
 
-    this.#refreshBtn.addEventListener('click', () => this.refresh())
+    this.#refreshBtn?.addEventListener('click', () => this.refresh())
     this.#deviceSelect.addEventListener('change', () => {
       const opt = this.#deviceSelect.selectedOptions[0]
       if (!opt?.value) return
       const device = this.#state.devices.find(d => d.id === opt.value)
       if (device) this.#connectDevice(device)
     })
-    this.#autoRefreshToggle.addEventListener('change', () => this.#applyAutoRefresh())
-    this.#autoRefreshInterval.addEventListener('change', () => this.#applyAutoRefresh())
+    this.#autoRefreshToggle?.addEventListener('change', () => this.#applyAutoRefresh())
+    this.#autoRefreshInterval?.addEventListener('change', () => this.#applyAutoRefresh())
 
+    if (continuousRefresh) {
+      this.#refreshContinuously()
+      setInterval(() => this.#fetchDevices().catch(() => {}), Inspector.#DEVICE_LIST_REFRESH_MS)
+    }
     this.#loadDevices()
   }
 
@@ -509,16 +619,28 @@ class Inspector {
     if (!this.#state.activeId) return
     if (this.#refreshInFlight) return
     this.#refreshInFlight = true
-    this.#refreshBtn.disabled = true
+    this.#setRefreshButtonDisabled(true)
 
     try {
-      const res = await fetch('/api/inspect')
+      const query = new URLSearchParams({ scale: this.#screenshotPane.preferredScreenshotScale() })
+      if (this.#shownEtag) {
+        query.set('etag', this.#shownEtag)
+      }
+      const res = await fetch(`/api/inspect?${query}`)
       if (res.status === 503) return  // another inspect in flight, skip this tick — no state changed yet
+      if (res.status === 304) {
+        // Screenshot, elements and screen are exactly what is already shown; keep hover and selection.
+        // Still reset the status, which may show an earlier failed refresh.
+        this.#setStatus(`${this.#state.elements.length} elements`)
+        this.#consecutiveErrors = 0
+        return
+      }
       this.#setStatus('Loading...', 'loading')
       if (this.#screenshotPane.isScreenshotHidden) {
         this.#screenshotPane.showPlaceholder('Loading screenshot...', '', true)
       }
       if (res.status === 409) {
+        this.#shownEtag = null
         this.#state.activeId = null
         this.#state.elements = []
         this.#state.hiddenIndices = new Set()
@@ -551,10 +673,11 @@ class Inspector {
 
       this.#state.hiddenIndices = this.#computeHiddenIndices()
 
-      this.#screenshotPane.showScreenshot(data.screenshot, this.#state.logicalWidth, this.#state.logicalHeight)
+      this.#screenshotPane.showScreenshot(data.screenshot, this.#state.logicalWidth, this.#state.logicalHeight, data.screen?.scale ?? 0)
       this.#elementsPane.render(this.#state.elements, this.#state.hiddenIndices)
       this.#screenshotPane.renderHighlights(this.#state.elements, this.#state.hiddenIndices, null)
       this.#setStatus(`${this.#state.elements.length} elements`)
+      this.#shownEtag = data.etag ?? null
       this.#consecutiveErrors = 0
     } catch (err) {
       this.#consecutiveErrors++
@@ -562,13 +685,14 @@ class Inspector {
       if (this.#screenshotPane.isScreenshotHidden) {
         this.#screenshotPane.showPlaceholder('Could not load screenshot', err.message)
       }
-      if (this.#consecutiveErrors >= Inspector.#MAX_CONSECUTIVE_ERRORS) {
+      // A fixed refresh has no toggle to turn it back on, so it keeps retrying instead.
+      if (!this.#isContinuousRefresh && this.#consecutiveErrors >= Inspector.#MAX_CONSECUTIVE_ERRORS) {
         this.#stopAutoRefresh()
         this.#setStatus(`Auto-refresh stopped after ${this.#consecutiveErrors} consecutive failures`, 'error')
       }
     } finally {
       this.#refreshInFlight = false
-      this.#refreshBtn.disabled = false
+      this.#setRefreshButtonDisabled(false)
     }
   }
 
@@ -593,6 +717,7 @@ class Inspector {
     if (this.#state.activeId !== prevActiveId) this.#userOverrides.clear()
     this.#renderDevicePicker()
     if (prevActiveId && !this.#state.activeId) {
+      this.#shownEtag = null
       this.#state.elements = []
       this.#state.selectedIndex = null
       this.#state.hiddenIndices = new Set()
@@ -603,6 +728,8 @@ class Inspector {
   }
 
   #renderDevicePicker() {
+    // Every change of activeId re-renders the picker, so this is the one place to report it.
+    this.#onActiveDeviceChangeCb?.(this.#state.devices.find(d => d.id === this.#state.activeId) ?? null)
     const currentIds = [...this.#deviceSelect.options].filter(o => o.value).map(o => o.value)
     const newIds = this.#state.devices.map(d => d.id)
     const sameList = currentIds.length === newIds.length && currentIds.every((id, i) => id === newIds[i])
@@ -638,14 +765,16 @@ class Inspector {
     if (this.#connectInFlight) return
     this.#connectInFlight = true
     this.#setStatus('Connecting...', 'loading')
+    this.#shownEtag = null
     this.#screenshotPane.showPlaceholder('Connecting...', device.name ?? device.id, true)
-    this.#refreshBtn.disabled = true
+    this.#setRefreshButtonDisabled(true)
     this.#deviceSelect.disabled = true
     try {
-      const res = await fetch(`/api/devices/${encodeURIComponent(device.id)}/select`, {
+      // The server only accepts JSON POSTs (it keeps other sites from driving the device), hence the empty body.
+      const res = await fetch(`/api/devices/select?${new URLSearchParams({ device: device.id })}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: device.platform }),
+        body: '{}',
       })
       if (!res.ok) {
         const err = await res.json()
@@ -662,7 +791,7 @@ class Inspector {
     } finally {
       this.#connectInFlight = false
       this.#deviceSelect.disabled = false
-      this.#refreshBtn.disabled = false
+      this.#setRefreshButtonDisabled(false)
     }
   }
 
@@ -714,17 +843,39 @@ class Inspector {
     this.#autoRefreshInterval.disabled = !this.#autoRefreshToggle.checked
     this.#consecutiveErrors = 0  // reset when user manually reconfigures auto-refresh
     if (this.#autoRefreshToggle.checked) {
-      const ms = Number(this.#autoRefreshInterval.value)
-      this.#autoRefreshTimer = setInterval(async () => {
-        if (this.#tickInFlight) return
-        this.#tickInFlight = true
-        try {
-          await this.#fetchDevices().catch(() => {})
-          await this.refresh()
-        } finally {
-          this.#tickInFlight = false
-        }
-      }, ms)
+      this.#startRefreshTimer(Number(this.#autoRefreshInterval.value))
+    }
+  }
+
+  // Back-to-back refreshes. A refresh that returns quickly (no device, error, another one
+  // in flight) is padded to MIN_FRAME_MS so the loop never spins.
+  async #refreshContinuously() {
+    for (;;) {
+      const startedAt = performance.now()
+      await this.refresh()
+      const remainingMs = Inspector.#MIN_FRAME_MS - (performance.now() - startedAt)
+      if (remainingMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingMs))
+      }
+    }
+  }
+
+  #startRefreshTimer(ms) {
+    this.#autoRefreshTimer = setInterval(async () => {
+      if (this.#tickInFlight) return
+      this.#tickInFlight = true
+      try {
+        await this.#fetchDevices().catch(() => {})
+        await this.refresh()
+      } finally {
+        this.#tickInFlight = false
+      }
+    }, ms)
+  }
+
+  #setRefreshButtonDisabled(isDisabled) {
+    if (this.#refreshBtn) {
+      this.#refreshBtn.disabled = isDisabled
     }
   }
 
@@ -744,7 +895,7 @@ class Inspector {
 
 // ---- Theme ----
 
-function applyTheme(name) {
+export function applyTheme(name) {
   document.documentElement.setAttribute('data-theme', name)
   localStorage.setItem('mobilewright-inspector-theme', name)
   const sel = document.getElementById('theme-select')
@@ -759,12 +910,16 @@ const KEYBOARD_RESIZE_STEP = 16
 
 // direction: 1 when the pane is left of its splitter, -1 when right of it.
 // CSS min/max-width on the pane does the clamping.
-function makeResizable(splitter, pane, cssVar, direction) {
+// axis: 'x' resizes the pane's width (vertical splitter), 'y' its height (horizontal splitter).
+export function makeResizable(splitter, pane, cssVar, direction, axis = 'x') {
   const main = splitter.parentElement
   const storageKey = 'mobilewright-inspector' + cssVar
+  const isVertical = axis === 'y'
+  const paneSize = () => isVertical ? pane.offsetHeight : pane.offsetWidth
+  const pointerPos = ev => isVertical ? ev.clientY : ev.clientX
   const setWidth = px => {
     main.style.setProperty(cssVar, px + 'px')
-    localStorage.setItem(storageKey, pane.offsetWidth)
+    localStorage.setItem(storageKey, paneSize())
   }
 
   const saved = localStorage.getItem(storageKey)
@@ -776,9 +931,9 @@ function makeResizable(splitter, pane, cssVar, direction) {
     e.preventDefault()
     splitter.setPointerCapture(e.pointerId)
     splitter.classList.add('dragging')
-    const startX = e.clientX
-    const startWidth = pane.offsetWidth
-    const onMove = ev => setWidth(startWidth + (ev.clientX - startX) * direction)
+    const startPos = pointerPos(e)
+    const startSize = paneSize()
+    const onMove = ev => setWidth(startSize + (pointerPos(ev) - startPos) * direction)
     splitter.addEventListener('pointermove', onMove)
     splitter.addEventListener('lostpointercapture', () => {
       splitter.removeEventListener('pointermove', onMove)
@@ -787,18 +942,11 @@ function makeResizable(splitter, pane, cssVar, direction) {
   })
 
   splitter.addEventListener('keydown', e => {
-    const step = { ArrowLeft: -KEYBOARD_RESIZE_STEP, ArrowRight: KEYBOARD_RESIZE_STEP }[e.key]
+    const keys = isVertical ? { ArrowUp: -KEYBOARD_RESIZE_STEP, ArrowDown: KEYBOARD_RESIZE_STEP } : { ArrowLeft: -KEYBOARD_RESIZE_STEP, ArrowRight: KEYBOARD_RESIZE_STEP }
+    const step = keys[e.key]
     if (step) {
       e.preventDefault()
-      setWidth(pane.offsetWidth + step * direction)
+      setWidth(paneSize() + step * direction)
     }
   })
 }
-
-makeResizable(document.getElementById('screenshot-splitter'), document.getElementById('screenshot-pane'), '--screenshot-width', 1)
-makeResizable(document.getElementById('detail-splitter'), document.getElementById('detail-pane'), '--detail-width', -1)
-
-// ---- Bootstrap ----
-
-applyTheme(localStorage.getItem('mobilewright-inspector-theme') || 'void')
-new Inspector()

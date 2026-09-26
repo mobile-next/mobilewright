@@ -510,6 +510,19 @@ Locator priority matches what mobilewright uses: `getByTestId` > `getByRole` > `
 
 ![Mobilewright Inspector](docs/src/images/inspector.png)
 
+### `mobilewright codegen`
+
+Record a test by using the device from your browser. Codegen shows a live screenshot of the connected device next to the test it is writing: every tap, device button and assertion you make is sent to the device and added as a line of code, using the same locators as the Inspector.
+
+```bash
+npx mobilewright codegen
+npx mobilewright codegen --port 8080   # use a specific port (default: a random free port)
+```
+
+Codegen opens in your browser automatically; its URL is also printed in the terminal in case the browser does not open.
+
+See the [Codegen guide](https://mobilewright.dev/docs/guides/codegen/) for recording assertions, gestures and locations.
+
 ### `mobilewright screenshot`
 
 Capture a screenshot of a connected device. Auto-starts mobilecli if it isn't running.

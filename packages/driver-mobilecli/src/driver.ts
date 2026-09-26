@@ -552,6 +552,7 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     const result = await this.call<MobilecliScreenshotResponse>('device.screenshot', {
       ...(opts?.format && { format: opts.format }),
       ...(opts?.quality !== undefined && { quality: opts.quality }),
+      ...(opts?.scale !== undefined && { scale: opts.scale }),
       ...(opts?.clip && { clip: opts.clip }),
     });
     let b64 = result.data;
