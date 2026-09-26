@@ -377,6 +377,7 @@ All options:
 | `deviceName` | `RegExp` | RegExp to match device name (optional) |
 | `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching (optional) |
 | `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
+| `reinstallApp` | `boolean` | Uninstall the app (`bundleId`) and reinstall `installApps` before each test attempt, for a fresh install. Default: `false` |
 | `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON to the report on failure. Default: `'off'` |
 | `timeout` | `number` | Per-test timeout in ms (optional) |
 | `globalTimeout` | `number` | Hard cap on the entire test suite run in ms (optional) |
@@ -454,6 +455,7 @@ The `device` fixture connects once per worker (reading from `mobilewright.config
 | `deviceName` | `RegExp` | RegExp to match the device name |
 | `installApps` | `string \| string[]` | App paths (APK/IPA) to install before the tests run |
 | `autoAppLaunch` | `boolean` | Launch the app automatically before each test. Default: `true` |
+| `reinstallApp` | `boolean` | Uninstall the app (`bundleId`) and reinstall `installApps` before each test attempt. Requires both. Default: `false` |
 | `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON when a test fails. Default: `'off'` |
 | `video` | `'on' \| 'retain-on-failure' \| 'off'` | Record video — always, only on failure, or never. Default: `'off'` |
 
@@ -462,6 +464,18 @@ test.use({
   bundleId: 'com.example.myapp',
   video: 'retain-on-failure',
   viewTree: 'on-failure',
+});
+```
+
+Reinstall only where a fresh install matters, such as onboarding tests, and keep the fast default elsewhere:
+
+```typescript
+test.describe('first launch', () => {
+  test.use({ reinstallApp: true });
+
+  test('shows onboarding', async ({ screen }) => {
+    await expect(screen.getByText('Welcome')).toBeVisible();
+  });
 });
 ```
 
