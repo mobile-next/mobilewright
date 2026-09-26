@@ -78,6 +78,7 @@ class Recorder {
   #detailPane = new DetailPane()
   #gestureButtons = [...document.querySelectorAll('.gesture-btn')]
   #detailElement = null
+  #viewTree
   #isRecording = true
   #clickMode = 'tap'
   #inspector
@@ -85,6 +86,7 @@ class Recorder {
   constructor() {
     const screenshotPane = new ScreenshotPane({ showAllHighlights: false })
     const viewTree = new ViewTreePane(document.getElementById('view-tree'))
+    this.#viewTree = viewTree
     this.#inspector = new Inspector({
       screenshotPane,
       elementsPane: viewTree,
@@ -97,10 +99,16 @@ class Recorder {
     for (const btn of this.#assertButtons) {
       btn.addEventListener('click', () => this.#setClickMode(this.#clickMode === btn.dataset.mode ? 'tap' : btn.dataset.mode))
     }
-    screenshotPane.onScreenHover((x, y) => {
-      screenshotPane.showHoverBox(x === null ? null : screenshotPane.elementAt(x, y, CLICK_MODES[this.#clickMode].accepts))
+    // Shift targets any element, since Shift-click only finds it in the view tree.
+    const acceptsFor = isShift => isShift ? hasArea : CLICK_MODES[this.#clickMode].accepts
+    screenshotPane.onScreenHover((x, y, isShift) => {
+      screenshotPane.showHoverBox(x === null ? null : screenshotPane.elementAt(x, y, acceptsFor(isShift)))
     })
-    screenshotPane.onScreenTap((x, y) => {
+    screenshotPane.onScreenTap((x, y, isShift) => {
+      if (isShift) {
+        this.#revealInTree(screenshotPane.elementAt(x, y, hasArea))
+        return
+      }
       const el = screenshotPane.elementAt(x, y, CLICK_MODES[this.#clickMode].accepts)
       if (el) {
         this.#clickElement(el)
@@ -170,6 +178,16 @@ class Recorder {
       ? `await screen.${locatorCode(el)}.${gesture}();`
       : `await screen.${gesture}(${center.x}, ${center.y});`
     this.#perform(GESTURE_NAMES[gesture], '/api/tap', { ...center, gesture }, code)
+  }
+
+  // Shift-click: select the element in the view tree and show its details, without touching the device.
+  #revealInTree(el) {
+    if (!el) {
+      return
+    }
+    this.#setTreeOpen(true)
+    this.#viewTree.selectElement(el)
+    this.#showDetail(el)
   }
 
   #showDetail(el) {

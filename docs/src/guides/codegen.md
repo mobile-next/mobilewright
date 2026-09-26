@@ -81,8 +81,11 @@ await expect(screen.getByLabel('Email')).toHaveValue('user@example.com');
 
 The **View tree** button opens the element hierarchy on the right. Hover over a row to
 highlight the element on the screenshot, and click it to see its locators and
-properties. From there, **Tap**, **Double tap** and **Long press** perform that gesture on
-the device and record it:
+properties. To find an element without scrolling the tree, **Shift-click** it on the
+screenshot: the tree opens, expands and selects it, and nothing is sent to the device.
+
+From the details, **Tap**, **Double tap** and **Long press** perform that gesture on the
+device and record it:
 
 ```ts
 await screen.getByTestId('photo').doubleTap();

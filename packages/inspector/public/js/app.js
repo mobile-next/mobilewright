@@ -93,13 +93,14 @@ export class ScreenshotPane {
   onElementClick(cb) { this.#onClickCb = cb }
 
   // Report clicks / pointer moves on the screenshot as integer device coordinates (logical points, not image pixels).
+  // The third argument is whether Shift was held.
   onScreenTap(cb) {
-    this.#img.addEventListener('click', e => cb(...this.#devicePointOf(e)))
+    this.#img.addEventListener('click', e => cb(...this.#devicePointOf(e), e.shiftKey))
   }
 
   onScreenHover(cb) {
-    this.#img.addEventListener('mousemove', e => cb(...this.#devicePointOf(e)))
-    this.#img.addEventListener('mouseleave', () => cb(null, null))
+    this.#img.addEventListener('mousemove', e => cb(...this.#devicePointOf(e), e.shiftKey))
+    this.#img.addEventListener('mouseleave', () => cb(null, null, false))
   }
 
   // The smallest visible element under (x, y) that passes `accepts`, or null.

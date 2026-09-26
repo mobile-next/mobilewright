@@ -45,9 +45,29 @@ export class ViewTreePane {
   // Fires after each render with the selected element's fresh snapshot, or null once it is gone.
   onSelectedElementChange(cb) { this.#onSelectedChangeCb = cb }
 
+  // Selects the element's row, expanding any collapsed ancestors and scrolling it into view.
   selectElement(el) {
-    this.#selectedKey = this.#rows.find(r => r.el === el)?.key ?? null
+    const index = this.#rows.findIndex(r => r.el === el)
+    if (index === -1) {
+      this.clearSelection()
+      return
+    }
+    this.#selectedKey = this.#rows[index].key
+    this.#expandAncestorsOf(index)
     this.#markSelected()
+    this.#rows[index].row.scrollIntoView({ block: 'nearest' })
+  }
+
+  // Rows are depth-first, so each ancestor is the nearest earlier row one level shallower.
+  #expandAncestorsOf(index) {
+    let depth = this.#rows[index].el.depth
+    for (let i = index - 1; i >= 0 && depth > 0; i--) {
+      if (this.#rows[i].el.depth < depth) {
+        this.#collapsedKeys.delete(this.#rows[i].key)
+        depth = this.#rows[i].el.depth
+      }
+    }
+    this.#applyCollapsed()
   }
 
   clearSelection() {
