@@ -22,7 +22,8 @@ This is a living document of planned and in-progress features. Items are roughly
 | ✅ Flutter support | Full locator API for Flutter apps on iOS and Android, since 0.0.60 — app must be a debug build |
 | ✅ Multi-project config | `projects: [{ name: 'iPhone', use: { platform: 'ios' } }, ...]` |
 | ✅ Inspector | `mobilewright inspect` — browse the live view hierarchy and copy locators |
-| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect` |
+| ✅ Codegen | `mobilewright codegen` — record taps, device buttons and assertions into a test |
+| ✅ CLI | `test`, `show-report`, `init`, `devices`, `doctor`, `screenshot`, `inspect`, `codegen` |
 
 ## What's coming
 

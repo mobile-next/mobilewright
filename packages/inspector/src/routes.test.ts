@@ -209,3 +209,366 @@ test.describe('GET /api/inspect — inspect already in progress', () => {
     expect(status).toBe(503);
   });
 });
+
+// ---- POST /api/tap ----
+
+function deviceManagerWithTapRecorder(taps: { x: number; y: number }[]): DeviceManager {
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: { tap: async (x: number, y: number) => { taps.push({ x, y }); } },
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('POST /api/tap — no device selected', () => {
+  let server: http.Server;
+  let base: string;
+
+  test.beforeAll(async () => {
+    ;({ server, base } = await startServer(deviceManagerWithTapRecorder([])));
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('returns 409 when no device is connected', async () => {
+    const { status } = await post(`${base}/api/tap`, { x: 10, y: 20 });
+    expect(status).toBe(409);
+  });
+});
+
+test.describe('POST /api/tap — device selected', () => {
+  let server: http.Server;
+  let base: string;
+  const taps: { x: number; y: number }[] = [];
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithTapRecorder(taps);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('returns 400 when coordinates are missing', async () => {
+    const { status } = await post(`${base}/api/tap`, { x: 10 });
+    expect(status).toBe(400);
+  });
+
+  test('returns 400 when coordinates are not numbers', async () => {
+    const { status } = await post(`${base}/api/tap`, { x: '10', y: 20 });
+    expect(status).toBe(400);
+  });
+
+  test('taps the device screen at the given coordinates', async () => {
+    const { status } = await post(`${base}/api/tap`, { x: 120, y: 340 });
+    expect(status).toBe(200);
+    expect(taps).toEqual([{ x: 120, y: 340 }]);
+  });
+});
+
+// ---- POST /api/press-button ----
+
+function deviceManagerWithButtonRecorder(presses: string[]): DeviceManager {
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: { pressButton: async (button: string) => { presses.push(button); } },
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('POST /api/press-button — no device selected', () => {
+  let server: http.Server;
+  let base: string;
+
+  test.beforeAll(async () => {
+    ;({ server, base } = await startServer(deviceManagerWithButtonRecorder([])));
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('returns 409 when no device is connected', async () => {
+    const { status } = await post(`${base}/api/press-button`, { button: 'HOME' });
+    expect(status).toBe(409);
+  });
+});
+
+test.describe('POST /api/press-button — device selected', () => {
+  let server: http.Server;
+  let base: string;
+  const presses: string[] = [];
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithButtonRecorder(presses);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('returns 400 for a button the recorder does not offer', async () => {
+    const { status } = await post(`${base}/api/press-button`, { button: 'POWER' });
+    expect(status).toBe(400);
+  });
+
+  test('presses home, back and app switch on the device', async () => {
+    for (const button of ['HOME', 'BACK', 'APP_SWITCH']) {
+      const { status } = await post(`${base}/api/press-button`, { button });
+      expect(status).toBe(200);
+    }
+    expect(presses).toEqual(['HOME', 'BACK', 'APP_SWITCH']);
+  });
+});
+
+// ---- GET /api/inspect?scale= ----
+
+function deviceManagerWithScreenshotRecorder(screenshotOptions: unknown[]): DeviceManager {
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: {
+          screenshot: async (opts: unknown) => { screenshotOptions.push(opts); return Buffer.from('png'); },
+          viewTree: async () => [],
+        },
+        screenSize: async () => ({ width: 390, height: 844, scale: 3 }),
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('GET /api/inspect — screenshot scale', () => {
+  let server: http.Server;
+  let base: string;
+  const screenshotOptions: unknown[] = [];
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithScreenshotRecorder(screenshotOptions);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test.beforeEach(() => { screenshotOptions.length = 0; });
+
+  for (const scale of ['0', '-1', '1.5', 'half']) {
+    test(`returns 400 for scale=${scale}`, async () => {
+      const { status } = await get(`${base}/api/inspect?scale=${scale}`);
+      expect(status).toBe(400);
+    });
+  }
+
+  test('asks the device for a JPEG screenshot at the requested scale', async () => {
+    const { status, body } = await get(`${base}/api/inspect?scale=0.5`);
+    expect(status).toBe(200);
+    expect(screenshotOptions).toEqual([{ format: 'jpeg', quality: 60, scale: 0.5 }]);
+    expect((body as { screenshot: string }).screenshot.startsWith('data:image/jpeg;base64,')).toBe(true);
+  });
+
+  test('takes a full-size screenshot when no scale is given', async () => {
+    await get(`${base}/api/inspect`);
+    expect(screenshotOptions).toEqual([{ format: 'jpeg', quality: 60, scale: 1 }]);
+  });
+
+  test('reports the device pixel scale so the page can size its request', async () => {
+    const { body } = await get(`${base}/api/inspect`);
+    expect((body as { screen: unknown }).screen).toEqual({ width: 390, height: 844, scale: 3 });
+  });
+});
+
+// ---- GET /api/inspect?etag= ----
+
+function deviceManagerWithChangingScreen(screen: { png: string }): DeviceManager {
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: {
+          screenshot: async () => Buffer.from(screen.png),
+          viewTree: async () => [],
+        },
+        screenSize: async () => ({ width: 390, height: 844, scale: 3 }),
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('GET /api/inspect — etag', () => {
+  let server: http.Server;
+  let base: string;
+  const screen = { png: 'first frame' };
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithChangingScreen(screen);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  async function inspectEtag(query = ''): Promise<string> {
+    const { body } = await get(`${base}/api/inspect${query}`);
+    return (body as { etag: string }).etag;
+  }
+
+  test('returns an etag with the inspect payload', async () => {
+    expect(await inspectEtag()).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  test('returns 304 with no payload when the screen has not changed since the given etag', async () => {
+    const etag = await inspectEtag();
+    const { status, body } = await get(`${base}/api/inspect?etag=${etag}`);
+    expect(status).toBe(304);
+    expect(body).toBe('');
+  });
+
+  test('returns the full payload when the given etag is stale', async () => {
+    const { status } = await get(`${base}/api/inspect?etag=0000000000000000000000000000000000000000`);
+    expect(status).toBe(200);
+  });
+
+  test('returns a new etag once the screenshot changes', async () => {
+    const before = await inspectEtag();
+    screen.png = 'second frame';
+    const { status, body } = await get(`${base}/api/inspect?etag=${before}`);
+    expect(status).toBe(200);
+    expect((body as { etag: string }).etag).not.toBe(before);
+  });
+});
+
+// ---- POST /api/geolocation ----
+
+function deviceManagerWithGeolocationRecorder(calls: unknown[]): DeviceManager {
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: {},
+        setGeolocation: async (geolocation: unknown) => { calls.push(geolocation); },
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('POST /api/geolocation — no device selected', () => {
+  let server: http.Server;
+  let base: string;
+
+  test.beforeAll(async () => {
+    ;({ server, base } = await startServer(deviceManagerWithGeolocationRecorder([])));
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('returns 409 when no device is connected', async () => {
+    const { status } = await post(`${base}/api/geolocation`, { geolocation: { latitude: -17.833, longitude: 177.947 } });
+    expect(status).toBe(409);
+  });
+});
+
+test.describe('POST /api/geolocation — device selected', () => {
+  let server: http.Server;
+  let base: string;
+  const calls: unknown[] = [];
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithGeolocationRecorder(calls);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test.beforeEach(() => { calls.length = 0; });
+
+  const invalidBodies = [
+    ['missing geolocation', {}],
+    ['latitude out of range', { geolocation: { latitude: 91, longitude: 0 } }],
+    ['longitude out of range', { geolocation: { latitude: 0, longitude: -181 } }],
+    ['non-numeric latitude', { geolocation: { latitude: '1', longitude: 0 } }],
+  ] as const;
+  for (const [description, body] of invalidBodies) {
+    test(`returns 400 for ${description}`, async () => {
+      const { status } = await post(`${base}/api/geolocation`, body);
+      expect(status).toBe(400);
+      expect(calls).toEqual([]);
+    });
+  }
+
+  test('sets the device location', async () => {
+    const { status } = await post(`${base}/api/geolocation`, { geolocation: { latitude: -17.833, longitude: 177.947 } });
+    expect(status).toBe(200);
+    expect(calls).toEqual([{ latitude: -17.833, longitude: 177.947 }]);
+  });
+
+  test('resets the device location when geolocation is null', async () => {
+    const { status } = await post(`${base}/api/geolocation`, { geolocation: null });
+    expect(status).toBe(200);
+    expect(calls).toEqual([null]);
+  });
+});
+
+// ---- POST /api/tap with gesture ----
+
+function deviceManagerWithGestureRecorder(gestures: string[]): DeviceManager {
+  const record = (name: string) => async (x: number, y: number) => { gestures.push(`${name}(${x}, ${y})`); };
+  return new DeviceManager({
+    ios: {
+      devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+      launch: async () => ({
+        screen: { tap: record('tap'), doubleTap: record('doubleTap'), longPress: record('longPress') },
+        close: async () => {},
+      }) as never,
+    },
+    android: { devices: async () => [], launch: async () => { throw new Error(); } },
+  });
+}
+
+test.describe('POST /api/tap — gestures', () => {
+  let server: http.Server;
+  let base: string;
+  const gestures: string[] = [];
+
+  test.beforeAll(async () => {
+    const dm = deviceManagerWithGestureRecorder(gestures);
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test.beforeEach(() => { gestures.length = 0; });
+
+  test('double taps and long presses at the given coordinates', async () => {
+    await post(`${base}/api/tap`, { x: 10, y: 20, gesture: 'doubleTap' });
+    await post(`${base}/api/tap`, { x: 30, y: 40, gesture: 'longPress' });
+    expect(gestures).toEqual(['doubleTap(10, 20)', 'longPress(30, 40)']);
+  });
+
+  test('taps when no gesture is given', async () => {
+    await post(`${base}/api/tap`, { x: 5, y: 6 });
+    expect(gestures).toEqual(['tap(5, 6)']);
+  });
+
+  test('returns 400 for an unknown gesture', async () => {
+    const { status } = await post(`${base}/api/tap`, { x: 5, y: 6, gesture: 'swipe' });
+    expect(status).toBe(400);
+    expect(gestures).toEqual([]);
+  });
+});

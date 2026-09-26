@@ -450,3 +450,27 @@ test('an invalid osVersion expression throws a parse error even when no devices 
     /invalid OS version/,
   );
 });
+
+test.describe('MobilecliDriver.screenshot()', () => {
+  function screenshotCallParams(calls: RecordedCall[]): Record<string, unknown> | undefined {
+    return calls.find(c => c.method === 'device.screenshot')?.params;
+  }
+
+  test('asks mobilecli for a downscaled screenshot when scale is given', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, { 'device.screenshot': { data: '' } });
+
+    await driver.screenshot({ scale: 0.5 });
+
+    expect(screenshotCallParams(calls)).toEqual({ deviceId: SIMULATOR_DEVICE_ID, scale: 0.5 });
+  });
+
+  test('sends no scale when none is given', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, { 'device.screenshot': { data: '' } });
+
+    await driver.screenshot();
+
+    expect(screenshotCallParams(calls)).toEqual({ deviceId: SIMULATOR_DEVICE_ID });
+  });
+});

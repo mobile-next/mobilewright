@@ -169,6 +169,9 @@ header {
 }
 
 header h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   margin: 0;
@@ -706,3 +709,248 @@ main {
     border-top: 1px solid var(--c-border);
   }
 }
+
+/* ---- Codegen ---- */
+
+/* Icon font copied from Playwright (vscode codicons, MIT, see fonts/codicon-LICENSE.txt). */
+@font-face {
+  font-family: "codicon";
+  src: url("../fonts/codicon.ttf") format("truetype");
+}
+
+.codicon {
+  font: normal normal normal 16px/1 codicon;
+  display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.codicon-circle-large-filled::before { content: '\ebb4'; }
+.codicon-whole-word::before          { content: '\eb7e'; }
+.codicon-symbol-constant::before     { content: '\eb5d'; }
+.codicon-gist::before                { content: '\eafb'; }
+.codicon-home::before                { content: '\eb06'; }
+.codicon-multiple-windows::before    { content: '\eb23'; }
+.codicon-arrow-left::before          { content: '\ea9b'; }
+.codicon-list-tree::before           { content: '\eb86'; }
+.codicon-location::before            { content: '\eb1a'; }
+.codicon-chevron-down::before        { content: '\eab4'; }
+.codicon-chevron-right::before       { content: '\eab6'; }
+
+.codegen #screenshot-img { cursor: crosshair; }
+
+.codegen #screenshot-pane {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* keep the device buttons at the top, whatever the image height */
+  gap: 8px;
+}
+
+#device-toolbar {
+  display: flex;
+  gap: 4px;
+}
+
+/* The image is hidden whenever a placeholder shows (no device, connecting, no screenshot yet). */
+#screenshot-pane:has(#screenshot-img[hidden]) #device-toolbar { display: none; }
+
+/* The element under the pointer; clicks pass through to the screenshot. */
+.hover-rect {
+  fill: var(--c-accent);
+  fill-opacity: 0.5;
+  stroke: var(--c-accent);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+#editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--c-surface2);
+}
+
+#recorder-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  color: var(--c-text);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tool-btn:hover:not(:disabled) { background: var(--c-row-hover); }
+.tool-btn:focus-visible { outline: none; border-color: var(--c-accent); }
+.tool-btn:disabled { opacity: 0.4; cursor: default; }
+
+#record-btn .codicon { color: var(--c-text-muted); }
+.assert-btn[aria-pressed="true"] { background: var(--c-accent-dim); border-color: var(--c-accent); }
+
+/* In assert modes the hover box turns the "selected" color, so it's clear a click won't tap. */
+[data-click-mode="assertText"] .hover-rect,
+[data-click-mode="assertValue"] .hover-rect {
+  fill: var(--c-selected);
+  stroke: var(--c-selected);
+}
+#record-btn[aria-pressed="true"] .codicon { color: var(--c-status-error); }
+
+.tool-separator {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--c-border);
+}
+
+#code-editor {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 12px 16px;
+  background: var(--c-pane-bg);
+  color: var(--c-text);
+  font: 13px/1.5 'SF Mono', Menlo, Monaco, monospace;
+  tab-size: 2;
+}
+
+/* ---- View tree ---- */
+
+#tree-pane {
+  flex: 0 0 var(--tree-width, 360px);
+  min-width: 240px;
+  max-width: 60%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--c-surface2);
+}
+
+#view-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0;
+  font: 12px/22px 'SF Mono', Menlo, Monaco, monospace;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tree-row:hover { background: var(--c-row-hover); }
+.tree-row.offscreen { opacity: 0.5; }
+
+.tree-twisty {
+  flex: none;
+  width: 18px;
+  background: none;
+  border: none;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.tree-type { color: var(--c-text); }
+.tree-name { color: var(--c-text-muted); overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Set location popover ---- */
+
+#geo-popover {
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+#geo-popover[popover]:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#geo-popover::backdrop { background: rgba(0, 0, 0, 0.3); }
+
+#geo-popover label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+#geo-popover input {
+  width: 140px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: 12px 'SF Mono', Menlo, Monaco, monospace;
+}
+
+#geo-popover input:focus { outline: none; border-color: var(--c-accent); }
+
+.geo-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.geo-set-btn { border-color: var(--c-accent); color: var(--c-accent); }
+
+.tree-row.selected { background: var(--c-selected-bg); }
+
+/* ---- Element details under the view tree (codegen) ---- */
+
+#tree-pane #detail-pane {
+  flex: 0 0 var(--detail-height, 40%);
+  min-height: 80px;
+  max-height: 85%;
+  min-width: 0;
+  max-width: none;
+}
+
+.splitter.horizontal {
+  cursor: row-resize;
+  background: linear-gradient(var(--c-border), var(--c-border)) center / 100% 1px no-repeat;
+}
+
+.splitter.horizontal:hover,
+.splitter.horizontal:focus-visible,
+.splitter.horizontal.dragging {
+  background: linear-gradient(var(--c-accent), var(--c-accent)) center / 100% 3px no-repeat;
+}
+
+#detail-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.gesture-btn {
+  flex: 1;
+  justify-content: center;
+  border-color: var(--c-border);
+  background: var(--c-surface2);
+}
+

@@ -37,7 +37,7 @@ export async function start({ ios, android, port = 4621 }: InspectorOptions): Pr
 
   const app = express();
   app.use(express.json());
-  app.use(express.static(publicDir));
+  app.use(express.static(publicDir, { extensions: ['html'] }));
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
   const deviceManager = new DeviceManager({ ios, android });

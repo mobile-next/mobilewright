@@ -157,6 +157,8 @@ export type ScreenshotFormat = 'png' | 'jpeg';
 export interface ScreenshotOptions {
   format?: ScreenshotFormat;
   quality?: number;
+  /** Downscale factor, 0 < scale <= 1 (0.5 halves both dimensions). Default 1. */
+  scale?: number;
   path?: string;
   /** Crop to this rect in screen points before encoding. */
   clip?: Bounds;
