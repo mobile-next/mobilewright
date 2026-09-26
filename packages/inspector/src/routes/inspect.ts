@@ -182,7 +182,7 @@ async function attemptWithRetry(device: Device, scale: number): Promise<{ screen
   const ops = [
     { key: 'screenshotBuffer' as const, run: () => timedScreenshot(device, scale) },
     { key: 'tree' as const, run: () => device.screen.viewTree() },
-    { key: 'size' as const, run: () => device.screenSize() },
+    { key: 'size' as const, run: () => cachedScreenSize(device) },
   ];
 
   const results: Partial<Record<'screenshotBuffer' | 'tree' | 'size', unknown>> = {};
@@ -238,6 +238,22 @@ function payloadEtag(screenshot: Buffer, screen: unknown, elements: unknown): st
     .update(JSON.stringify(screen))
     .update(JSON.stringify(elements))
     .digest('hex');
+}
+
+// Screen size never changes for a connected device, yet the call costs ~250ms, so ask once per
+// device. The Device object is replaced on every (re)connect, which starts a fresh cache.
+// ponytail: stale after the device rotates; key by orientation if codegen gains a rotate control.
+const screenSizes = new WeakMap<Device, Promise<ScreenSize>>();
+
+function cachedScreenSize(device: Device): Promise<ScreenSize> {
+  let size = screenSizes.get(device);
+  if (!size) {
+    size = device.screenSize();
+    // A failed call must not stick; the next frame retries.
+    size.catch(() => screenSizes.delete(device));
+    screenSizes.set(device, size);
+  }
+  return size;
 }
 
 /** Take a screenshot and log how long it took and how big it is. */

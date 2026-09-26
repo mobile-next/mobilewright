@@ -572,3 +572,36 @@ test.describe('POST /api/tap — gestures', () => {
     expect(gestures).toEqual([]);
   });
 });
+
+// ---- GET /api/inspect — screen size cache ----
+
+test.describe('GET /api/inspect — screen size', () => {
+  let server: http.Server;
+  let base: string;
+  let screenSizeCalls = 0;
+
+  test.beforeAll(async () => {
+    const dm = new DeviceManager({
+      ios: {
+        devices: async () => [{ id: 'sim-1', name: 'iPhone 15' } as never],
+        launch: async () => ({
+          screen: { screenshot: async () => Buffer.from('png'), viewTree: async () => [] },
+          screenSize: async () => { screenSizeCalls++; return { width: 390, height: 844, scale: 3 }; },
+          close: async () => {},
+        }) as never,
+      },
+      android: { devices: async () => [], launch: async () => { throw new Error(); } },
+    });
+    ;({ server, base } = await startServer(dm));
+    await dm.select('sim-1', 'ios');
+  });
+
+  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())));
+
+  test('asks the device for its screen size only once', async () => {
+    await get(`${base}/api/inspect`);
+    const { body } = await get(`${base}/api/inspect`);
+    expect(screenSizeCalls).toBe(1);
+    expect((body as { screen: unknown }).screen).toEqual({ width: 390, height: 844, scale: 3 });
+  });
+});
