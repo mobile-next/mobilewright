@@ -46,6 +46,20 @@ await expect(screen.getByTestId('greeting')).toContainText('Hello');
 | `toHaveText(expected)` | Text matches exactly (string) or by pattern (RegExp) |
 | `toContainText(expected)` | Text contains the substring |
 
+An element's text is its visible text, falling back to its accessibility label, then its value. That lets `toHaveText` work on iOS, where labels and buttons expose their text as a label.
+
+Text fields are the exception: they never fall back to their label, so an empty field reads as `''` on both platforms:
+
+```typescript
+const email = screen.getByTestId('email');
+await email.fill('user@example.com');
+await expect(email).toHaveText('user@example.com');
+await email.clear();
+await expect(email).toHaveText('');
+```
+
+To find a field by its accessibility label, use `getByLabel()`.
+
 ### Value
 
 ```typescript

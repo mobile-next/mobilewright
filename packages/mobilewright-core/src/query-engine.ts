@@ -223,6 +223,10 @@ export function bareTypeName(type: string): string {
     : afterPackage;
 }
 
+export function isTextField(node: ViewNode): boolean {
+  return matchesRole(node, 'textfield');
+}
+
 function matchesRole(node: ViewNode, role: string): boolean {
   const normalizedType = bareTypeName(node.type);
   // ROLE_TYPE_MAP is `as const`, so its keys are a closed union; widen for the
