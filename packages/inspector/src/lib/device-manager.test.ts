@@ -268,3 +268,25 @@ test.describe('DeviceManager.screenSize', () => {
     await expect(dm.screenSize()).rejects.toThrow('No device selected');
   });
 });
+
+test.describe('DeviceManager.screenSize — hung device', () => {
+  test('gives up on a screen size call that never answers, and asks again next time', async () => {
+    let calls = 0;
+    const hangsFirstTime = { ...fakeDevice(), screenSize: () => {
+      calls++;
+      if (calls === 1) {
+        return new Promise(() => {});
+      }
+      return Promise.resolve({ width: 390, height: 844, scale: 3 });
+    } } as unknown as Device;
+    const dm = new DeviceManager({
+      ios: { devices: async () => [], launch: async () => hangsFirstTime },
+      android: makeLauncher(),
+      screenSizeTimeoutMs: 10,
+    });
+    await dm.select('sim-1', 'ios');
+
+    await expect(dm.screenSize()).rejects.toThrow('timed out');
+    await expect(dm.screenSize()).resolves.toEqual({ width: 390, height: 844, scale: 3 });
+  });
+});

@@ -1,6 +1,9 @@
 import type { Device } from '@mobilewright/core';
 import type { DeviceInfo, ScreenSize } from '@mobilewright/protocol';
 import { logger } from './logger.js';
+import { timeoutAfter } from './timeout.js';
+
+const DEFAULT_SCREEN_SIZE_TIMEOUT_MS = 10_000;
 
 /** Platform launcher injected from mobilewright to avoid a circular dependency. */
 export interface MobilewrightLauncher {
@@ -28,6 +31,14 @@ export class DeviceError extends Error {
 
 /** DeviceInfo tagged with its platform, returned by listDevices(). */
 export type TaggedDeviceInfo = DeviceInfo & { platform: 'ios' | 'android' };
+
+/** Options for {@link DeviceManager}. */
+export interface DeviceManagerOptions {
+  ios: MobilewrightLauncher;
+  android: MobilewrightLauncher;
+  /** How long a screen size call may take before it counts as failed and is asked again. */
+  screenSizeTimeoutMs?: number;
+}
 
 /** Minimal device identity record held by DeviceManager while a device is active. */
 export type DeviceInfoRecord = { id: string; platform: 'ios' | 'android' };
@@ -57,13 +68,15 @@ export class DeviceManager {
    * yet asking costs ~250ms. ponytail: stale after the device rotates; key by orientation if needed.
    */
   #screenSize: Promise<ScreenSize> | null = null;
+  #screenSizeTimeoutMs: number;
   /** True after close() is called; prevents new connections after shutdown. */
   #closed = false;
 
   /** @param ios iOS launcher from mobilewright. @param android Android launcher from mobilewright. */
-  constructor({ ios, android }: { ios: MobilewrightLauncher; android: MobilewrightLauncher }) {
+  constructor({ ios, android, screenSizeTimeoutMs = DEFAULT_SCREEN_SIZE_TIMEOUT_MS }: DeviceManagerOptions) {
     this.#ios = ios;
     this.#android = android;
+    this.#screenSizeTimeoutMs = screenSizeTimeoutMs;
   }
 
   /**
@@ -177,7 +190,9 @@ export class DeviceManager {
       return Promise.reject(new DeviceError('No device selected', 'not_found'));
     }
     if (!this.#screenSize) {
-      const size = device.screenSize();
+      // The timeout is on the cached promise itself: a call that hangs must count as failed so the
+      // next caller asks again, instead of every caller waiting on it forever.
+      const size = timeoutAfter(device.screenSize(), this.#screenSizeTimeoutMs);
       this.#screenSize = size;
       size.catch(() => {
         if (this.#screenSize === size) {

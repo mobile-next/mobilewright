@@ -6,6 +6,7 @@ import type { Device } from '@mobilewright/core';
 import type { ViewNode, ScreenSize } from '@mobilewright/protocol';
 import { deriveElementList, locatorMatchPosition, type ElementEntry } from './locator-derivation.js';
 import { logger } from './logger.js';
+import { timeoutAfter } from './timeout.js';
 
 /** An element as the Inspector page receives it. */
 export type ElementJson = ReturnType<typeof toElementJson>;
@@ -125,13 +126,4 @@ async function captureWithRetry(captures: { [K in CaptureKey]: () => Promise<Cap
     throw new Error(`Inspect failed: ${missing.join(', ')} did not complete`);
   }
   return results as Capture;
-}
-
-/** Reject a promise if it doesn't settle within ms. */
-function timeoutAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms); }),
-  ]).finally(() => clearTimeout(timer));
 }

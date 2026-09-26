@@ -30,6 +30,22 @@ export interface InspectorServer {
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
+/** Hostnames that address this machine. */
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * Only answer requests addressed to a loopback hostname. With DNS rebinding, a page on another site
+ * can point its own hostname at 127.0.0.1 and then call this server as a same-origin page, which
+ * the JSON-only rule below does not stop; its requests still carry that foreign Host header.
+ */
+const rejectNonLoopbackHosts: express.RequestHandler = (req, res, next) => {
+  if (!LOOPBACK_HOSTNAMES.has(req.hostname)) {
+    res.status(403).json({ error: 'The Inspector only answers requests addressed to localhost' });
+    return;
+  }
+  next();
+};
+
 /**
  * Every POST must be JSON. A page on another site can send a "simple" POST (form, text/plain or no
  * body) straight to localhost without a CORS preflight; requiring JSON forces the preflight, which
@@ -46,6 +62,7 @@ const rejectNonJsonPosts: express.RequestHandler = (req, res, next) => {
 /** The Inspector's Express app, without listening; split out so tests can drive it directly. */
 export function createApp(deviceManager: DeviceManager): express.Express {
   const app = express();
+  app.use(rejectNonLoopbackHosts);
   app.use(rejectNonJsonPosts);
   app.use(express.json());
   app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));

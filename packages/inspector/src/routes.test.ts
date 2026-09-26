@@ -115,6 +115,27 @@ test.describe('GET /health', () => {
   });
 });
 
+// ---- loopback-only Host ----
+
+test.describe('Host header', () => {
+  let server: TestServer;
+  test.beforeAll(async () => { server = await serveWithoutDevice(); });
+  test.afterAll(() => server.close());
+
+  // A DNS-rebinding page reaches 127.0.0.1 under its own hostname, as a same-origin page.
+  test('rejects requests addressed to a non-loopback hostname', async () => {
+    const { status } = await request('GET', `${server.base}/api/devices`, null, { Host: 'attacker.example:4621' });
+    expect(status).toBe(403);
+  });
+
+  for (const host of ['localhost:4621', '127.0.0.1:4621', '[::1]:4621']) {
+    test(`accepts Host ${host}`, async () => {
+      const { status } = await request('GET', `${server.base}/api/devices`, null, { Host: host });
+      expect(status).toBe(200);
+    });
+  }
+});
+
 // ---- JSON-only POSTs ----
 
 test.describe('POST requests', () => {
