@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import type { Device } from '@mobilewright/core';
 import type { HardwareButton, Geolocation } from '@mobilewright/protocol';
 import { logger } from '../lib/logger.js';
-import { DeviceManager } from '../lib/device-manager.js';
+import { DeviceError, DeviceManager } from '../lib/device-manager.js';
 
 /** Screen gestures /api/tap can perform at a point; each is a Screen method taking (x, y). */
 const TAP_GESTURES = ['tap', 'doubleTap', 'longPress'] as const;
@@ -23,15 +23,10 @@ type ParsedAction = { run: (device: Device) => Promise<unknown> } | { error: str
 export function createDeviceActionsRouter(deviceManager: DeviceManager) {
   const router = Router();
 
-  // Every action: 409 without a device, 400 for an invalid body, 500 if the device call fails.
+  // Every action: 400 for an invalid body, 409 without a device, 503 while switching devices,
+  // 500 if the device call fails.
   function deviceAction(name: string, parse: (body: RequestBody) => ParsedAction): RequestHandler {
     return async (req, res) => {
-      const device = deviceManager.device;
-      if (!device) {
-        res.status(409).json({ error: 'No device selected' });
-        return;
-      }
-
       const action = parse((req.body ?? {}) as RequestBody);
       if ('error' in action) {
         res.status(400).json({ error: action.error });
@@ -39,11 +34,14 @@ export function createDeviceActionsRouter(deviceManager: DeviceManager) {
       }
 
       try {
-        await action.run(device);
+        await deviceManager.withDevice(action.run);
         res.json({ ok: true });
       } catch (err) {
-        logger.error(`${name} failed: ${(err as Error).message}`);
-        res.status(500).json({ error: (err as Error).message });
+        const status = statusFor(err);
+        if (status === 500) {
+          logger.error(`${name} failed: ${(err as Error).message}`);
+        }
+        res.status(status).json({ error: (err as Error).message });
       }
     };
   }
@@ -56,6 +54,16 @@ export function createDeviceActionsRouter(deviceManager: DeviceManager) {
   router.post('/geolocation', deviceAction('Set geolocation', parseGeolocation));
 
   return router;
+}
+
+function statusFor(err: unknown): number {
+  if (err instanceof DeviceError && err.code === 'not_found') {
+    return 409;
+  }
+  if (err instanceof DeviceError && err.code === 'in_progress') {
+    return 503;
+  }
+  return 500;
 }
 
 function parseTap({ x, y, gesture = 'tap' }: RequestBody): ParsedAction {

@@ -400,6 +400,41 @@ test.describe('device actions — no device selected', () => {
   }
 });
 
+test.describe('device actions — while switching devices', () => {
+  let server: TestServer;
+  let finishSwitching: () => void = () => {};
+
+  test.beforeAll(async () => {
+    // The first connect is immediate; any later one hangs until finishSwitching() is called.
+    let launches = 0;
+    server = await serve(new DeviceManager({
+      ios: {
+        devices: iPhoneLauncher().devices,
+        launch: async () => {
+          launches++;
+          if (launches > 1) {
+            await new Promise<void>(resolve => { finishSwitching = resolve; });
+          }
+          return ({ screen: { tap: async () => {} }, close: async () => {} }) as unknown as Device;
+        },
+      },
+      android: NO_DEVICES,
+    }));
+    await server.deviceManager.select('sim-1', 'ios');
+  });
+  test.afterAll(() => server.close());
+
+  test('returns 503 instead of acting on a device that is being closed', async () => {
+    const switching = server.deviceManager.select('sim-1', 'ios');
+
+    const { status } = await post(`${server.base}/api/tap`, { x: 1, y: 2 });
+
+    expect(status).toBe(503);
+    finishSwitching();
+    await switching;
+  });
+});
+
 // ---- POST /api/tap ----
 
 test.describe('POST /api/tap', () => {

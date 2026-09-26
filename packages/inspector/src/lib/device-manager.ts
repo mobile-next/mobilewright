@@ -56,11 +56,13 @@ export class DeviceManager {
   #activeDevice: Device | null = null;
   /** Identity of the currently connected device, or null when no device is selected. */
   #activeDeviceInfo: DeviceInfoRecord | null = null;
-  /** True while an inspect operation is in progress; select() waits for it to finish. */
+  /** True while an inspect is in progress; only one runs at a time. */
   #inspectInFlight = false;
-  /** Resolves when the in-flight inspect ends; null when none is running. */
-  #inspectDone: Promise<void> | null = null;
-  #resolveInspectDone: (() => void) | null = null;
+  /** Inspects and device actions currently using the active device; select() waits for them. */
+  #operationsInFlight = 0;
+  /** Resolves when #operationsInFlight drops to 0; null when nothing is running. */
+  #operationsDone: Promise<void> | null = null;
+  #resolveOperationsDone: (() => void) | null = null;
   /** True while a select() call is awaiting launcher.launch(); blocks concurrent select(). */
   #selecting = false;
   /**
@@ -98,8 +100,9 @@ export class DeviceManager {
 
   /**
    * Connect to a device, closing any previous connection first.
-   * Waits for an in-flight inspect to finish (codegen refreshes back to back, so one is nearly
-   * always running) and blocks new ones until the switch is done.
+   * Waits for in-flight inspects and device actions to finish (codegen refreshes back to back, so
+   * an inspect is nearly always running) and refuses new ones until the switch is done, so nothing
+   * uses a device while it is being closed.
    * Throws DeviceError if a select is already in progress or the previous device cannot be
    * cleanly disconnected.
    */
@@ -113,7 +116,7 @@ export class DeviceManager {
 
     this.#selecting = true;
     try {
-      await this.#inspectDone;
+      await this.#operationsDone;
       if (this.#activeDevice) {
         logger.info(`Closing previous device ${this.#activeDeviceInfo?.id}`);
         try {
@@ -153,16 +156,54 @@ export class DeviceManager {
       return false;
     }
     this.#inspectInFlight = true;
-    this.#inspectDone = new Promise(resolve => { this.#resolveInspectDone = resolve; });
+    this.#startOperation();
     return true;
   }
 
   /** Clear the inspect-in-flight flag set by beginInspect(), releasing a waiting select(). */
   endInspect(): void {
+    if (!this.#inspectInFlight) {
+      return;
+    }
     this.#inspectInFlight = false;
-    this.#resolveInspectDone?.();
-    this.#resolveInspectDone = null;
-    this.#inspectDone = null;
+    this.#endOperation();
+  }
+
+  /**
+   * Run a device action (tap, button press, ...) on the active device. A device switch waits for it
+   * before closing the device. Rejects with DeviceError 'not_found' without a device, and
+   * 'in_progress' while a switch is underway.
+   */
+  async withDevice<T>(run: (device: Device) => Promise<T>): Promise<T> {
+    if (this.#selecting) {
+      throw new DeviceError('Device switch in progress', 'in_progress');
+    }
+    const device = this.#activeDevice;
+    if (!device) {
+      throw new DeviceError('No device selected', 'not_found');
+    }
+    this.#startOperation();
+    try {
+      return await run(device);
+    } finally {
+      this.#endOperation();
+    }
+  }
+
+  #startOperation(): void {
+    this.#operationsInFlight++;
+    if (!this.#operationsDone) {
+      this.#operationsDone = new Promise(resolve => { this.#resolveOperationsDone = resolve; });
+    }
+  }
+
+  #endOperation(): void {
+    this.#operationsInFlight--;
+    if (this.#operationsInFlight === 0) {
+      this.#resolveOperationsDone?.();
+      this.#resolveOperationsDone = null;
+      this.#operationsDone = null;
+    }
   }
 
   /**

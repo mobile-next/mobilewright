@@ -290,3 +290,69 @@ test.describe('DeviceManager.screenSize — hung device', () => {
     await expect(dm.screenSize()).resolves.toEqual({ width: 390, height: 844, scale: 3 });
   });
 });
+
+// ---- withDevice ----
+
+test.describe('DeviceManager.withDevice', () => {
+  test('runs the operation on the active device', async () => {
+    const launched = fakeDevice();
+    const dm = new DeviceManager({ ios: makeLauncher({ device: launched }), android: makeLauncher() });
+    await dm.select('sim-1', 'ios');
+
+    const used = await dm.withDevice(async device => device);
+
+    expect(used).toBe(launched);
+  });
+
+  test('rejects with not_found when no device is selected', async () => {
+    const dm = new DeviceManager({ ios: makeLauncher(), android: makeLauncher() });
+    const err = await dm.withDevice(async () => {}).catch((e: unknown) => e);
+    expect((err as DeviceError).code).toBe('not_found');
+  });
+
+  test('switching devices waits for a running operation before closing the device', async () => {
+    const events: string[] = [];
+    const dm = new DeviceManager({
+      ios: makeLauncher({ device: fakeDevice({ close: async () => { events.push('closed'); } }) }),
+      android: makeLauncher(),
+    });
+    await dm.select('sim-1', 'ios');
+    let finishTap!: () => void;
+    const tapping = dm.withDevice(() => new Promise<void>(resolve => {
+      finishTap = () => { events.push('tap finished'); resolve(); };
+    }));
+
+    const switching = dm.select('sim-2', 'ios');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(events).toEqual([]);
+
+    finishTap();
+    await tapping;
+    await switching;
+    expect(events).toEqual(['tap finished', 'closed']);
+  });
+
+  test('rejects with in_progress while switching devices', async () => {
+    let finishLaunch!: () => void;
+    let launches = 0;
+    const dm = new DeviceManager({
+      ios: { devices: async () => [], launch: async () => {
+        launches++;
+        if (launches > 1) {
+          await new Promise<void>(resolve => { finishLaunch = resolve; });
+        }
+        return fakeDevice() as unknown as Device;
+      } },
+      android: makeLauncher(),
+    });
+    await dm.select('sim-1', 'ios');
+    const switching = dm.select('sim-2', 'ios');
+
+    const err = await dm.withDevice(async () => {}).catch((e: unknown) => e);
+
+    expect((err as DeviceError).code).toBe('in_progress');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    finishLaunch();
+    await switching;
+  });
+});
