@@ -567,6 +567,9 @@ export class Inspector {
   #consecutiveErrors = 0
   static #MAX_CONSECUTIVE_ERRORS = 3
   static #MIN_FRAME_MS = 100
+  // Continuous mode has no refresh controls, so the device list is polled on its own to pick up
+  // devices connected after the page opened (and disconnects between frames).
+  static #DEVICE_LIST_REFRESH_MS = 5000
 
   #screenshotPane
   #elementsPane
@@ -607,6 +610,7 @@ export class Inspector {
 
     if (continuousRefresh) {
       this.#refreshContinuously()
+      setInterval(() => this.#fetchDevices().catch(() => {}), Inspector.#DEVICE_LIST_REFRESH_MS)
     }
     this.#loadDevices()
   }
