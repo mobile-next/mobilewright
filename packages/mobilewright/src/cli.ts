@@ -344,7 +344,7 @@ program
 program
   .command('codegen')
   .description('record taps on a device and generate a test in your browser')
-  .option('-p, --port <port>', 'port to listen on', '4621')
+  .option('-p, --port <port>', 'port to listen on; 0 picks a random free port', '0')
   .action(async (opts: { port: string }) => {
     await openInspectorPage(opts.port, 'Mobilewright Codegen', '/codegen');
   });

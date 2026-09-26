@@ -16,8 +16,15 @@ and added to the test as a line of code, using the same locators the
 npx mobilewright codegen
 ```
 
-Codegen starts a local server and opens automatically in your browser. Use `--port`
-to choose a specific port (default: `4621`):
+Codegen starts a local server on a random free port and opens it in your browser. The
+URL is also printed in the terminal, so you can open it yourself if the browser does not
+start:
+
+```
+Mobilewright Codegen running at http://127.0.0.1:53817/codegen
+```
+
+Use `--port` to pin a specific port instead:
 
 ```bash
 npx mobilewright codegen --port 8080

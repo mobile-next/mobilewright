@@ -516,8 +516,10 @@ Record a test by using the device from your browser. Codegen shows a live screen
 
 ```bash
 npx mobilewright codegen
-npx mobilewright codegen --port 4621   # use a specific port (default: 4621)
+npx mobilewright codegen --port 8080   # use a specific port (default: a random free port)
 ```
+
+Codegen opens in your browser automatically; its URL is also printed in the terminal in case the browser does not open.
 
 See the [Codegen guide](https://mobilewright.dev/docs/guides/codegen/) for recording assertions, gestures and locations.
 
