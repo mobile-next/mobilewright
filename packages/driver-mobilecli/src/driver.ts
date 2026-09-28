@@ -19,6 +19,7 @@ import type {
   MobilewrightSession,
   DeviceAllocator,
   Orientation,
+  FoldState,
   Platform,
   RecordingOptions,
   RecordingResult,
@@ -584,6 +585,10 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       return;
     }
     await this.call('device.location.set', { latitude: geolocation.latitude, longitude: geolocation.longitude });
+  }
+
+  async setFoldState(state: FoldState): Promise<void> {
+    await this.call('device.fold.set', { state: String(state) });
   }
 
   // ─── Recording Operations ─────────────────────────────────────

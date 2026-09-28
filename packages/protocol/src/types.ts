@@ -138,6 +138,9 @@ export type HardwareButton =
 
 export type Orientation = 'portrait' | 'landscape';
 
+/** Hinge of a foldable device: 'folded' (0°), 'half-open' (90°), 'open' (180°), or an angle between 0 and 180. */
+export type FoldState = 'folded' | 'half-open' | 'open' | number;
+
 export interface GesturePoint {
   x: number;
   y: number;

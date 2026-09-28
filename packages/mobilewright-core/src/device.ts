@@ -7,6 +7,7 @@ import type {
   LaunchOptions,
   MobilewrightDriver,
   Orientation,
+  FoldState,
   RecordingOptions,
   RecordingResult,
   ScreenSize,
@@ -133,6 +134,17 @@ export class Device {
       }
     }
     return this._step('device.setGeolocation()', () => this.driver.setGeolocation(geolocation ?? null));
+  }
+
+  /**
+   * Set the hinge of a foldable device: 'folded', 'half-open', 'open', or an angle between 0 and 180.
+   * Supported on foldable iOS simulators and Android emulators.
+   */
+  async setFoldState(state: FoldState): Promise<void> {
+    if (typeof state === 'number' && !(state >= 0 && state <= 180)) {
+      throw new Error(`setFoldState: angle must be between 0 and 180, got ${state}`);
+    }
+    return this._step('device.setFoldState()', () => this.driver.setFoldState(state));
   }
 
   /** Screen dimensions and pixel density: { width, height, scale }. */

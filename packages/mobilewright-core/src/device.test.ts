@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type {
+  FoldState,
   Geolocation,
   MobilewrightDriver,
   Orientation,
@@ -28,6 +29,7 @@ function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
     getOrientation: async () => 'portrait' as Orientation,
     setOrientation: async () => {},
     setGeolocation: async () => {},
+    setFoldState: async () => {},
     launchApp: async () => {},
     terminateApp: async () => {},
     listApps: async () => [] as AppInfo[],
@@ -147,6 +149,37 @@ test.describe('Device.setGeolocation', () => {
 
     await expect(device.setGeolocation({ latitude: 0, longitude: 180.1 })).rejects.toThrow(/longitude/);
     await expect(device.setGeolocation({ latitude: 0, longitude: -180.1 })).rejects.toThrow(/longitude/);
+    expect(calls).toEqual([]);
+  });
+});
+
+test.describe('Device.setFoldState', () => {
+  function createFoldRecordingDriver(): { driver: MobilewrightDriver; calls: FoldState[] } {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    const calls: FoldState[] = [];
+    driver.setFoldState = async (state) => {
+      calls.push(state);
+    };
+    return { driver, calls };
+  }
+
+  test('passes named states and angles to the driver', async () => {
+    const { driver, calls } = createFoldRecordingDriver();
+    const device = new Device(driver);
+
+    await device.setFoldState('half-open');
+    await device.setFoldState(45);
+
+    expect(calls).toEqual(['half-open', 45]);
+  });
+
+  test('throws when the angle is out of range', async () => {
+    const { driver, calls } = createFoldRecordingDriver();
+    const device = new Device(driver);
+
+    await expect(device.setFoldState(-1)).rejects.toThrow(/angle/);
+    await expect(device.setFoldState(180.1)).rejects.toThrow(/angle/);
+    await expect(device.setFoldState(NaN)).rejects.toThrow(/angle/);
     expect(calls).toEqual([]);
   });
 });

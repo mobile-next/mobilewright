@@ -5,6 +5,7 @@ import type {
   DeviceSettings,
   DeviceType,
   Geolocation,
+  FoldState,
   GestureSequence,
   HardwareButton,
   LaunchOptions,
@@ -169,6 +170,8 @@ export interface MobilewrightSession {
   setOrientation(orientation: Orientation): Promise<void>;
   /** Override the GPS location reported by the device; null clears the override. */
   setGeolocation(geolocation: Geolocation | null): Promise<void>;
+  /** Set the hinge of a foldable device. */
+  setFoldState(state: FoldState): Promise<void>;
 
   // Apps
   /** Launch the app with the given bundle id, optionally with launch options. */

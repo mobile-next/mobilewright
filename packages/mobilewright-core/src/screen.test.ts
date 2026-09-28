@@ -42,6 +42,7 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     getOrientation: async () => 'portrait' as Orientation,
     setOrientation: async () => {},
     setGeolocation: async () => {},
+    setFoldState: async () => {},
     launchApp: async () => {},
     terminateApp: async () => {},
     listApps: async () => [] as AppInfo[],

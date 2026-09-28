@@ -274,6 +274,9 @@ const orientation = await device.getOrientation();
 await device.setGeolocation({ latitude: -17.833, longitude: 177.947 });
 await device.setGeolocation(null); // clear the override
 
+// Foldables — set the hinge on foldable iOS simulators and Android emulators
+await device.setFoldState('half-open'); // 'folded' | 'half-open' | 'open' | 0–180
+
 // Screen dimensions and pixel density: { width, height, scale }
 const size = await device.screenSize();
 
