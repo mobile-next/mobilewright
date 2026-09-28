@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createRequire } from 'node:module';
-import type { HardwareButton, SwipeDirection } from '@mobilewright/protocol';
+import type { FoldState, HardwareButton, SwipeDirection } from '@mobilewright/protocol';
 import { Locator, expect, queryAll } from '@mobilewright/core';
 import { resolveMobilecliBinary } from '@mobilewright/driver-mobilecli';
 import { connect, listDevices, type Connected } from './connect.js';
@@ -25,6 +25,7 @@ const SKILL_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'skill
 
 const BUTTONS: HardwareButton[] = ['HOME', 'BACK', 'POWER', 'VOLUME_UP', 'VOLUME_DOWN', 'ENTER', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_LEFT', 'DPAD_RIGHT', 'DPAD_CENTER', 'APP_SWITCH', 'LOCK'];
 const SWIPE_DIRECTIONS: SwipeDirection[] = ['up', 'down', 'left', 'right'];
+const FOLD_STATES: FoldState[] = ['folded', 'half-open', 'open'];
 const MATCHERS = ['visible', 'hidden', 'enabled', 'disabled', 'checked', 'selected', 'focused', 'text', 'contain-text', 'value', 'count'] as const;
 type Matcher = typeof MATCHERS[number];
 const DEFAULT_LOG_LIMIT = '100';
@@ -320,6 +321,29 @@ program
     await device.screen.swipe(direction as SwipeDirection);
     return { code: `await screen.swipe(${quote(direction)});` };
   }));
+
+program
+  .command('fold <state>')
+  .description(`set the hinge of a foldable device: ${FOLD_STATES.join(', ')}, or an angle between 0 and 180`)
+  .action((state: string) => {
+    const foldState = parseFoldState(state);
+    return withDevice(async ({ device }) => {
+      await device.setFoldState(foldState);
+      const arg = typeof foldState === 'number' ? String(foldState) : quote(foldState);
+      return { code: `await device.setFoldState(${arg});` };
+    });
+  });
+
+function parseFoldState(state: string): FoldState {
+  if (FOLD_STATES.includes(state as FoldState)) {
+    return state as FoldState;
+  }
+  const angle = Number(state);
+  if (state.trim() === '' || Number.isNaN(angle)) {
+    throw new Error(`unknown fold state "${state}", expected one of: ${FOLD_STATES.join(', ')}, or an angle between 0 and 180`);
+  }
+  return angle;
+}
 
 // ── screenshot / video / logs ──────────────────────────────────────────
 program
