@@ -7,6 +7,7 @@ dist/
 
 # Test and coverage outputs
 coverage
+mobilewright-report
 playwright-report
 test-results/
 

@@ -122,5 +122,5 @@ jobs:
       - uses: actions/upload-artifact@v5
         with:
           name: html-report
-          path: playwright-report/
+          path: mobilewright-report/
 ```

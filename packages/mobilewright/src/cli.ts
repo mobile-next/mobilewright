@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { execFileSync } from 'node:child_process';
-import { existsSync, renameSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,13 +12,12 @@ import type { DeviceInfo } from '@mobilewright/protocol';
 import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliReachable } from '@mobilewright/driver-mobilecli';
 import { loadConfig } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
-import { brandReport } from './reporter.js';
+import { HTML_REPORT_DIR } from './constants.js';
 import { scarf, telemetry } from './telemetry.js';
 
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
 
-const HTML_REPORT_DIR = 'mobilewright-report';
 const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
 const program = new Command();
@@ -69,7 +68,7 @@ program
       const names = (opts.reporter as string).split(',');
       overrides.reporter = names.map((name: string) => {
         const n = name.trim();
-        if (n === 'html') return [n, { outputFolder: HTML_REPORT_DIR }];
+        if (n === 'html') return [_require.resolve('./html-reporter.js')];
         return [n];
       });
     }
@@ -103,17 +102,6 @@ program
 
     telemetry('mw_test-ended', { Status: status });
 
-    // Post-process HTML report with Mobilewright branding.
-    // Apply whenever the report dir exists — covers both --reporter html
-    // and reporter configured in the config file.
-    if (existsSync(resolve(process.cwd(), HTML_REPORT_DIR))) {
-      try {
-        brandReport(resolve(process.cwd(), HTML_REPORT_DIR));
-      } catch {
-        // Report branding is best-effort; don't fail the test run
-      }
-    }
-
     const exitCode = status === 'interrupted' ? 130 : status === 'passed' ? 0 : 1;
     process.exit(exitCode);
   });
@@ -135,8 +123,8 @@ program
   });
 
 // ── merge-reports ──────────────────────────────────────────────────────
-// Delegate to Playwright's merge-reports, then rename playwright-report
-// to mobilewright-report when the html reporter is used.
+// Delegate to Playwright's merge-reports, pointing an `html` merge at our
+// branded reporter so a merged report looks like a regular one.
 program
   .command('merge-reports [dir]')
   .description('merge blob reports from sharded runs into one report')
@@ -146,20 +134,12 @@ program
     const { program: pwProgram } = await import('playwright/lib/program');
     const args = ['node', 'playwright', 'merge-reports'];
     if (dir) { args.push(dir); }
-    if (opts.reporter) { args.push('--reporter', opts.reporter); }
+    if (opts.reporter) {
+      args.push('--reporter', opts.reporter === 'html' ? _require.resolve('./html-reporter.js') : opts.reporter);
+    }
     if (opts.config) { args.push('--config', opts.config); }
     await pwProgram.parseAsync(args);
 
-    const reporter = opts.reporter ?? 'html';
-    if (reporter === 'html') {
-      const playwrightReport = resolve(process.cwd(), 'playwright-report');
-      const mobilewrightReport = resolve(process.cwd(), HTML_REPORT_DIR);
-      try {
-        renameSync(playwrightReport, mobilewrightReport);
-      } catch {
-        // Already renamed, or html reporter not used — nothing to do.
-      }
-    }
   });
 
 function printDevicesTable(devices: DeviceInfo[]): void {
