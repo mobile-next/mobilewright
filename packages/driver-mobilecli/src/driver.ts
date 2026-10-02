@@ -634,6 +634,11 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     debug('terminated %s', bundleId);
   }
 
+  async clearAppData(bundleId: string): Promise<void> {
+    debug('clearing data of %s', bundleId);
+    await this.call('device.apps.clear', { bundleId });
+  }
+
   async listApps(): Promise<AppInfo[]> {
     // iOS returns a flat array, Android returns { apps: [...] }. Support both
     // until the Android mobilecli response is aligned.

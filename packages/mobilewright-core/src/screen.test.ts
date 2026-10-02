@@ -45,6 +45,7 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     setFoldState: async () => {},
     launchApp: async () => {},
     terminateApp: async () => {},
+    clearAppData: async () => {},
     listApps: async () => [] as AppInfo[],
     getForegroundApp: async () => ({ bundleId: 'com.test' }),
     installApp: async () => {},

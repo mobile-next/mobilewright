@@ -13,6 +13,7 @@ import { Locator, type LocatorOptions, type StepFn } from './locator.js';
 import { runStep } from './stackTrace.js';
 import { WebViewLocator } from './webview-locator.js';
 import type { Role } from './query-engine.js';
+import { findDialog, type Dialog, type DialogHandler } from './dialog.js';
 
 export interface GetByWebViewOptions {
   /** Match a web view whose native testId (accessibility id / resource-id) equals this. */
@@ -21,12 +22,75 @@ export interface GetByWebViewOptions {
 
 export class Screen {
   private readonly root: Locator;
+  private readonly driver: MobilewrightDriver;
+  private dialogHandlers: DialogHandler[] = [];
+  // key of the dialog last reported, so each dialog fires 'dialog' once rather than on every poll
+  private lastDialogKey: string | undefined;
 
   constructor(
-    private readonly driver: MobilewrightDriver,
+    private readonly rawDriver: MobilewrightDriver,
     private readonly locatorDefaults: LocatorOptions = {},
   ) {
-    this.root = Locator.root(driver, locatorDefaults);
+    // Every locator poll and expect() retry fetches the view tree through this driver,
+    // so that is where dialogs get spotted, at no extra cost per poll.
+    this.driver = new Proxy(rawDriver, {
+      get: (target, prop) => {
+        if (prop === 'getViewHierarchy') {
+          return () => this.viewTreeHandlingDialogs();
+        }
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    this.root = Locator.root(this.driver, locatorDefaults);
+  }
+
+  // ─── Dialogs ──────────────────────────────────────────────────
+
+  /**
+   * Listen for alerts and permission dialogs. Dialogs are detected while an action or
+   * expect() polls the screen; the handler should call dialog.accept(), dismiss() or tap().
+   * Without a listener, dialogs are left alone.
+   */
+  on(event: 'dialog', handler: DialogHandler): this {
+    this.dialogHandlers = [...this.dialogHandlers, handler];
+    return this;
+  }
+
+  once(event: 'dialog', handler: DialogHandler): this {
+    const wrapper: DialogHandler = (dialog) => {
+      this.off(event, wrapper);
+      return handler(dialog);
+    };
+    return this.on(event, wrapper);
+  }
+
+  off(event: 'dialog', handler: DialogHandler): this {
+    this.dialogHandlers = this.dialogHandlers.filter((h) => h !== handler);
+    return this;
+  }
+
+  private async viewTreeHandlingDialogs(): Promise<ViewNode[]> {
+    const roots = await this.rawDriver.getViewHierarchy();
+    if (this.dialogHandlers.length === 0) {
+      return roots;
+    }
+    const dialog = findDialog(roots, this.rawDriver);
+    if (dialog?.key === this.lastDialogKey) {
+      return roots;
+    }
+    this.lastDialogKey = dialog?.key;
+    if (!dialog) {
+      return roots;
+    }
+    await this.emitDialog(dialog);
+    return this.rawDriver.getViewHierarchy();
+  }
+
+  private async emitDialog(dialog: Dialog): Promise<void> {
+    for (const handler of this.dialogHandlers) {
+      await handler(dialog);
+    }
   }
 
   setStepFn(fn: StepFn): void {

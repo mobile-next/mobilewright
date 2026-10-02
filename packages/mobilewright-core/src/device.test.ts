@@ -32,6 +32,7 @@ function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
     setFoldState: async () => {},
     launchApp: async () => {},
     terminateApp: async () => {},
+    clearAppData: async () => {},
     listApps: async () => [] as AppInfo[],
     getForegroundApp: async () => ({ bundleId: 'com.test' }),
     installApp: async () => {},

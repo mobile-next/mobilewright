@@ -82,6 +82,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     setFoldState: async () => {},
     launchApp: async (...args: any[]) => { tracker.launchAppCalls.push(args); },
     terminateApp: async (...args: any[]) => { tracker.terminateAppCalls.push(args); },
+    clearAppData: async () => {},
     listApps: async () => [] as AppInfo[],
     getForegroundApp: async () => ({ bundleId: 'com.test' }),
     installApp: async (...args: any[]) => { tracker.installAppCalls.push(args); },
