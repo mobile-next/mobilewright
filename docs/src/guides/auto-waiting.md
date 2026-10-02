@@ -31,7 +31,7 @@ Methods that read from the element wait for visibility only:
 
 | Method | Description |
 |--------|-------------|
-| `locator.getText()` | Returns the element's text content |
+| `locator.getText()` | Returns the element's text content (`''` for an empty text field) |
 | `locator.getValue()` | Returns the element's value |
 | `locator.screenshot()` | Captures a screenshot of the element |
 
