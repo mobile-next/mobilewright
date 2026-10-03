@@ -40,17 +40,38 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
+/**
+ * The websocket URL carries the api key as a `token` query param. Anything we
+ * put in an Error message ends up in CI logs and test reports, so error text
+ * uses this redacted form instead of the real URL.
+ */
+export function redactUrlSecrets(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.searchParams.has('token')) {
+      parsed.searchParams.set('token', '***');
+    }
+    return parsed.toString();
+  } catch {
+    return url.replace(/([?&]token=)[^&]*/g, '$1***');
+  }
+}
+
 export class RpcClient {
   private ws: WebSocket | null = null;
   private nextId = 1;
   private pending = new Map<number, PendingRequest>();
   private connectionPromise: Promise<void> | null = null;
+  /** The URL as it may appear in error messages: api key redacted. */
+  private readonly displayUrl: string;
 
   constructor(
     private url: string,
     private requestTimeout = 30_000,
     private disconnectGrace = DEFAULT_DISCONNECT_GRACE,
-  ) {}
+  ) {
+    this.displayUrl = redactUrlSecrets(url);
+  }
 
   async connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -67,7 +88,7 @@ export class RpcClient {
         ws.terminate();
         if (!settled) {
           settled = true;
-          reject(new Error(`Connection to ${this.url} timed out`));
+          reject(new Error(`Connection to ${this.displayUrl} timed out`));
         }
       }, this.requestTimeout);
 
@@ -87,9 +108,9 @@ export class RpcClient {
           // Node may wrap connection failures in AggregateError (e.g. IPv4+IPv6).
           // Unwrap to surface the actual error message.
           if (err instanceof AggregateError && err.errors.length > 0) {
-            reject(new Error(`Failed to connect to ${this.url}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
+            reject(new Error(`Failed to connect to ${this.displayUrl}: ${err.errors.map((e: Error) => e.message).join('; ')}`));
           } else {
-            reject(new Error(`Failed to connect to ${this.url}: ${err.message}`));
+            reject(new Error(`Failed to connect to ${this.displayUrl}: ${err.message}`));
           }
         }
       });
