@@ -12,6 +12,41 @@ export interface ExpectOptions {
   timeout?: number;
 }
 
+/** Options for the text matchers (toHaveText / toContainText). */
+export interface ExpectTextOptions extends ExpectOptions {
+  /** Compare case-insensitively (Playwright's `ignoreCase`). */
+  ignoreCase?: boolean;
+}
+
+// Playwright's whitespace normalization for text matchers: trim, drop
+// zero-width spaces, collapse any whitespace run into a single space.
+function normalizeWhiteSpace(text: string): string {
+  return text.trim().replace(/\u200b/g, '').replace(/\s+/g, ' ');
+}
+
+// Build the "does the received text match?" predicate for toHaveText /
+// toContainText with Playwright's semantics: whitespace-normalized on both
+// sides, RegExp or string, optional ignoreCase, substring for toContainText.
+function textMatcher(
+  expected: string | RegExp,
+  opts: { ignoreCase?: boolean; substring: boolean },
+): (received: string) => boolean {
+  if (expected instanceof RegExp) {
+    const flags = opts.ignoreCase && !expected.flags.includes('i') ? `${expected.flags}i` : expected.flags;
+    const pattern = new RegExp(expected.source, flags);
+    return (received) => {
+      pattern.lastIndex = 0;
+      return pattern.test(normalizeWhiteSpace(received));
+    };
+  }
+  const fold = (text: string): string => (opts.ignoreCase ? text.toLowerCase() : text);
+  const wanted = fold(normalizeWhiteSpace(expected));
+  return (received) => {
+    const got = fold(normalizeWhiteSpace(received));
+    return opts.substring ? got.includes(wanted) : got === wanted;
+  };
+}
+
 // Playwright accepts either a bare string or `{ message }` as expect()'s second
 // argument. Its object form also carries `timeout`, which we do not support yet.
 export type ExpectMessage = string | { message?: string };
@@ -281,19 +316,19 @@ class LocatorAssertions {
     });
   }
 
-  async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+  async toHaveText(expected: string | RegExp, opts?: ExpectTextOptions): Promise<void> {
     return this._wrapAssertion('toHaveText', async () => {
       await this.assertText(
-        (text) => expected instanceof RegExp ? expected.test(text) : text === expected,
+        textMatcher(expected, { ignoreCase: opts?.ignoreCase, substring: false }),
         expected, opts,
       );
     });
   }
 
-  async toContainText(expected: string, opts?: ExpectOptions): Promise<void> {
+  async toContainText(expected: string | RegExp, opts?: ExpectTextOptions): Promise<void> {
     return this._wrapAssertion('toContainText', async () => {
       await this.assertText(
-        (text) => text.includes(expected),
+        textMatcher(expected, { ignoreCase: opts?.ignoreCase, substring: true }),
         expected, opts,
       );
     });
