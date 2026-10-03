@@ -318,6 +318,8 @@ await expect(locator).toBeChecked();
 await expect(locator).toHaveText('Welcome back!');
 await expect(locator).toHaveText(/welcome/i);
 await expect(locator).toContainText('back');
+await expect(locator).toContainText(/welcome/i);
+await expect(locator).toHaveText('welcome back!', { ignoreCase: true }); // whitespace is normalized like Playwright
 await expect(locator).toBeEmpty();                   // element has no text
 
 await expect(locator).toHaveValue('user@example.com'); // text field / input value

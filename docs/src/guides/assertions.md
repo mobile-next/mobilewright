@@ -44,7 +44,14 @@ await expect(screen.getByTestId('greeting')).toContainText('Hello');
 | Assertion | Passes when |
 |-----------|-------------|
 | `toHaveText(expected)` | Text matches exactly (string) or by pattern (RegExp) |
-| `toContainText(expected)` | Text contains the substring |
+| `toContainText(expected)` | Text contains the substring (string) or matches the pattern (RegExp) |
+
+Both matchers follow Playwright's text semantics: whitespace is trimmed and runs of whitespace collapse to a single space on both sides before comparing, so `toHaveText('Total: $12.00')` matches a label rendered as `"Total:\n $12.00"`. Pass `{ ignoreCase: true }` to compare case-insensitively:
+
+```typescript
+await expect(screen.getByTestId('greeting')).toHaveText('hello, world', { ignoreCase: true });
+await expect(screen.getByTestId('price')).toContainText(/\$\d+\.\d{2}/);
+```
 
 ### Value
 
