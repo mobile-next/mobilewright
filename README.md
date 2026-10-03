@@ -173,6 +173,9 @@ await locator.doubleTap()
 await locator.longPress({ duration: 1000 })
 await locator.fill('hello@example.com')              // tap to focus, clear, then type text
 await locator.clear()                                // tap to focus + clear the field
+await locator.check()                                // checkbox / radio / switch: tap only if not already checked
+await locator.uncheck()                              // tap only if currently checked
+await locator.setChecked(true)                       // check() or uncheck() by value
 await locator.swipe({ direction: 'left' })           // swipe on a specific element
 await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
 await locator.screenshot()                           // capture just this element (cropped PNG)

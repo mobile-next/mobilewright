@@ -646,6 +646,84 @@ test.describe('Locator', () => {
     });
   });
 
+  // Playwright's check()/uncheck()/setChecked(): find the checkable control,
+  // skip the tap when the state is already right, tap otherwise, and fail if
+  // the state did not change. An iOS SwiftUI Toggle is reported as a Switch
+  // row (label + inner Switch) whose centre is the label, so the inner control
+  // is what must be tapped.
+  test.describe('check / uncheck / setChecked', () => {
+    function toggleRow(checked: boolean): ViewNode {
+      return node({
+        type: 'Switch', label: 'Toggle switch', identifier: 'toggle', isChecked: checked, value: checked ? '1' : '0',
+        bounds: { x: 16, y: 428, width: 370, height: 52 },
+        children: [
+          node({ type: 'StaticText', label: 'Toggle switch', bounds: { x: 32, y: 443, width: 104, height: 20 } }),
+          node({ type: 'Switch', isChecked: checked, value: checked ? '1' : '0', bounds: { x: 309, y: 440, width: 63, height: 28 } }),
+        ],
+      });
+    }
+    const INNER_SWITCH_CENTER = [341, 454];
+
+    // A driver whose switch flips state when its inner control is tapped.
+    function driverWithToggle(initiallyChecked: boolean) {
+      const driver = createMockDriver([toggleRow(initiallyChecked)]);
+      let checked = initiallyChecked;
+      const originalTap = driver.tap;
+      driver.tap = async (x: number, y: number) => {
+        await originalTap(x, y);
+        if (x === INNER_SWITCH_CENTER[0] && y === INNER_SWITCH_CENTER[1]) {
+          checked = !checked;
+          driver._setHierarchy([toggleRow(checked)]);
+        }
+      };
+      return driver;
+    }
+
+    test('check() taps the inner switch of a toggle row and waits for it to become checked', async () => {
+      const driver = driverWithToggle(false);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).check();
+      expect(driver._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+    });
+
+    test('check() does not tap an already checked control', async () => {
+      const driver = driverWithToggle(true);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).check();
+      expect(driver._tracker.tapCalls).toEqual([]);
+    });
+
+    test('uncheck() taps a checked control and setChecked(false) is the same', async () => {
+      const driver = driverWithToggle(true);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).uncheck();
+      expect(driver._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+
+      const second = driverWithToggle(true);
+      await new Locator(second, { kind: 'testId', value: 'toggle' }).setChecked(false);
+      expect(second._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+    });
+
+    test('check() taps the centre of a plain Android checkbox', async () => {
+      const checkbox = (checked: boolean) => node({ type: 'android.widget.CheckBox', identifier: 'com.app:id/agree', isChecked: checked, bounds: { x: 100, y: 200, width: 60, height: 60 } });
+      const driver = createMockDriver([checkbox(false)]);
+      const originalTap = driver.tap;
+      driver.tap = async (x: number, y: number) => { await originalTap(x, y); driver._setHierarchy([checkbox(true)]); };
+      await new Locator(driver, { kind: 'testId', value: 'agree' }).check();
+      expect(driver._tracker.tapCalls).toEqual([[130, 230]]);
+    });
+
+    test('check() rejects an element that is not a checkbox, radio button or switch', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+      await expect(locator.check()).rejects.toThrow('Not a checkbox, radio button or switch');
+      expect(driver._tracker.tapCalls).toEqual([]);
+    });
+
+    test('check() fails when tapping did not change the state', async () => {
+      const driver = createMockDriver([toggleRow(false)]);
+      const locator = new Locator(driver, { kind: 'testId', value: 'toggle' });
+      await expect(locator.check({ timeout: 300 })).rejects.toThrow('Clicking the checkbox did not change its state');
+    });
+  });
+
   test.describe('scrollIntoViewIfNeeded', () => {
     test('returns immediately without swiping when element is already in the viewport', async () => {
       const driver = createMockDriver(hierarchy);

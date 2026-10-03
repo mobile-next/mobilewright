@@ -42,6 +42,16 @@ await screen.getByRole('textbox', { name: 'Email' }).clear();
 
 `fill` clears first, so you don't need to call `clear` before it. If the field can't be emptied, `fill` and `clear` throw rather than silently appending to leftover text.
 
+### Check and uncheck
+
+`check()`, `uncheck()` and `setChecked(value)` work like Playwright's: they resolve the checkable control (a checkbox, radio button or switch — for an iOS Toggle row, the switch inside it), tap it only when its state differs from what you asked for, and fail with "Clicking the checkbox did not change its state" if the tap had no effect. Calling them on anything else fails with "Not a checkbox, radio button or switch".
+
+```ts
+await screen.getByLabel('Remember me').check();
+await screen.getByTestId('notifications').uncheck();
+await screen.getByRole('switch').setChecked(wantNotifications);
+```
+
 ### Swipe
 
 Swipe in a direction starting from the element's center. `direction` is required.

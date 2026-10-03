@@ -1,5 +1,5 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
+import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
 import { runStep, type StepLocation } from './stackTrace.js';
 
@@ -173,6 +173,59 @@ export class Locator {
       const { x, y } = centerOf(node.bounds);
       await this.driver.longPress(x, y, opts?.duration);
     });
+  }
+
+  /** Ensure a checkbox, radio button or switch is checked (Playwright's locator.check()). */
+  async check(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.check()', () => this._setChecked(true, opts?.timeout));
+  }
+
+  /** Ensure a checkbox, radio button or switch is unchecked (Playwright's locator.uncheck()). */
+  async uncheck(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.uncheck()', () => this._setChecked(false, opts?.timeout));
+  }
+
+  /** Check or uncheck depending on `checked` (Playwright's locator.setChecked()). */
+  async setChecked(checked: boolean, opts?: { timeout?: number }): Promise<void> {
+    return this._step(`locator.setChecked(${checked})`, () => this._setChecked(checked, opts?.timeout));
+  }
+
+  // Playwright semantics: no-op when already in the wanted state, otherwise
+  // tap the control and fail if the state did not change. A SwiftUI Toggle is
+  // reported as a Switch row whose centre is its label, so the tap goes to the
+  // innermost checkable control inside the matched element.
+  private async _setChecked(checked: boolean, timeout?: number): Promise<void> {
+    const effectiveTimeout = timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
+    const pollInterval = this.options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    const started = Date.now();
+
+    const node = await this.resolveActionable(effectiveTimeout);
+    const control = checkableControlOf(node);
+    if (!control) {
+      throw new LocatorError('Not a checkbox, radio button or switch', this.strategy);
+    }
+    if (isCheckedState(node, control) === checked) {
+      return;
+    }
+
+    const { x, y } = centerOf(control.bounds);
+    await this.driver.tap(x, y);
+
+    const deadline = started + effectiveTimeout;
+    while (true) {
+      const roots = await this.driver.getViewHierarchy();
+      const current = queryAll(roots, this.strategy)[0];
+      if (current) {
+        const currentControl = checkableControlOf(current) ?? current;
+        if (isCheckedState(current, currentControl) === checked) {
+          return;
+        }
+      }
+      if (Date.now() >= deadline) {
+        throw new LocatorError('Clicking the checkbox did not change its state', this.strategy);
+      }
+      await sleep(pollInterval);
+    }
   }
 
   async clear(opts?: { timeout?: number }): Promise<void> {
@@ -420,6 +473,32 @@ export class Locator {
 
     return null;
   }
+}
+
+const CHECKABLE_ROLES = ['checkbox', 'radio', 'switch'] as const;
+
+function isCheckable(node: ViewNode): boolean {
+  return CHECKABLE_ROLES.some((role) => matchesRole(node, role));
+}
+
+/**
+ * The control a check()/uncheck() tap should land on: the innermost checkable
+ * descendant (a Toggle row wraps its real Switch), else the node itself when
+ * it is checkable, else null.
+ */
+function checkableControlOf(node: ViewNode): ViewNode | null {
+  for (const child of node.children) {
+    const inner = checkableControlOf(child);
+    if (inner) {
+      return inner;
+    }
+  }
+  return isCheckable(node) ? node : null;
+}
+
+/** Checked state as reported on the matched element or its control (iOS Switch rows report it on both). */
+function isCheckedState(node: ViewNode, control: ViewNode): boolean {
+  return node.isChecked === true || control.isChecked === true;
 }
 
 function centerOf(bounds: Bounds): { x: number; y: number } {
