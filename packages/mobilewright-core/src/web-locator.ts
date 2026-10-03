@@ -50,6 +50,19 @@ function isStrictModeViolation(e: unknown): boolean {
   return message.includes('strict mode violation');
 }
 
+// In-page statement that assigns `newValueExpr` to `el` the way Playwright
+// does: through the prototype's native `value` setter. React and similar
+// frameworks replace the element's own `value` property with a tracker;
+// a plain `el.value = …` bypasses it and the following 'input' event is then
+// ignored, so a controlled component never sees the new value. Contenteditable
+// elements have no value and take the text as content instead.
+function assignValueScript(newValueExpr: string): string {
+  return `{ const next = ${newValueExpr}; `
+    + `if (el.isContentEditable) { el.textContent = next; } `
+    + `else { const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value'); `
+    + `if (desc && desc.set) { desc.set.call(el, next); } else { el.value = next; } } }`;
+}
+
 export class MobileWebViewLocator {
   // Playwright's web-first matchers gate on `receiver._apiName` (see expectTypes
   // in playwright/lib/matchers/expect.js), a plain instance property every real
@@ -334,14 +347,20 @@ export class MobileWebViewLocator {
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
-      await this.actOnFirst(`el.focus(); el.value = ''; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));`, 'locator.fill()');
+      await this.actOnFirst(
+        `el.focus(); ${assignValueScript(JSON.stringify(text))} el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));`,
+        'locator.fill()',
+      );
     });
   }
 
   async type(text: string): Promise<void> {
     return this._step(`locator.type(${JSON.stringify(text)})`, async () => {
       await this.pollUntilVisible(DEFAULT_TIMEOUT);
-      await this.actOnFirst(`el.focus(); el.value = (el.value || '') + ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true }));`, 'locator.type()');
+      await this.actOnFirst(
+        `el.focus(); ${assignValueScript(`(el.value || '') + ${JSON.stringify(text)}`)} el.dispatchEvent(new Event('input', { bubbles: true }));`,
+        'locator.type()',
+      );
     });
   }
 
