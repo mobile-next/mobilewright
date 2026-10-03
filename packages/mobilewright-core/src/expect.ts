@@ -631,7 +631,7 @@ class PageAssertions {
     return this._wrapAssertion('toHaveURL', async () => {
       let last = '';
       await retryAssertion(
-        async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
+        async () => { try { last = await this.page._liveUrl(); } catch { last = ''; } return last; },
         (current) => this.matches(url instanceof RegExp ? url.test(current) : current === url),
         opts?.timeout ?? DEFAULT_TIMEOUT,
         () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
