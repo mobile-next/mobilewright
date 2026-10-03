@@ -174,7 +174,8 @@ await locator.longPress({ duration: 1000 })
 await locator.fill('hello@example.com')              // tap to focus, clear, then type text
 await locator.clear()                                // tap to focus + clear the field
 await locator.swipe({ direction: 'left' })           // swipe on a specific element
-await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
+await locator.scrollIntoViewIfNeeded()               // scroll until element is visible (swipes 'up' while searching, 5 attempts)
+await locator.scrollIntoViewIfNeeded({ direction: 'down', maxSwipes: 10 })
 await locator.screenshot()                           // capture just this element (cropped PNG)
 ```
 
