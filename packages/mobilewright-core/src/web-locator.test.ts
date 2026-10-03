@@ -538,3 +538,53 @@ test.describe('_expect on a missing element', () => {
     playwrightExpect(evaluateCalls).toHaveLength(1);
   });
 });
+
+// Playwright's value readers (textContent, innerText, innerHTML, inputValue,
+// getAttribute) wait for the element to be *attached*, not visible: an empty
+// <span> has no box and a display:none element is hidden, yet both have
+// readable content. Only actions and boundingBox gate on visibility.
+test.describe('value readers wait for attachment, not visibility', () => {
+  // A page where the element exists but Playwright's visibility check says no.
+  function sessionWithHiddenElement(content: { textContent?: string; innerText?: string; innerHTML?: string; value?: string }) {
+    const evaluateCalls: string[] = [];
+    const session: WebViewSession = {
+      ...fakeWebViewSession().session,
+      evaluate: async <T,>(expr: string): Promise<T> => {
+        evaluateCalls.push(expr);
+        if (expr.includes("elementState(el, 'visible')")) return false as T;
+        if (expr.includes('el?.textContent')) return content.textContent as T;
+        if (expr.includes('el?.innerText')) return content.innerText as T;
+        if (expr.includes('el?.innerHTML')) return content.innerHTML as T;
+        if (expr.includes('el?.value')) return content.value as T;
+        return true as T; // attached check
+      },
+    };
+    return { session, evaluateCalls };
+  }
+
+  test('textContent() of a display:none element returns its text', async () => {
+    const { session } = sessionWithHiddenElement({ textContent: 'hidden text' });
+    const loc = new WebLocator(session, '#hidden');
+    playwrightExpect(await loc.textContent({ timeout: 300 })).toBe('hidden text');
+  });
+
+  test('textContent() of an empty element returns an empty string instead of timing out', async () => {
+    const { session } = sessionWithHiddenElement({ textContent: '' });
+    const loc = new WebLocator(session, '#empty');
+    playwrightExpect(await loc.textContent({ timeout: 300 })).toBe('');
+  });
+
+  test('innerText(), innerHTML() and inputValue() read hidden elements too', async () => {
+    const { session } = sessionWithHiddenElement({ innerText: 'inner', innerHTML: '<b>inner</b>', value: 'v' });
+    const loc = new WebLocator(session, '#hidden');
+    playwrightExpect(await loc.innerText({ timeout: 300 })).toBe('inner');
+    playwrightExpect(await loc.innerHTML({ timeout: 300 })).toBe('<b>inner</b>');
+    playwrightExpect(await loc.inputValue({ timeout: 300 })).toBe('v');
+  });
+
+  test('textContent() still fails when the element never appears', async () => {
+    const { session } = fakeWebViewSession({ evaluateAlways: false });
+    const loc = new WebLocator(session, '#nope');
+    await playwrightExpect(loc.textContent({ timeout: 300 })).rejects.toThrow(/timed out waiting for element/);
+  });
+});
