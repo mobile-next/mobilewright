@@ -490,12 +490,17 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async doubleTap(x: number, y: number): Promise<void> {
-    await this.call('device.io.tap', { x, y });
-    await this.call('device.io.tap', { x, y });
+    const point = { x: Math.round(x), y: Math.round(y) };
+    await this.call('device.io.tap', point);
+    await this.call('device.io.tap', point);
   }
 
   async longPress(x: number, y: number, duration?: number): Promise<void> {
-    await this.call('device.io.longpress', { x, y, ...(duration !== undefined && { duration }) });
+    await this.call('device.io.longpress', {
+      x: Math.round(x),
+      y: Math.round(y),
+      ...(duration !== undefined && { duration }),
+    });
   }
 
   async typeText(text: string): Promise<void> {
