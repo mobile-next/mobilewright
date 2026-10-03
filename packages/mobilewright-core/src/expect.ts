@@ -1,4 +1,4 @@
-import type { Locator, StepFn } from './locator.js';
+import type { ElementState, Locator, StepFn } from './locator.js';
 import { LocatorError } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
@@ -168,6 +168,8 @@ interface LocatorLike {
   isChecked(opts?: { timeout?: number }): Promise<boolean>;
   isSelected?(opts?: { timeout?: number }): Promise<boolean>;
   isFocused?(opts?: { timeout?: number }): Promise<boolean>;
+  /** One state read, or null when the element does not exist. Lets state matchers fail on a missing element like Playwright. */
+  _resolveState?(state: ElementState): Promise<boolean | null>;
   getText(opts?: { timeout?: number }): Promise<string>;
   getValue(opts?: { timeout?: number }): Promise<string>;
   count(): Promise<number>;
@@ -242,43 +244,83 @@ class LocatorAssertions {
 
   async toBeEnabled(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeEnabled', async () => {
-      await this.assertBoolean('enabled', () => this.locator.isEnabled({ timeout: 0 }), opts);
+      await this.assertElementState('enabled', 'enabled', true, opts);
     });
   }
 
   async toBeDisabled(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeDisabled', async () => {
-      await this.assertBoolean('disabled', async () => {
-        const enabled = await this.locator.isEnabled({ timeout: 0 });
-        return !enabled;
-      }, opts);
+      await this.assertElementState('enabled', 'disabled', false, opts);
     });
   }
 
   async toBeSelected(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeSelected', async () => {
-      const isSelected = this.locator.isSelected?.bind(this.locator);
-      if (!isSelected) {
+      if (!this.locator.isSelected && !this.locator._resolveState) {
         throw new ExpectError('toBeSelected() is not supported for this locator');
       }
-      await this.assertBoolean('selected', () => isSelected({ timeout: 0 }), opts);
+      await this.assertElementState('selected', 'selected', true, opts);
     });
   }
 
   async toBeFocused(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeFocused', async () => {
-      const isFocused = this.locator.isFocused?.bind(this.locator);
-      if (!isFocused) {
+      if (!this.locator.isFocused && !this.locator._resolveState) {
         throw new ExpectError('toBeFocused() is not supported for this locator');
       }
-      await this.assertBoolean('focused', () => isFocused({ timeout: 0 }), opts);
+      await this.assertElementState('focused', 'focused', true, opts);
     });
   }
 
   async toBeChecked(opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toBeChecked', async () => {
-      await this.assertBoolean('checked', () => this.locator.isChecked({ timeout: 0 }), opts);
+      await this.assertElementState('checked', 'checked', true, opts);
     });
+  }
+
+  /** Read `state` once without waiting; null when the element does not exist. */
+  private async readElementState(state: ElementState): Promise<boolean | null> {
+    if (this.locator._resolveState) {
+      return this.locator._resolveState(state);
+    }
+    switch (state) {
+      case 'enabled': return this.locator.isEnabled({ timeout: 0 });
+      case 'checked': return this.locator.isChecked({ timeout: 0 });
+      case 'focused': return this.locator.isFocused!({ timeout: 0 });
+      case 'selected': return this.locator.isSelected!({ timeout: 0 });
+    }
+  }
+
+  // Playwright semantics for enabled/disabled/checked/focused/selected: the
+  // element must exist, even for a negated assertion — only the visibility
+  // matchers treat a missing element as satisfied. `expected` is the value of
+  // `state` the positive assertion wants (toBeDisabled wants enabled === false).
+  protected async assertElementState(
+    state: ElementState,
+    label: string,
+    expected: boolean,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    let last: boolean | null = null;
+    await this.retryAssertion(
+      async () => { last = await this.readElementState(state); return last; },
+      (value) => {
+        if (value === null) {
+          return false;
+        }
+        const matches = value === expected;
+        return this.negated ? !matches : matches;
+      },
+      this.assertionTimeout(opts),
+      () => {
+        if (last === null) {
+          return `Expected element to be ${label}, but no matching element was found`;
+        }
+        return this.negated
+          ? `Expected element to NOT be ${label}, but it was`
+          : `Expected element to be ${label}, but it was not`;
+      },
+    );
   }
 
   async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
