@@ -27,11 +27,13 @@ await expect(screen.getByRole('tab', { name: 'Home' })).toBeSelected();
 |-----------|-------------|
 | `toBeVisible()` | Element exists and is visible |
 | `toBeHidden()` | Element does not exist or is not visible |
-| `toBeEnabled()` | Element is enabled |
-| `toBeDisabled()` | Element is not enabled |
-| `toBeChecked()` | Element is checked |
-| `toBeFocused()` | Element has focus |
-| `toBeSelected()` | Element is selected |
+| `toBeEnabled()` | Element exists and is enabled |
+| `toBeDisabled()` | Element exists and is not enabled |
+| `toBeChecked()` | Element exists and is checked |
+| `toBeFocused()` | Element exists and has focus |
+| `toBeSelected()` | Element exists and is selected |
+
+Like Playwright, only the visibility assertions tolerate a missing element: `toBeHidden()` and `not.toBeVisible()` pass when nothing matches. Every other state assertion needs an element to read the state from, so `toBeDisabled()` or `not.toBeChecked()` on a locator that matches nothing fails with "no matching element was found" instead of passing vacuously.
 
 ### Text content
 
