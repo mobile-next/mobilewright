@@ -488,6 +488,54 @@ test.describe('expect', () => {
       await expect(mwExpect(locator).toBeEmpty({ timeout: 200 })).rejects.toThrow(ExpectError);
     });
 
+    // Playwright's toBeEmpty() inspects an input's value but any other
+    // element's text. A label or static text with content is not empty, even
+    // though it has no `value`.
+    test('fails for a text element that has text but no value', async () => {
+      const tree: ViewNode[] = [
+        node({ type: 'StaticText', text: 'Payment failed', identifier: 'status' }),
+      ];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'status' });
+      await expect(mwExpect(locator).toBeEmpty({ timeout: 200 })).rejects.toThrow('Expected element to be empty, but got "Payment failed"');
+    });
+
+    test('fails for an iOS label whose content is in `label` only', async () => {
+      const tree: ViewNode[] = [
+        node({ type: 'StaticText', label: 'Basic UI', identifier: 'title' }),
+      ];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'title' });
+      await expect(mwExpect(locator).toBeEmpty({ timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('not.toBeEmpty passes for a text element with text but no value', async () => {
+      const tree: ViewNode[] = [
+        node({ type: 'StaticText', text: 'Payment failed', identifier: 'status' }),
+      ];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'status' });
+      await mwExpect(locator).not.toBeEmpty({ timeout: 200 });
+    });
+
+    test('passes for an empty text field that has an accessibility label', async () => {
+      const tree: ViewNode[] = [
+        node({ type: 'TextField', label: 'Email', identifier: 'email', value: '' }),
+      ];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'email' });
+      await mwExpect(locator).toBeEmpty({ timeout: 200 });
+    });
+
+    test('passes for an empty Android EditText (android.widget.EditText) with a label', async () => {
+      const tree: ViewNode[] = [
+        node({ type: 'android.widget.EditText', label: 'text_field', identifier: 'com.app:id/text_field' }),
+      ];
+      const driver = createMockDriver(tree);
+      const locator = new Locator(driver, { kind: 'testId', value: 'text_field' });
+      await mwExpect(locator).toBeEmpty({ timeout: 200 });
+    });
+
     test('not.toBeEmpty passes when value is not empty', async () => {
       const filledTree: ViewNode[] = [
         node({

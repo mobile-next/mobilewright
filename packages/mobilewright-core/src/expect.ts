@@ -170,6 +170,8 @@ interface LocatorLike {
   isFocused?(opts?: { timeout?: number }): Promise<boolean>;
   getText(opts?: { timeout?: number }): Promise<string>;
   getValue(opts?: { timeout?: number }): Promise<string>;
+  /** Content toBeEmpty() inspects (a field's value, otherwise its text). Falls back to getValue(). */
+  _emptinessContent?(opts?: { timeout?: number }): Promise<string>;
   count(): Promise<number>;
   expectTimeout?: number;
   _stepFn?: StepFn | null;
@@ -317,9 +319,10 @@ class LocatorAssertions {
   }
 
   async toBeEmpty(opts?: ExpectOptions): Promise<void> {
+    const readContent = this.locator._emptinessContent?.bind(this.locator) ?? this.locator.getValue.bind(this.locator);
     return this._wrapAssertion('toBeEmpty', () =>
       this.assertStringMatch(
-        () => this.locator.getValue({ timeout: 0 }),
+        () => readContent({ timeout: 0 }),
         (value) => value === '',
         'Expected element to be empty, but no matching element was found',
         (value) => this.negated

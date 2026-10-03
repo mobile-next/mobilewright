@@ -234,7 +234,7 @@ export function bareTypeName(type: string): string {
     : afterPackage;
 }
 
-function matchesRole(node: ViewNode, role: string): boolean {
+export function matchesRole(node: ViewNode, role: string): boolean {
   const normalizedType = bareTypeName(node.type);
   // ROLE_TYPE_MAP is `as const`, so its keys are a closed union; widen for the
   // arbitrary caller-supplied role, and keep `| undefined` explicit because
