@@ -25,11 +25,20 @@ export interface FilterOptions {
 }
 
 export interface ScrollIntoViewOptions {
-  /** Maximum number of swipe attempts before giving up (default: 10) */
+  /** Maximum number of swipe attempts before giving up (default: 5) */
   maxSwipes?: number;
-  /** Swipe gesture direction — 'up' swipes up (scrolls content down), 'down' swipes down (scrolls content up). Default: 'up' */
+  /**
+   * Swipe direction used while the element is not in the hierarchy at all —
+   * 'up' swipes up (scrolls content down), 'down' swipes down (scrolls content up).
+   * Once the element has been seen, swipes head toward its last known position.
+   * Default: 'up'
+   */
   direction?: 'up' | 'down';
 }
+
+const DEFAULT_MAX_SWIPES = 5;
+/** Extra distance past "just revealed", so the element lands clear of the screen edge. */
+const SCROLL_REVEAL_MARGIN = 100;
 
 const DEFAULT_TIMEOUT = 5_000;
 const DEFAULT_POLL_INTERVAL = 100;
@@ -230,10 +239,13 @@ export class Locator {
 
   async scrollIntoViewIfNeeded(opts?: ScrollIntoViewOptions): Promise<void> {
     return this._step('locator.scrollIntoViewIfNeeded()', async () => {
-      const maxSwipes = opts?.maxSwipes ?? 10;
-      const direction: SwipeDirection = opts?.direction ?? 'up';
+      const maxSwipes = opts?.maxSwipes ?? DEFAULT_MAX_SWIPES;
+      const searchDirection: SwipeDirection = opts?.direction ?? 'up';
       const screenSize = await this.driver.getScreenSize();
       const POST_SWIPE_SETTLE = 200;
+      // iOS drops off-screen nodes from the hierarchy; remember where the
+      // element was last seen so a miss keeps scrolling toward it.
+      let lastSeenDirection: SwipeDirection | null = null;
 
       for (let i = 0; i < maxSwipes; i++) {
         const roots = await this.driver.getViewHierarchy();
@@ -243,8 +255,19 @@ export class Locator {
           return;
         }
 
-        const swipeDirection = node ? swipeDirectionToReveal(node.bounds, screenSize) : direction;
-        await this.driver.swipe(swipeDirection);
+        if (node) {
+          // Position known: swipe just far enough (plus a margin) so a
+          // half-screen swipe does not throw the element out the other side.
+          const direction = swipeDirectionToReveal(node.bounds, screenSize);
+          lastSeenDirection = direction;
+          const distance = Math.min(
+            distanceToReveal(node.bounds, screenSize, direction) + SCROLL_REVEAL_MARGIN,
+            screenSize.height / 2,
+          );
+          await this.driver.swipe(direction, { distance });
+        } else {
+          await this.driver.swipe(lastSeenDirection ?? searchDirection);
+        }
         await sleep(POST_SWIPE_SETTLE);
       }
 
@@ -459,6 +482,14 @@ function isWithinViewport(bounds: Bounds, screen: ScreenSize): boolean {
     && bounds.y + bounds.height <= screen.height
     && bounds.x >= 0
     && bounds.x + bounds.width <= screen.width;
+}
+
+/** How far the content must move for the element's far edge to reach the screen edge. */
+function distanceToReveal(bounds: Bounds, screen: ScreenSize, direction: SwipeDirection): number {
+  if (direction === 'up') {
+    return Math.max(0, bounds.y + bounds.height - screen.height);
+  }
+  return Math.max(0, -bounds.y);
 }
 
 function swipeDirectionToReveal(bounds: Bounds, screen: ScreenSize): SwipeDirection {
