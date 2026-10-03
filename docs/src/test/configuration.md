@@ -40,7 +40,7 @@ Which device to run on and which app to drive.
 | `deviceType` | `'simulator' \| 'emulator' \| 'real'` | — | Restrict to simulators, emulators, or real devices |
 | `osVersion` | `string` | — | OS version constraint — see [OS version constraints](#os-version-constraints) |
 | `bundleId` | `string` | — | App bundle ID to launch |
-| `installApps` | `string \| string[]` | — | App paths (APK/IPA) to install before launching |
+| `installApps` | `string \| string[]` | — | App paths (APK/IPA) to install before launching. Relative paths resolve against the config file's directory |
 | `autoAppLaunch` | `boolean` | `true` | Launch the app automatically after connecting |
 
 ### OS version constraints

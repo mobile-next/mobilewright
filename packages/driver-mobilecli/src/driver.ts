@@ -1,6 +1,7 @@
 import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
 import { openSync, readSync, closeSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type {
   AllocatedDevice,
   AllocationCriteria,
@@ -685,10 +686,12 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       }
     }
 
-    assertValidZipFile(path);
-    debug('installing %s', path);
-    await this.call('device.apps.install', { path });
-    debug('installed %s', path);
+    // The server resolves a relative path against ITS cwd, so send an absolute one.
+    const absolutePath = resolve(path);
+    assertValidZipFile(absolutePath);
+    debug('installing %s', absolutePath);
+    await this.call('device.apps.install', { path: absolutePath });
+    debug('installed %s', absolutePath);
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
