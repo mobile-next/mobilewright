@@ -182,7 +182,11 @@ export class Locator {
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
       await this._tapAndClear(opts?.timeout);
-      await this.driver.typeText(text);
+      // fill('') means "empty the field" (Playwright semantics); the field is
+      // already cleared, and drivers reject typing an empty string.
+      if (text !== '') {
+        await this.driver.typeText(text);
+      }
     });
   }
 
