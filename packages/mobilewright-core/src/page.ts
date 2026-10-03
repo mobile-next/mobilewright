@@ -208,6 +208,16 @@ export class MobileWebViewPage {
     return this._url;
   }
 
+  /**
+   * Read the webview's current URL and refresh the cache behind url(). Used by
+   * expect(page).toHaveURL(), which must observe navigations the page did not
+   * drive (link clicks, scripts). Internal.
+   */
+  async _liveUrl(): Promise<string> {
+    this._url = await this.session.url();
+    return this._url;
+  }
+
   async title(): Promise<string> {
     return this.session.title();
   }
