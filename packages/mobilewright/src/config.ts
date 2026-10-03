@@ -148,6 +148,29 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
+/** Folder the HTML report is written to; `mobilewright show-report` and report branding read it from here. */
+export const HTML_REPORT_DIR = 'mobilewright-report';
+
+/**
+ * Points every `html` reporter entry without an explicit `outputFolder` at
+ * HTML_REPORT_DIR, so `reporter: 'html'` in the config file lands in the same
+ * folder as `mobilewright test --reporter html`.
+ */
+function applyHtmlReportFolder(config: MobilewrightConfig): MobilewrightConfig {
+  const reporters = normalizeReporters(config.reporter);
+  if (!reporters.some(([name]) => name === 'html')) {
+    return config;
+  }
+  const reporter = reporters.map(([name, options]): ReporterEntry => {
+    if (name !== 'html') {
+      return options === undefined ? [name] : [name, options];
+    }
+    const htmlOptions = (options ?? {}) as Record<string, unknown>;
+    return ['html', { ...htmlOptions, outputFolder: htmlOptions['outputFolder'] ?? HTML_REPORT_DIR }];
+  });
+  return { ...config, reporter: reporter as MobilewrightConfig['reporter'] };
+}
+
 /** Normalizes `MobilewrightConfig['reporter']` into Playwright's array-of-tuples shape. */
 function normalizeReporters(reporter: MobilewrightConfig['reporter']): ReporterEntry[] {
   if (!reporter) {
@@ -275,7 +298,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
 
-  return injectObserverReporter(base);
+  return injectObserverReporter(applyHtmlReportFolder(base));
 }
 
 const CONFIG_FILES = [
