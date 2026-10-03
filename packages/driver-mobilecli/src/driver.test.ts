@@ -474,3 +474,30 @@ test.describe('MobilecliDriver.screenshot()', () => {
     expect(screenshotCallParams(calls)).toEqual({ deviceId: SIMULATOR_DEVICE_ID });
   });
 });
+
+// mobilecli's device.io.tap / device.io.longpress params are Go ints: a
+// fractional coordinate is rejected with "cannot unmarshal number 10.4 into
+// Go struct field IoTapParams.x of type int". tap() already rounds; the other
+// pointer actions must do the same.
+test.describe('pointer coordinates are sent to mobilecli as integers', () => {
+  function sentCoordinates(calls: RecordedCall[]): Array<{ x: unknown; y: unknown }> {
+    return calls.map(({ params }) => ({ x: params.x, y: params.y }));
+  }
+
+  test('doubleTap() rounds fractional coordinates for both taps', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, { 'device.io.tap': {} });
+    await driver.doubleTap(10.4, 20.6);
+    expect(calls.map((c) => c.method)).toEqual(['device.io.tap', 'device.io.tap']);
+    expect(sentCoordinates(calls)).toEqual([{ x: 10, y: 21 }, { x: 10, y: 21 }]);
+  });
+
+  test('longPress() rounds fractional coordinates', async () => {
+    const driver = createDriverWithSession();
+    const calls = recordRpc(driver, { 'device.io.longpress': {} });
+    await driver.longPress(10.4, 20.6, 300);
+    expect(calls[0].method).toBe('device.io.longpress');
+    expect(sentCoordinates(calls)).toEqual([{ x: 10, y: 21 }]);
+    expect(calls[0].params.duration).toBe(300);
+  });
+});
