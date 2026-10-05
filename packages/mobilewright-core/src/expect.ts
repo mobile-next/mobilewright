@@ -629,26 +629,61 @@ class PageAssertions {
 
   async toHaveURL(url: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveURL', async () => {
-      let last = '';
-      await retryAssertion(
-        async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
-        (current) => this.matches(url instanceof RegExp ? url.test(current) : current === url),
-        opts?.timeout ?? DEFAULT_TIMEOUT,
-        () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
+      await this.assertPageValue(
+        'URL',
+        () => this.page._liveUrl(),
+        (current) => url instanceof RegExp ? url.test(current) : current === url,
+        url, opts,
       );
     });
   }
 
   async toHaveTitle(title: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveTitle', async () => {
-      let last = '';
-      await retryAssertion(
-        async () => { try { last = await this.page.title(); } catch { last = ''; } return last; },
-        (current) => this.matches(title instanceof RegExp ? title.test(current) : current === title),
-        opts?.timeout ?? DEFAULT_TIMEOUT,
-        () => `Expected page title to ${this.negated ? 'not ' : ''}match "${title}", but got "${last}"`,
+      await this.assertPageValue(
+        'title',
+        () => this.page.title(),
+        (current) => title instanceof RegExp ? title.test(current) : current === title,
+        title, opts,
       );
     });
+  }
+
+  // Poll a page-level value until it matches (honoring negation). A read that
+  // fails is not a value: it keeps the poll unsuccessful, so a negated assertion
+  // cannot pass merely because the page could not be observed.
+  private async assertPageValue(
+    what: string,
+    read: () => Promise<string>,
+    matches: (value: string) => boolean,
+    expected: string | RegExp,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    let last: string | null = null;
+    let lastError: unknown;
+    await retryAssertion(
+      async (): Promise<string | null> => {
+        try {
+          last = await read();
+          lastError = undefined;
+          return last;
+        } catch (e) {
+          last = null;
+          lastError = e;
+          return null;
+        }
+      },
+      (current) => current !== null && this.matches(matches(current)),
+      opts?.timeout ?? DEFAULT_TIMEOUT,
+      () => {
+        const expectation = `Expected page ${what} to ${this.negated ? 'not ' : ''}match "${expected}"`;
+        if (last === null) {
+          const reason = lastError instanceof Error ? lastError.message : String(lastError);
+          return `${expectation}, but the page ${what} could not be read: ${reason}`;
+        }
+        return `${expectation}, but got "${last}"`;
+      },
+    );
   }
 }
 
