@@ -392,6 +392,29 @@ test.describe('WebLocator.fill()', () => {
     await loc.fill('hello@example.com');
     playwrightExpect(evaluateCalls.some(c => c.includes('hello@example.com'))).toBe(true);
   });
+
+  // React (and other frameworks) wrap the element's own `value` property to
+  // track changes; assigning `el.value = …` bypasses that tracker, so the
+  // following 'input' event is ignored and the controlled component never
+  // updates. Playwright writes through the prototype's native setter instead.
+  test('writes the value through the native prototype setter so React controlled inputs update', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, 'input');
+    await loc.fill('user@example.com');
+    const fillExpression = evaluateCalls.find(c => c.includes('user@example.com'))!;
+    playwrightExpect(fillExpression).toContain('Object.getOwnPropertyDescriptor(');
+    playwrightExpect(fillExpression).toContain('\'value\')');
+    playwrightExpect(fillExpression).toContain('.set.call(el,');
+  });
+
+  test('type() appends through the native prototype setter as well', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, 'input');
+    await loc.type('abc');
+    const typeExpression = evaluateCalls.find(c => c.includes('abc'))!;
+    playwrightExpect(typeExpression).toContain('\'value\')');
+    playwrightExpect(typeExpression).toContain('.set.call(el,');
+  });
 });
 
 test.describe('getByRole().click() via the injected engine', () => {
