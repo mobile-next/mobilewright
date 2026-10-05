@@ -290,6 +290,7 @@ export class FleetApiClient {
     }
 
     try {
+      debug('%s %s %o', method, path, body ?? '');
       const res = await this.fetchFn(`${this.apiUrl}${path}`, {
         method,
         headers,
@@ -300,6 +301,7 @@ export class FleetApiClient {
       if (!res.ok) {
         const detail = await this.errorDetail(res);
         const message = `${method} ${path} failed with ${res.status}${detail ? `: ${detail}` : ''}`;
+        debug('%s %s -> %d %s', method, path, res.status, detail);
         // 429 means the account's concurrency limit is reached, not that the request was bad. The
         // device pool re-queues NoDeviceAvailableError until a held device is released, instead of
         // failing every test a worker picks up while another worker holds the only slot.
