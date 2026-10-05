@@ -257,8 +257,10 @@ export class FleetApiClient {
   }
 
   // The URL is presigned for the declared size and SHA-256; send exactly the headers it was signed with.
+  // Bounded by installTimeout so a stalled upload settles, while caller cancellation still applies.
   private async putBytes(filePath: string, upload: NonNullable<StoredFile['upload']>, signal?: AbortSignal): Promise<void> {
     debug('uploading %s', filePath);
+    const timeoutSignal = AbortSignal.timeout(this.installTimeout);
     const progressTimer = setInterval(() => debug('still uploading %s', filePath), 10_000);
     try {
       const res = await this.fetchFn(upload.url, {
@@ -266,7 +268,7 @@ export class FleetApiClient {
         headers: upload.headers,
         body: createReadStream(filePath),
         duplex: 'half',
-        ...(signal && { signal }),
+        signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
       } as RequestInit);
       if (!res.ok) {
         throw new Error(`Upload of ${filePath} failed with status ${res.status}`);

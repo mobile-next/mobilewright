@@ -281,3 +281,16 @@ test('a server that stays unavailable fails after the last retry', async () => {
   await expect(client.createSession()).rejects.toThrow(/503: server_draining/);
   expect(calls).toHaveLength(10);
 });
+
+test('a stalled upload to storage aborts after the install timeout', async () => {
+  const declaredWithUpload = { id: 'file-1', status: 'pendingUpload', upload: { method: 'PUT', url: 'https://storage.test/put', headers: {} } };
+  const fetchFn = (async (url: string, init: RequestInit) => {
+    if (url.startsWith('https://storage.test')) {
+      return stallingFetch()(url, init);
+    }
+    return { ok: true, status: 201, json: async () => declaredWithUpload } as Response;
+  }) as unknown as typeof fetch;
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn, installTimeout: 20 });
+
+  await expect(client.uploadFile(appFileContaining('hello'))).rejects.toThrow(/aborted/);
+});
