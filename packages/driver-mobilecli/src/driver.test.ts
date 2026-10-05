@@ -501,3 +501,66 @@ test.describe('pointer coordinates are sent to mobilecli as integers', () => {
     expect(calls[0].params.duration).toBe(300);
   });
 });
+
+// `xcrun simctl terminate` exits with status 3 (ESRCH, "found nothing to
+// terminate") for an installed app that is not running AND for a bundle that
+// is not installed; mobilecli forwards it as "failed to execute xcrun simctl
+// command: exit status 3". Real iOS devices get typed errors instead
+// ("process of X not found" / "X not installed"). The driver gives simulators
+// the same semantics so launch flows can terminate-then-launch a stopped app.
+test.describe('terminateApp() on an iOS simulator when simctl finds nothing to terminate', () => {
+  const SIMCTL_NOTHING_TO_TERMINATE = 'failed to terminate app on device sim-iphone-15: failed to execute xcrun simctl command: exit status 3';
+
+  function simulatorDriverWhere(installedBundleIds: string[], terminateError: string): MobilecliDriver {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    (driver as any).session.rpc.call = async (method: string) => {
+      if (method === 'device.apps.terminate') { throw new Error(terminateError); }
+      if (method === 'device.apps.list') { return installedBundleIds.map((bundleId) => ({ bundleId })); }
+      throw new Error(`unexpected RPC ${method}`);
+    };
+    return driver;
+  }
+
+  test('resolves when the app is installed but not running', async () => {
+    const driver = simulatorDriverWhere(['com.example.app'], SIMCTL_NOTHING_TO_TERMINATE);
+    await expect(driver.terminateApp('com.example.app')).resolves.toBeUndefined();
+  });
+
+  test('reports a bundle that is not installed, like a real device does', async () => {
+    const driver = simulatorDriverWhere(['com.other.app'], SIMCTL_NOTHING_TO_TERMINATE);
+    await expect(driver.terminateApp('com.example.app')).rejects.toThrow('com.example.app not installed');
+  });
+
+  test('other simctl failures are still reported', async () => {
+    const driver = simulatorDriverWhere(['com.example.app'], 'failed to terminate app on device sim-iphone-15: failed to execute xcrun simctl command: exit status 1');
+    await expect(driver.terminateApp('com.example.app')).rejects.toThrow('exit status 1');
+  });
+
+});
+
+// Stopping an app that is not running is not an error on any device type:
+// Android already succeeds silently, the simulator case is handled above, and
+// a real iOS device answers "process of X not found" — which is the same
+// outcome. A bundle that is not installed stays an error.
+test.describe('terminateApp() when the app is not running', () => {
+  function driverRejectingWith(message: string, deviceType: 'real' | 'simulator' = 'real'): MobilecliDriver {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType });
+    (driver as any).session.rpc.call = async () => { throw new Error(message); };
+    return driver;
+  }
+
+  test('a real device reporting "process not found" resolves', async () => {
+    const driver = driverRejectingWith('failed to terminate app on device real: process of com.example.app not found');
+    await expect(driver.terminateApp('com.example.app')).resolves.toBeUndefined();
+  });
+
+  test('a bundle that is not installed is still an error', async () => {
+    const driver = driverRejectingWith('failed to terminate app on device real: com.example.app not installed');
+    await expect(driver.terminateApp('com.example.app')).rejects.toThrow('com.example.app not installed');
+  });
+
+  test('other failures are still reported', async () => {
+    const driver = driverRejectingWith('failed to terminate app on device real: kill process failed: boom');
+    await expect(driver.terminateApp('com.example.app')).rejects.toThrow('kill process failed');
+  });
+});

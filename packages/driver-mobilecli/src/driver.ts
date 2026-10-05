@@ -199,6 +199,12 @@ function assertValidZipFile(path: string): void {
 
 const debug = createDebug('mw:driver-mobilecli');
 
+/** mobilecli's real-device answer when the app to terminate has no running process. */
+function isProcessNotFound(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /process of \S+ not found$/.test(message);
+}
+
 /**
  * A WebViewSession backed by mobilecli's device.webview.* RPC methods.
  * Bound to a single webview `id`; the deviceId is injected by the caller.
@@ -635,8 +641,36 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
 
   async terminateApp(bundleId: string): Promise<void> {
     debug('terminating %s', bundleId);
-    await this.call('device.apps.terminate', { bundleId });
+    try {
+      await this.call('device.apps.terminate', { bundleId });
+    } catch (error) {
+      // Stopping an app that is not running is not an error on any device
+      // type. A real iOS device says so explicitly; Android succeeds silently.
+      if (isProcessNotFound(error)) {
+        debug('%s was not running', bundleId);
+        return;
+      }
+      if (!this.isSimctlNothingToTerminate(error)) {
+        throw error;
+      }
+      // `xcrun simctl terminate` exits 3 (ESRCH) both for an installed app that is
+      // not running and for a bundle that is not installed. Real devices get
+      // distinct errors; give the simulator the same semantics: not running is
+      // not an error, not installed is.
+      const installed = (await this.listApps()).some((app) => app.bundleId === bundleId);
+      if (!installed) {
+        throw new Error(`failed to terminate app on device ${this.requireSession().deviceId}: ${bundleId} not installed`);
+      }
+      debug('%s was not running', bundleId);
+      return;
+    }
     debug('terminated %s', bundleId);
+  }
+
+  private isSimctlNothingToTerminate(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return this.requireSession().deviceType === 'simulator'
+      && /failed to execute xcrun simctl command: exit status 3$/.test(message);
   }
 
   async listApps(): Promise<AppInfo[]> {
