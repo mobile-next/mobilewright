@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { MobilecliDriver } from './driver.js';
 import { NoDeviceAvailableError, type DeviceInfo } from '@mobilewright/protocol';
 
@@ -500,4 +500,20 @@ test.describe('pointer coordinates are sent to mobilecli as integers', () => {
     expect(sentCoordinates(calls)).toEqual([{ x: 10, y: 21 }]);
     expect(calls[0].params.duration).toBe(300);
   });
+});
+
+// The mobilecli server resolves a relative `path` against ITS cwd, which is
+// not the test's cwd when the server was started elsewhere. Always hand it an
+// absolute path.
+test('installApp() sends an absolute path to mobilecli even when given a relative one', async () => {
+  const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+  const calls = recordRpc(driver, { 'device.apps.install': {} });
+  const absolutePath = createValidZipFile('relative-install.apk');
+  const relativePath = relative(process.cwd(), absolutePath);
+  expect(relativePath.startsWith('/')).toBe(false);
+
+  await driver.installApp(relativePath);
+
+  expect(calls[0].method).toBe('device.apps.install');
+  expect(calls[0].params.path).toBe(resolve(absolutePath));
 });

@@ -381,7 +381,7 @@ All options:
 | `bundleId` | `string` | App bundle ID (optional) |
 | `deviceId` | `string` | Explicit device UDID (optional) |
 | `deviceName` | `RegExp` | RegExp to match device name (optional) |
-| `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching (optional) |
+| `installApps` | `string \| string[]` | App paths (APK/IPA) to install before launching; relative paths resolve against the config file's directory (optional) |
 | `autoAppLaunch` | `boolean` | Terminate and launch the app (`bundleId`) before each test. Default: `true` |
 | `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON to the report on failure. Default: `'off'` |
 | `timeout` | `number` | Per-test timeout in ms (optional) |

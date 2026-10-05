@@ -1,8 +1,8 @@
 import { openSync, readSync, closeSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { PlaywrightWorkerOptions } from '@playwright/test';
 import type { AllocatedDevice, Platform } from '@mobilewright/protocol';
-import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, type MobilewrightConfig } from 'mobilewright';
+import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, toArray, type MobilewrightConfig } from 'mobilewright';
 
 type VideoOption = PlaywrightWorkerOptions['video'] | undefined;
 type ProjectName = string;
@@ -102,4 +102,13 @@ export function parseViewTreeOption(value: string | undefined): 'on-failure' | '
     throw new Error(`Invalid viewTree value: "${resolved}". Must be "on-failure" or "off".`);
   }
   return resolved;
+}
+
+/**
+ * Absolute paths for the configured `installApps`. Relative paths resolve
+ * against the config file's directory (Playwright's convention), not the
+ * worker's or the mobilecli server's cwd.
+ */
+export function resolveInstallAppPaths(installApps: string | string[] | undefined, configDir: string): string[] {
+  return toArray(installApps).map((appPath) => resolve(configDir, appPath));
 }

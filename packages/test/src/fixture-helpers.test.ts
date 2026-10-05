@@ -11,6 +11,7 @@ import {
   allocationTimeoutFor,
   videoPlan,
   parseViewTreeOption,
+  resolveInstallAppPaths,
 } from './fixture-helpers.js';
 
 function writeTempFile(name: string, bytes: Buffer): string {
@@ -166,5 +167,31 @@ test.describe('parseViewTreeOption', () => {
 
   test('rejects any other value', () => {
     expect(() => parseViewTreeOption('always')).toThrow('Invalid viewTree value: "always"');
+  });
+});
+
+// `installApps` paths are configured relative to the project, but the worker's
+// cwd and the mobilecli server's cwd can both differ from the config directory
+// (e.g. `--config path/to/mobilewright.config.ts`, or a server started from
+// another folder). Resolve them against the config file's directory, as
+// Playwright does for its own path options, so an absolute path reaches the driver.
+test.describe('resolveInstallAppPaths', () => {
+  const configDir = '/projects/shop';
+
+  test('resolves a relative path against the config directory', () => {
+    expect(resolveInstallAppPaths('./builds/app.zip', configDir)).toEqual(['/projects/shop/builds/app.zip']);
+  });
+
+  test('leaves an absolute path untouched', () => {
+    expect(resolveInstallAppPaths('/tmp/app.apk', configDir)).toEqual(['/tmp/app.apk']);
+  });
+
+  test('resolves every entry of an array', () => {
+    expect(resolveInstallAppPaths(['ios/App.zip', '/abs/other.apk'], configDir))
+      .toEqual(['/projects/shop/ios/App.zip', '/abs/other.apk']);
+  });
+
+  test('returns an empty list when nothing is configured', () => {
+    expect(resolveInstallAppPaths(undefined, configDir)).toEqual([]);
   });
 });
