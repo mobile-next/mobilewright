@@ -243,6 +243,56 @@ test.describe('expect', () => {
     });
   });
 
+  // Playwright's toHaveText / toContainText collapse runs of whitespace and
+  // trim both sides before comparing, accept a RegExp for both matchers, and
+  // take an `ignoreCase` option.
+  test.describe('text assertions follow Playwright semantics', () => {
+    const receiptTree: ViewNode[] = [
+      node({ type: 'StaticText', text: '  Total:\n\t$12.00  ', identifier: 'total' }),
+    ];
+    function totalLocator() {
+      return new Locator(createMockDriver(receiptTree), { kind: 'testId', value: 'total' });
+    }
+
+    test('toHaveText normalizes whitespace in the received text', async () => {
+      await mwExpect(totalLocator()).toHaveText('Total: $12.00');
+    });
+
+    test('toHaveText normalizes whitespace in the expected text too', async () => {
+      await mwExpect(totalLocator()).toHaveText('  Total:   $12.00 ');
+    });
+
+    test('toHaveText with a RegExp runs against the normalized text', async () => {
+      await mwExpect(totalLocator()).toHaveText(/^Total: \$12\.00$/);
+    });
+
+    test('toContainText normalizes whitespace', async () => {
+      await mwExpect(totalLocator()).toContainText('Total: $12');
+    });
+
+    test('toContainText accepts a RegExp', async () => {
+      await mwExpect(totalLocator()).toContainText(/\$\d+\.\d{2}/);
+    });
+
+    test('ignoreCase matches regardless of letter case', async () => {
+      await mwExpect(totalLocator()).toHaveText('total: $12.00', { ignoreCase: true });
+      await mwExpect(totalLocator()).toContainText('TOTAL', { ignoreCase: true });
+    });
+
+    test('a different string is still rejected after normalization', async () => {
+      await expect(mwExpect(totalLocator()).toHaveText('Total: $13.00', { timeout: 200 })).rejects.toThrow(ExpectError);
+      await expect(mwExpect(totalLocator()).toContainText('Subtotal', { timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('case still matters without ignoreCase', async () => {
+      await expect(mwExpect(totalLocator()).toHaveText('total: $12.00', { timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('not.toHaveText fails for whitespace-equivalent text', async () => {
+      await expect(mwExpect(totalLocator()).not.toHaveText('Total: $12.00', { timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+  });
+
   test.describe('toBeEnabled', () => {
     test('passes when element is enabled', async () => {
       const driver = createMockDriver(hierarchy);
