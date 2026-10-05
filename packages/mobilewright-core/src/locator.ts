@@ -5,6 +5,9 @@ import { runStep, type StepLocation } from './stackTrace.js';
 
 export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
 
+/** Element states that require the element to exist (unlike visibility). */
+export type ElementState = 'enabled' | 'checked' | 'focused' | 'selected';
+
 export interface LocatorOptions {
   timeout?: number;
   pollInterval?: number;
@@ -292,6 +295,23 @@ export class Locator {
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isChecked === true;
+  }
+
+  /**
+   * Read one element state without waiting: null when no element matches, so
+   * assertions can tell "not found" apart from "found but false". Internal.
+   */
+  async _resolveState(state: ElementState): Promise<boolean | null> {
+    const node = await this.resolve(0);
+    if (node === null) {
+      return null;
+    }
+    switch (state) {
+      case 'enabled': return node.isEnabled;
+      case 'checked': return node.isChecked === true;
+      case 'focused': return node.isFocused === true;
+      case 'selected': return node.isSelected === true;
+    }
   }
 
   async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number }> {
