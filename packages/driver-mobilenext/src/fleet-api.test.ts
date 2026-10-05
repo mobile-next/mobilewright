@@ -261,3 +261,23 @@ test('a 429 concurrency limit is a retriable NoDeviceAvailableError, so the pool
   await expect(pending).rejects.toBeInstanceOf(NoDeviceAvailableError);
   await expect(pending).rejects.toThrow(/concurrency_limit/);
 });
+
+test('a server draining for deploy (503) is retried until a healthy instance answers', async () => {
+  const { fetchFn, calls } = stubFetch([
+    { status: 503, json: { error: { code: 'server_draining', message: 'this instance is draining for deploy' } } },
+    { status: 503, json: { error: { code: 'server_draining', message: 'this instance is draining for deploy' } } },
+    { status: 201, json: { id: 'sess-1' } },
+  ]);
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn, retryDelay: 0 });
+
+  expect(await client.createSession()).toBe('sess-1');
+  expect(calls).toHaveLength(3);
+});
+
+test('a server that stays unavailable fails after the last retry', async () => {
+  const { fetchFn, calls } = stubFetch([{ status: 503, json: { error: { code: 'server_draining', message: 'draining' } } }]);
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn, retryDelay: 0 });
+
+  await expect(client.createSession()).rejects.toThrow(/503: server_draining/);
+  expect(calls).toHaveLength(10);
+});

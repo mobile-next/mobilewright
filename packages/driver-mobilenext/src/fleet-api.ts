@@ -15,6 +15,10 @@ const USER_AGENT = `mobilewright/${_pkg.version}`;
 export const DEFAULT_API_URL = 'https://api.mobilenext.ai';
 
 const HTTP_TOO_MANY_REQUESTS = 429;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+// A 503 is an instance draining for deploy, refusing before doing anything; a retry reaches a healthy one.
+const MAX_ATTEMPTS = 10;
+const DEFAULT_RETRY_DELAY = 3_000;
 const DEFAULT_ALLOCATION_TIMEOUT = 15 * 60_000;
 const DEFAULT_REQUEST_TIMEOUT = 30_000;
 // Installing an app is synchronous server-side and a large app can take minutes; this also bounds
@@ -103,9 +107,13 @@ export interface FleetApiClientOptions {
   requestTimeout?: number;
   /** Timeout for a request that installs an app, in ms. Default: 600000 (10 min). */
   installTimeout?: number;
+  /** Delay between retries of a 503 response, in ms. Default: 3000. */
+  retryDelay?: number;
   /** Injected for testing. Defaults to the global fetch. */
   fetchFn?: typeof fetch;
 }
+
+class ServiceUnavailableError extends Error {}
 
 // A setTimeout that rejects when the signal aborts, so a mid-poll shutdown/timeout is not held up
 // for the full interval.
@@ -137,6 +145,7 @@ export class FleetApiClient {
   private readonly allocationTimeout: number;
   private readonly requestTimeout: number;
   private readonly installTimeout: number;
+  private readonly retryDelay: number;
   private readonly fetchFn: typeof fetch;
 
   constructor(options: FleetApiClientOptions) {
@@ -145,6 +154,7 @@ export class FleetApiClient {
     this.allocationTimeout = options.allocationTimeout ?? DEFAULT_ALLOCATION_TIMEOUT;
     this.requestTimeout = options.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
     this.installTimeout = options.installTimeout ?? DEFAULT_INSTALL_TIMEOUT;
+    this.retryDelay = options.retryDelay ?? DEFAULT_RETRY_DELAY;
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
@@ -267,6 +277,20 @@ export class FleetApiClient {
   }
 
   private async request<T = void>(method: string, path: string, body?: unknown, signal?: AbortSignal, timeout = this.requestTimeout): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.requestOnce<T>(method, path, body, signal, timeout);
+      } catch (err) {
+        if (!(err instanceof ServiceUnavailableError) || attempt === MAX_ATTEMPTS) {
+          throw err;
+        }
+        debug('%s %s unavailable, retrying in %dms (attempt %d/%d)', method, path, this.retryDelay, attempt, MAX_ATTEMPTS);
+        await delay(this.retryDelay, signal);
+      }
+    }
+  }
+
+  private async requestOnce<T>(method: string, path: string, body: unknown, signal: AbortSignal | undefined, timeout: number): Promise<T> {
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${this.apiKey}`,
       'User-Agent': USER_AGENT,
@@ -307,6 +331,9 @@ export class FleetApiClient {
         // failing every test a worker picks up while another worker holds the only slot.
         if (res.status === HTTP_TOO_MANY_REQUESTS) {
           throw new NoDeviceAvailableError(message);
+        }
+        if (res.status === HTTP_SERVICE_UNAVAILABLE) {
+          throw new ServiceUnavailableError(message);
         }
         throw new Error(message);
       }
