@@ -385,6 +385,51 @@ test.describe('WebLocator.click()', () => {
   });
 });
 
+// A page can only dispatch untrusted KeyboardEvents, and the browser never
+// runs a key's default action for those. Playwright's press() still submits a
+// form on Enter and inserts printable characters, so the in-page script has to
+// perform those defaults itself (unless a handler called preventDefault()).
+test.describe('WebLocator.press()', () => {
+  async function pressExpression(key: string): Promise<string> {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, '#q');
+    await loc.press(key);
+    return evaluateCalls.find(c => c.includes('KeyboardEvent')) ?? '';
+  }
+
+  test('Enter submits the enclosing form when keydown was not prevented', async () => {
+    const js = await pressExpression('Enter');
+    playwrightExpect(js).toContain('requestSubmit');
+    playwrightExpect(js).toContain('defaultPrevented');
+  });
+
+  test('a printable key inserts the character through the native value setter', async () => {
+    const js = await pressExpression('a');
+    playwrightExpect(js).toContain('\'value\')');
+    playwrightExpect(js).toContain('.set.call(el,');
+  });
+
+  test('modifier syntax like Shift+Enter is split into modifier flags and the key', async () => {
+    const js = await pressExpression('Shift+Enter');
+    playwrightExpect(js).toContain('shiftKey: true');
+    playwrightExpect(js).toContain('key: "Enter"');
+  });
+
+  test('the generated in-page script is valid JavaScript', async () => {
+    for (const key of ['Enter', 'Shift+Enter', 'Backspace', 'a', ' ', 'ArrowLeft']) {
+      const js = await pressExpression(key);
+      playwrightExpect(() => new Function(js), `press(${JSON.stringify(key)}) script must parse`).not.toThrow();
+    }
+  });
+
+  test('waits for the element to be actionable before dispatching, like click()', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, '#q');
+    await loc.press('Enter');
+    playwrightExpect(evaluateCalls[0]).toContain('checkElementStates');
+  });
+});
+
 test.describe('WebLocator.fill()', () => {
   test('evaluates a fill expression with the given text', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(true);
