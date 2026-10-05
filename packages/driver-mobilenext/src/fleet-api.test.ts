@@ -285,7 +285,7 @@ test('a server that stays unavailable fails after the last retry', async () => {
 test('a stalled upload to storage aborts after the install timeout', async () => {
   const declaredWithUpload = { id: 'file-1', status: 'pendingUpload', upload: { method: 'PUT', url: 'https://storage.test/put', headers: {} } };
   const fetchFn = (async (url: string, init: RequestInit) => {
-    if (url.startsWith('https://storage.test')) {
+    if (new URL(url).host === 'storage.test') {
       return stallingFetch()(url, init);
     }
     return { ok: true, status: 201, json: async () => declaredWithUpload } as Response;
