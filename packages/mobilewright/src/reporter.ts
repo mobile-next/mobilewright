@@ -8,7 +8,7 @@
  * - Adds click-to-fullscreen for screenshot thumbnails
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,17 @@ function getFaviconDataUrl(): string {
   const iconPath = resolve(__dirname, '..', 'assets', 'mobilewright-icon.png');
   const iconData = readFileSync(iconPath);
   return `data:image/png;base64,${iconData.toString('base64')}`;
+}
+
+/**
+ * Rewrites the JS-side `document.title` fallback. The bundler picks the
+ * quoting, so match any of the three string forms.
+ */
+function replaceTitleFallback(source: string): string {
+  return source.replace(
+    /document\.title=(["'`])Playwright Test Report\1/g,
+    (_match, quote: string) => `document.title=${quote}Mobilewright Test Report${quote}`,
+  );
 }
 
 /**
@@ -39,10 +50,7 @@ export function brandReport(reportPath: string): void {
   );
 
   // 2. Replace the JS-side document.title fallback
-  html = html.replace(
-    /document\.title="Playwright Test Report"/g,
-    'document.title="Mobilewright Test Report"',
-  );
+  html = replaceTitleFallback(html);
 
   // 3. Add favicon link and custom styles/scripts in <head>
   const headInjection = `
@@ -53,6 +61,9 @@ export function brandReport(reportPath: string): void {
         display: flex;
         align-items: center;
         gap: 8px;
+        /* Playwright's superheader has no gap of its own — keep the brand off
+           the "Project:" label it is prepended to. */
+        margin-right: 16px;
         text-decoration: none;
         color: inherit;
       }
@@ -187,4 +198,12 @@ export function brandReport(reportPath: string): void {
   html = html.replace('</body>', bodyScript + '\n  </body>');
 
   writeFileSync(indexPath, html, 'utf-8');
+
+  // With `doNotInlineAssets`, the bundle lives in report.js instead of being
+  // inlined — the title fallback has to be rewritten there too, or the page
+  // renames itself back to Playwright once it loads.
+  const scriptPath = resolve(reportPath, 'report.js');
+  if (existsSync(scriptPath)) {
+    writeFileSync(scriptPath, replaceTitleFallback(readFileSync(scriptPath, 'utf-8')), 'utf-8');
+  }
 }

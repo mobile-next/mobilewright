@@ -292,8 +292,8 @@ test('defineConfig preserves the user reporter list ahead of the injected entrie
       reporter: [['html'], ['list']],
     }),
   );
-  const names = (config.reporter as ReporterEntry[]).map(([name]) => name);
-  expect(names[0]).toBe('html');
+  const names = (config.reporter as ReporterEntry[]).map(([name]) => String(name));
+  expect(names[0]).toMatch(/html-reporter\.(js|ts)$/);
   expect(names[1]).toBe('list');
 });
 
@@ -304,8 +304,8 @@ test('defineConfig normalizes a string reporter to array form before injecting',
       reporter: 'html',
     }),
   );
-  const names = (config.reporter as ReporterEntry[]).map(([name]) => name);
-  expect(names).toContain('html');
+  const names = (config.reporter as ReporterEntry[]).map(([name]) => String(name));
+  expect(names.some((name) => /html-reporter\.(js|ts)$/.test(name))).toBe(true);
 });
 
 test('defineConfig sets captureGitInfo commit:true when injecting the observer reporter', () => {
@@ -319,4 +319,23 @@ test('defineConfig preserves the user explicit captureGitInfo values when inject
     captureGitInfo: { commit: false, diff: true },
   });
   expect(config.captureGitInfo).toEqual({ commit: false, diff: true });
+});
+
+// ─── HTML reporter rebranding ──────────────────────────────────────
+
+test('defineConfig routes an html reporter through the mobilewright html reporter', () => {
+  const config = defineConfig({ reporter: 'html' });
+
+  const reporters = config.reporter as ReporterEntry[];
+  expect(reporters).toHaveLength(1);
+  expect(String(reporters[0]![0])).toMatch(/html-reporter\.(js|ts)$/);
+});
+
+test('defineConfig keeps html reporter options and leaves other reporters alone', () => {
+  const config = defineConfig({ reporter: [['list'], ['html', { open: 'never' }]] });
+
+  const reporters = config.reporter as ReporterEntry[];
+  expect(reporters[0]).toEqual(['list']);
+  expect(String(reporters[1]![0])).toMatch(/html-reporter\.(js|ts)$/);
+  expect(reporters[1]![1]).toEqual({ open: 'never' });
 });
