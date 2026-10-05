@@ -1,7 +1,4 @@
-import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import { basename } from 'node:path';
-import { Transform } from 'node:stream';
+import { openSync, readSync, closeSync } from 'node:fs';
 import createDebug from 'debug';
 import type {
   AllocatedDevice,
@@ -202,15 +199,6 @@ function assertValidZipFile(path: string): void {
   }
 }
 
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^0-9a-zA-Z_.]/g, '_');
-}
-
-interface UploadCreateResponse {
-  uploadId: string;
-  uploadUrl: string;
-}
-
 interface ActiveSession {
   deviceId: string;
   platform: Platform;
@@ -226,6 +214,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   private fleetSessionPromise: Promise<string> | null = null;
   // serial -> the fleet session it was allocated in, needed to release it later.
   private readonly fleetSessionBySerial = new Map<string, string>();
+  // app path -> its stored file id, so each app is uploaded once per run.
+  private readonly fileIdByPath = new Map<string, Promise<string>>();
   /** Test-lifecycle observer that uploads results to mobilenext; undefined when uploading is disabled. */
   readonly observer: TestObserver | undefined;
 
@@ -450,66 +440,20 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     };
   }
 
+  // Installs on an already allocated device. Prefer installApps in the config, which installs while
+  // the device is allocated: iOS cloud devices cannot take an app once running, and the server
+  // rejects this there.
   async installApp(filePath: string): Promise<void> {
-    assertValidZipFile(filePath);
-    const fileInfo = await stat(filePath);
-    const filename = sanitizeFilename(basename(filePath));
+    const { deviceId } = this.requireSession();
+    const fileId = await this.uploadApp(filePath);
+    const sessionId = this.fleetSessionBySerial.get(deviceId) ?? await this.fleetClient.findSessionOfDevice(deviceId);
+    debug('installing %s on %s (file=%s, session=%s)', filePath, deviceId, fileId, sessionId);
+    await this.fleetClient.installFile(sessionId, deviceId, fileId);
+  }
 
-    debug('creating upload for %s (%d bytes)', filename, fileInfo.size);
-    const upload = await this.call<UploadCreateResponse>('uploads.create', {
-      filename,
-      filesize: fileInfo.size,
-    });
-
-    debug('uploading %s to S3 (uploadId=%s)', filename, upload.uploadId);
-    let uploadedBytes = 0;
-    const counter = new Transform({
-      transform(chunk, _encoding, callback) {
-        uploadedBytes += chunk.length;
-        callback(null, chunk);
-      },
-    });
-    const body = createReadStream(filePath).pipe(counter);
-
-    const totalMB = (fileInfo.size / 1024 / 1024).toFixed(1);
-    const progressTimer = setInterval(() => {
-      const uploadedMB = (uploadedBytes / 1024 / 1024).toFixed(1);
-      const percent = Math.round((uploadedBytes / fileInfo.size) * 100);
-      debug('still uploading %s: %s / %s MB (%d%%)', filename, uploadedMB, totalMB, percent);
-    }, 10_000);
-
-    // slow uploads can exceed the fleet's device idle timeout; any device.* call resets it
-    // async so a synchronous throw from call() (e.g. no session after disconnect) is caught too
-    const keepAliveTimer = setInterval(async () => {
-      try {
-        await this.call('device.info');
-      } catch {
-        // best effort, the upload decides success
-      }
-    }, 30_000);
-
-    let response: Response;
-    try {
-      response = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': String(fileInfo.size),
-        },
-        body,
-        duplex: 'half',
-      } as RequestInit);
-    } finally {
-      clearInterval(progressTimer);
-      clearInterval(keepAliveTimer);
-    }
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`);
-    }
-    debug('upload complete, installing app (uploadId=%s)', upload.uploadId);
-
-    await this.call('device.apps.install', { uploadId: upload.uploadId });
-    debug('app installed successfully: %s', filename);
+  /** Uploads apps ahead of allocation, so the first allocation does not wait for them. */
+  async prepareApps(paths: string[]): Promise<void> {
+    await Promise.all(paths.map((path) => this.uploadApp(path)));
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
@@ -558,10 +502,13 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     signal?: AbortSignal,
   ): Promise<AllocatedDevice> {
     const filters = buildFilters(criteria);
+    // Installed while allocating: an iOS cloud device cannot take an app once it is running.
+    const apps = criteria.installApps ?? [];
+    const fileIds = await Promise.all(apps.map((path) => this.uploadApp(path)));
     const sessionId = await this.getFleetSession();
-    debug('allocating device (session=%s, filters=%o)', sessionId, filters);
+    debug('allocating device (session=%s, filters=%o, files=%o)', sessionId, filters, fileIds);
 
-    const device = await this.fleetClient.allocateDevice(sessionId, filters, signal);
+    const device = await this.fleetClient.allocateDevice(sessionId, filters, fileIds, signal);
     const serial = device.info.serial;
     if (!serial) {
       throw new Error(`Device allocation ${device.id} became in_use without a serial`);
@@ -576,6 +523,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
       model: device.info.name,
       osVersion: device.info.osVersion,
       type: toDeviceType(device.info.type ?? ''),
+      installedApps: apps,
     };
   }
 
@@ -603,6 +551,21 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   // ─── Helpers ────────────────────────────────────────────────
+
+  // Caches the promise so concurrent allocations share one upload; a failure is evicted so a later
+  // call can retry.
+  private uploadApp(path: string): Promise<string> {
+    let fileId = this.fileIdByPath.get(path);
+    if (!fileId) {
+      assertValidZipFile(path);
+      fileId = this.fleetClient.uploadFile(path).catch((err: unknown) => {
+        this.fileIdByPath.delete(path);
+        throw err;
+      });
+      this.fileIdByPath.set(path, fileId);
+    }
+    return fileId;
+  }
 
   private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
     const session = this.requireSession();

@@ -274,3 +274,13 @@ test('a released slot is reused when it satisfies the deviceType and osVersion c
 
   expect(second.deviceId).toBe('sim-17');
 });
+
+test('apps the driver installed while allocating are recorded as installed on the device', async () => {
+  const driver = makeDriver([{ deviceId: 'd1', platform: 'ios', installedApps: ['app.ipa'] }]);
+  const pool = new DevicePool({ driver, maxSlots: 1 });
+
+  const handle = await pool.allocate({ platform: 'ios', installApps: ['app.ipa'] });
+
+  expect(pool.isAppInstalled(handle.allocationId, 'app.ipa')).toBe(true);
+  expect(pool.isAppInstalled(handle.allocationId, 'other.ipa')).toBe(false);
+});

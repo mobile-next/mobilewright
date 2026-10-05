@@ -1,8 +1,9 @@
 import { MobilecliDriver } from '@mobilewright/driver-mobilecli';
+import type { MobilewrightDriver } from '@mobilewright/protocol';
 import { DevicePool } from './application/device-pool.js';
 import { DevicePoolHttpServer } from './adapters/http-server.js';
 import { COORDINATOR_URL_ENV } from './client-factory.js';
-import { loadConfig, DEFAULT_ALLOCATION_TIMEOUT } from '../config.js';
+import { loadConfig, toArray, DEFAULT_ALLOCATION_TIMEOUT, type MobilewrightConfig } from '../config.js';
 import type { FullConfig } from '@playwright/test';
 
 interface ActiveCoordinator {
@@ -18,8 +19,9 @@ let active: ActiveCoordinator | undefined;
  */
 export default async function setup(playwrightConfig: FullConfig): Promise<() => Promise<void>> {
   const config = await loadConfig(process.cwd(), playwrightConfig.configFile);
-  const driver = config.driver ?? new MobilecliDriver();
+  const driver: MobilewrightDriver = config.driver ?? new MobilecliDriver();
   await driver.prepare?.();
+  await driver.prepareApps?.(configuredApps(config));
 
   // Use the resolved worker count from Playwright's FullConfig so CLI flags
   // like --workers 2 are respected, not just the value in the config file.
@@ -40,4 +42,10 @@ export default async function setup(playwrightConfig: FullConfig): Promise<() =>
     delete process.env[COORDINATOR_URL_ENV];
     active = undefined;
   };
+}
+
+// Apps named in the config file. Apps set only through test.use() are staged on first allocation.
+function configuredApps(config: MobilewrightConfig): string[] {
+  const paths = [config.installApps, ...(config.projects ?? []).map((p) => p.use?.installApps)].flatMap((apps) => toArray(apps));
+  return [...new Set(paths)];
 }

@@ -148,6 +148,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       deviceId: merged.deviceId,
       deviceType: merged.deviceType,
       osVersion: merged.osVersion,
+      installApps: toArray(merged.installApps),
     }, allocationTimeoutFor(merged));
     debug('allocated device %s', handle.deviceId);
 

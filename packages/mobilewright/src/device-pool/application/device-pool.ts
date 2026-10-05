@@ -215,6 +215,9 @@ export class DevicePool {
       return;
     }
     slot.markAvailable(result.deviceId, result.platform, result.driver, result.model, result.osVersion, result.type);
+    for (const appPath of result.installedApps ?? []) {
+      slot.recordAppInstalled(appPath);
+    }
     this.waiters.unshift(waiter);
     this.pump();
   }
