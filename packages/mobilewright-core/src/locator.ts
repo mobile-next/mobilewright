@@ -1,5 +1,5 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
+import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
 import { runStep, type StepLocation } from './stackTrace.js';
 
@@ -307,6 +307,18 @@ export class Locator {
   async getValue(opts?: { timeout?: number }): Promise<string> {
     const node = await this.resolveVisible(opts?.timeout);
     return node.value ?? '';
+  }
+
+  /**
+   * The content expect(locator).toBeEmpty() inspects, mirroring Playwright: a
+   * text field's value, any other element's text. Internal.
+   */
+  async _emptinessContent(opts?: { timeout?: number }): Promise<string> {
+    const node = await this.resolveVisible(opts?.timeout);
+    if (matchesRole(node, 'textfield')) {
+      return node.value ?? '';
+    }
+    return node.text ?? node.label ?? node.value ?? '';
   }
 
   async waitFor(opts?: {
