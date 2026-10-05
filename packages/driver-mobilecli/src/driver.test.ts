@@ -501,3 +501,31 @@ test.describe('pointer coordinates are sent to mobilecli as integers', () => {
     expect(calls[0].params.duration).toBe(300);
   });
 });
+
+// Removing an app that is not there is not an error (real iOS already behaves
+// this way; Android answered `Failure [DELETE_FAILED_INTERNAL_ERROR]`).
+test.describe('uninstallApp() when the app is not installed', () => {
+  function driverWithInstalledApps(installed: string[]) {
+    const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+    const calls = recordRpc(driver, { 'device.apps.uninstall': {}, 'device.apps.list': { apps: installed.map((packageName) => ({ packageName })) } });
+    return { driver, calls };
+  }
+
+  test('is a no-op and never sends the uninstall RPC', async () => {
+    const { driver, calls } = driverWithInstalledApps(['com.other.app']);
+    await expect(driver.uninstallApp('com.example.app')).resolves.toBeUndefined();
+    expect(calls.map((c) => c.method)).toEqual(['device.apps.list']);
+  });
+
+  test('still uninstalls an installed app', async () => {
+    const { driver, calls } = driverWithInstalledApps(['com.example.app']);
+    await driver.uninstallApp('com.example.app');
+    expect(calls.map((c) => c.method)).toEqual(['device.apps.list', 'device.apps.uninstall']);
+    expect(calls[1].params.bundleId).toBe('com.example.app');
+  });
+});
+
+test('installApp() with a path that does not exist reports the path instead of a raw ENOENT', async () => {
+  const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+  await expect(driver.installApp('/no/such/dir/app.apk')).rejects.toThrow('App file not found: /no/such/dir/app.apk');
+});

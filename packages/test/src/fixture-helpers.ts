@@ -1,4 +1,4 @@
-import { openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PlaywrightWorkerOptions } from '@playwright/test';
 import type { AllocatedDevice, Platform } from '@mobilewright/protocol';
@@ -20,6 +20,9 @@ type VideoPlan = { shouldRecord: boolean; path: string; shouldAttach(failed: boo
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
 export function assertValidZipFile(path: string): void {
+  if (!existsSync(path)) {
+    throw new Error(`App file not found: ${path}`);
+  }
   const buf = Buffer.alloc(4);
   const fd = openSync(path, 'r');
   try {

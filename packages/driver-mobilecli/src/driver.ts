@@ -1,6 +1,6 @@
 import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
-import { openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, openSync, readSync, closeSync } from 'node:fs';
 import type {
   AllocatedDevice,
   AllocationCriteria,
@@ -185,6 +185,9 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
 
 function assertValidZipFile(path: string): void {
+  if (!existsSync(path)) {
+    throw new Error(`App file not found: ${path}`);
+  }
   const buf = Buffer.alloc(4);
   const fd = openSync(path, 'r');
   try {
@@ -697,6 +700,13 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
+    // Removing an app that is not installed is not an error: real iOS already
+    // resolves, Android would answer `Failure [DELETE_FAILED_INTERNAL_ERROR]`.
+    const installed = (await this.listApps()).some((app) => app.bundleId === bundleId);
+    if (!installed) {
+      debug('%s is not installed, nothing to uninstall', bundleId);
+      return;
+    }
     await this.call('device.apps.uninstall', { bundleId });
   }
 

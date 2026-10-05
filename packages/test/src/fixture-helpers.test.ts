@@ -20,6 +20,10 @@ function writeTempFile(name: string, bytes: Buffer): string {
 }
 
 test.describe('assertValidZipFile', () => {
+  test('reports a missing file by path instead of a raw ENOENT', () => {
+    expect(() => assertValidZipFile('/no/such/dir/app.apk')).toThrow('App file not found: /no/such/dir/app.apk');
+  });
+
   test('accepts a file starting with the ZIP magic bytes', () => {
     const path = writeTempFile('app.apk', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 0]));
     expect(() => assertValidZipFile(path)).not.toThrow();
