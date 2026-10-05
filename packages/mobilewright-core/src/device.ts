@@ -199,6 +199,11 @@ export class Device {
     return this._step('device.terminateApp()', () => this.driver.terminateApp(bundleId));
   }
 
+  /** Clear the app's data. On Android this also resets its runtime permissions, so permission dialogs show again. */
+  async clearAppData(bundleId: string): Promise<void> {
+    return this._step('device.clearAppData()', () => this.driver.clearAppData(bundleId));
+  }
+
   async listApps(): Promise<AppInfo[]> {
     return this.driver.listApps();
   }

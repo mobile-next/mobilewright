@@ -430,6 +430,10 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.apps.terminate', { bundleId });
   }
 
+  async clearAppData(bundleId: string): Promise<void> {
+    await this.call('device.apps.clear', { bundleId });
+  }
+
   async listApps(): Promise<AppInfo[]> {
     // iOS returns a flat array, Android returns { apps: [...] }.
     const result = await this.call<MobileNextAppEntry[] | { apps: MobileNextAppEntry[] }>('device.apps.list');

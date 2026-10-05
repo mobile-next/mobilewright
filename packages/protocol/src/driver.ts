@@ -178,6 +178,8 @@ export interface MobilewrightSession {
   launchApp(bundleId: string, opts?: LaunchOptions): Promise<void>;
   /** Terminate the running app with the given bundle id. */
   terminateApp(bundleId: string): Promise<void>;
+  /** Clear the app's data. On Android this also resets its runtime permissions. */
+  clearAppData(bundleId: string): Promise<void>;
   /** List the apps installed on the device. */
   listApps(): Promise<AppInfo[]>;
   /** Return the app currently in the foreground. */

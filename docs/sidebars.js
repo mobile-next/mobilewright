@@ -37,6 +37,7 @@ const sidebars = {
         'guides/assertions',
         'guides/auto-waiting',
         'guides/deep-links',
+        'guides/dialogs',
         'guides/docker',
         'guides/geolocation',
         'guides/inspector',
