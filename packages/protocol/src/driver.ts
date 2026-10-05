@@ -119,8 +119,6 @@ export interface DeviceAllocator {
   // Lifecycle (optional — drivers with nothing to prepare/release omit these)
   /** Prepare this driver for use (e.g. start a local server process) before any device-pool workers connect. Called once by the coordinator at startup. */
   prepare?(): Promise<void>;
-  /** Stage the configured apps (e.g. upload them) before any device is allocated. Called once by the coordinator at startup. */
-  prepareApps?(paths: string[]): Promise<void>;
   /** Release resources acquired by `prepare()` (e.g. kill a spawned server). Called once at coordinator shutdown. */
   dispose?(): Promise<void>;
 }

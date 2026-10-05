@@ -214,7 +214,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   private fleetSessionPromise: Promise<string> | null = null;
   // serial -> the fleet session it was allocated in, needed to release it later.
   private readonly fleetSessionBySerial = new Map<string, string>();
-  // app path -> its stored file id, so each app is uploaded once per run.
+  // app path -> its stored file id, so each app is uploaded once per run, on its first allocation.
   private readonly fileIdByPath = new Map<string, Promise<string>>();
   /** Test-lifecycle observer that uploads results to mobilenext; undefined when uploading is disabled. */
   readonly observer: TestObserver | undefined;
@@ -449,11 +449,6 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     const sessionId = this.fleetSessionBySerial.get(deviceId) ?? await this.fleetClient.findSessionOfDevice(deviceId);
     debug('installing %s on %s (file=%s, session=%s)', filePath, deviceId, fileId, sessionId);
     await this.fleetClient.installFile(sessionId, deviceId, fileId);
-  }
-
-  /** Uploads apps ahead of allocation, so the first allocation does not wait for them. */
-  async prepareApps(paths: string[]): Promise<void> {
-    await Promise.all(paths.map((path) => this.uploadApp(path)));
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
