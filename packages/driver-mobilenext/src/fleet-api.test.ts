@@ -294,3 +294,11 @@ test('a stalled upload to storage aborts after the install timeout', async () =>
 
   await expect(client.uploadFile(appFileContaining('hello'))).rejects.toThrow(/aborted/);
 });
+
+test('retries of an unavailable server stop at the request timeout, not after every attempt', async () => {
+  const { fetchFn, calls } = stubFetch([{ status: 503, json: { error: { code: 'server_draining', message: 'draining' } } }]);
+  const client = new FleetApiClient({ apiKey: 'mob_test', fetchFn, requestTimeout: 50, retryDelay: 30 });
+
+  await expect(client.createSession()).rejects.toThrow(/503: server_draining/);
+  expect(calls.length).toBeLessThan(10);
+});

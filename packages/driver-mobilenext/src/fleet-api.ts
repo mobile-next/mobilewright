@@ -278,16 +278,20 @@ export class FleetApiClient {
     }
   }
 
+  // One deadline covers every attempt, so 503 retries never stretch a call past its timeout.
   private async request<T = void>(method: string, path: string, body?: unknown, signal?: AbortSignal, timeout = this.requestTimeout): Promise<T> {
+    const deadline = Date.now() + timeout;
     for (let attempt = 1; ; attempt++) {
       try {
-        return await this.requestOnce<T>(method, path, body, signal, timeout);
+        return await this.requestOnce<T>(method, path, body, signal, Math.max(deadline - Date.now(), 0));
       } catch (err) {
-        if (!(err instanceof ServiceUnavailableError) || attempt === MAX_ATTEMPTS) {
+        const remaining = deadline - Date.now();
+        if (!(err instanceof ServiceUnavailableError) || attempt === MAX_ATTEMPTS || remaining <= 0) {
           throw err;
         }
-        debug('%s %s unavailable, retrying in %dms (attempt %d/%d)', method, path, this.retryDelay, attempt, MAX_ATTEMPTS);
-        await delay(this.retryDelay, signal);
+        const wait = Math.min(this.retryDelay, remaining);
+        debug('%s %s unavailable, retrying in %dms (attempt %d/%d)', method, path, wait, attempt, MAX_ATTEMPTS);
+        await delay(wait, signal);
       }
     }
   }
