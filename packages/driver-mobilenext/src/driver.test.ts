@@ -74,3 +74,17 @@ test.describe('pointer coordinates are sent as integers', () => {
     expect(calls[0].params.duration).toBe(300);
   });
 });
+
+test('a failed connection does not leak the api key into the error message', async () => {
+  const SECRET = 'mnxt_SUPER_SECRET_KEY_123';
+  const driver = new MobileNextDriver({ apiKey: SECRET, testResult: { uploadReport: 'off' } });
+  let error: Error | undefined;
+  try {
+    await driver.connect({ platform: 'android', deviceId: 'abc', url: 'wss://127.0.0.1:1/ws', timeout: 1_000 });
+  } catch (e) {
+    error = e as Error;
+  }
+  expect(error).toBeDefined();
+  expect(error!.message).not.toContain(SECRET);
+  expect(error!.message).toContain('token=***');
+});
