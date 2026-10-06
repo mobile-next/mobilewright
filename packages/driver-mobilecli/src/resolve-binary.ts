@@ -20,9 +20,11 @@ export function getPlatformBinary(platform: string, arch: string): PlatformBinar
       name = 'mobilecli-darwin-amd64';
       break;
     case 'linux-arm64':
+    case 'android-arm64':
       name = 'mobilecli-linux-arm64';
       break;
     case 'linux-x64':
+    case 'android-x64':
       name = 'mobilecli-linux-amd64';
       break;
     case 'win32-arm64':
