@@ -1,4 +1,4 @@
-# Mobilewright
+# <img src="https://mobilewright.dev/mobilewright-logo.png" alt="" height="32"> Mobilewright
 
 [![npm](https://img.shields.io/npm/dm/mobilewright?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/mobilewright)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
@@ -16,6 +16,7 @@ Framework for mobile device automation, inspired by Playwright's architecture an
 
 ```bash
 npm install mobilewright @mobilewright/test
+npx mobilewright init
 ```
 
 ```typescript
