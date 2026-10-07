@@ -323,3 +323,29 @@ test('a custom message prefixes a page assertion failure', async () => {
     expect(page, 'login should redirect to the dashboard').toHaveURL(/dashboard/, { timeout: 200 }),
   ).rejects.toThrow(/^login should redirect to the dashboard\n\n/);
 });
+
+// Playwright's page-level matchers gate on `receiver._apiName === 'Page'`
+// (web-first matchers do the same for 'Locator', which MobileWebViewLocator
+// sets). Without it, `expect(page)` from @playwright/test refuses the page:
+// "toHaveURL can be only used with Page object".
+test.describe('expect(page) from @playwright/test accepts a MobileWebViewPage', () => {
+  test('toHaveURL resolves through the page', async () => {
+    const { session } = sessionWithUrl('https://example.com/dashboard');
+    const page = await Page.attach(session);
+    await playwrightExpect(page as any).toHaveURL(/dashboard/, { timeout: 1_000 });
+  });
+
+  test('toHaveTitle resolves through the page', async () => {
+    const { session } = fakeWebViewSession({ url: 'https://example.com/', title: 'Dashboard' });
+    const page = await Page.attach(session);
+    await playwrightExpect(page as any).toHaveTitle('Dashboard', { timeout: 1_000 });
+  });
+
+  test('a mismatch is an ordinary assertion failure, not a type refusal', async () => {
+    const { session } = sessionWithUrl('https://example.com/home');
+    const page = await Page.attach(session);
+    const error = await playwrightExpect(page as any).toHaveURL(/dashboard/, { timeout: 300 }).then(() => null, (e: Error) => e);
+    playwrightExpect(error).toBeTruthy();
+    playwrightExpect(error!.message).not.toContain('can be only used with Page object');
+  });
+});

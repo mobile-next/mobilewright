@@ -123,6 +123,10 @@ class MobileWebViewMainFrame {
 }
 
 export class MobileWebViewPage {
+  // Playwright's page-level matchers (expect(page).toHaveURL/toHaveTitle from
+  // @playwright/test) gate on this marker before calling mainFrame(); without
+  // it they refuse the page with "can be only used with Page object".
+  _apiName = 'Page';
   _stepFn: StepFn | null = null;
   private _url = 'about:blank';
   private readonly _frame: MobileWebViewMainFrame;
