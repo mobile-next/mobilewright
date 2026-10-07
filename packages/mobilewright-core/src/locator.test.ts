@@ -752,7 +752,7 @@ test.describe('Locator', () => {
       await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
 
       // bottomY of belowBounds = 900 + 44 = 944 > 844, so swipeDirectionToReveal returns 'up'
-      expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
+      expect(driver._tracker.swipeCalls[0][0]).toBe('up');
     });
 
     test('swipes down when the element is above the visible viewport', async () => {
@@ -772,7 +772,60 @@ test.describe('Locator', () => {
       await locator.scrollIntoViewIfNeeded({ maxSwipes: 5 });
 
       // bottomY of aboveBounds = -200 + 44 = -156, not > 844, so swipeDirectionToReveal returns 'down'
-      expect(driver._tracker.swipeCalls[0]).toEqual(['down']);
+      expect(driver._tracker.swipeCalls[0][0]).toBe('down');
+    });
+
+    test('gives up after 5 swipes by default', async () => {
+      const outOfViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: { x: 0, y: 900, width: 390, height: 44 } })] })];
+      const driver = createMockDriver(outOfViewTree);
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+
+      await expect(locator.scrollIntoViewIfNeeded()).rejects.toThrow('after 5 swipes');
+
+      expect(driver._tracker.swipeCalls).toHaveLength(5);
+    });
+
+    test('uses the given direction while the element is not in the hierarchy', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'label', value: 'Nowhere' });
+
+      await expect(locator.scrollIntoViewIfNeeded({ direction: 'down', maxSwipes: 2 })).rejects.toThrow(LocatorError);
+
+      expect(driver._tracker.swipeCalls.map((call) => call[0])).toEqual(['down', 'down']);
+    });
+
+    // iOS drops off-screen nodes from the hierarchy. Once the element has been
+    // seen above the viewport, a later poll that cannot find it must keep
+    // scrolling toward it instead of falling back to the default direction.
+    test('keeps swiping toward where the element was last seen after it leaves the hierarchy', async () => {
+      const aboveTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: { x: 0, y: -200, width: 390, height: 44 } })] })];
+      const emptyTree: ViewNode[] = [node({ type: 'Window', children: [] })];
+      const inViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: { x: 0, y: 400, width: 390, height: 44 } })] })];
+      const polls = [aboveTree, emptyTree, inViewTree];
+      const driver = createMockDriver(aboveTree);
+      driver.getViewHierarchy = async () => polls.shift() ?? inViewTree;
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+
+      await locator.scrollIntoViewIfNeeded();
+
+      expect(driver._tracker.swipeCalls.map((call) => call[0])).toEqual(['down', 'down']);
+    });
+
+    // A half-screen swipe overshoots an element that sits just below the fold
+    // and scrolls it out the top (then off the hierarchy on iOS). Swipe only as
+    // far as needed, plus a margin, when the element's position is known.
+    test('swipes only as far as needed when the element is just outside the viewport', async () => {
+      const justBelow: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: { x: 0, y: 900, width: 390, height: 44 } })] })];
+      const inViewTree: ViewNode[] = [node({ type: 'Window', children: [node({ type: 'Button', label: 'Far', bounds: { x: 0, y: 700, width: 390, height: 44 } })] })];
+      const polls = [justBelow, inViewTree];
+      const driver = createMockDriver(justBelow);
+      driver.getViewHierarchy = async () => polls.shift() ?? inViewTree;
+      const locator = new Locator(driver, { kind: 'label', value: 'Far' });
+
+      await locator.scrollIntoViewIfNeeded();
+
+      // bottom 944 is 100 past the 844 screen: 100 + 100 margin
+      expect(driver._tracker.swipeCalls).toEqual([['up', { distance: 200 }]]);
     });
 
     test('throws LocatorError when element never enters the viewport within maxSwipes', async () => {
@@ -804,7 +857,7 @@ test.describe('Locator', () => {
 
       // Old code used centerY (844), which is not > 844, so it returned 'down' (wrong).
       // Fixed code uses bottomY (866), which is > 844, so it returns 'up' (correct).
-      expect(driver._tracker.swipeCalls[0]).toEqual(['up']);
+      expect(driver._tracker.swipeCalls[0][0]).toBe('up');
     });
   });
 
