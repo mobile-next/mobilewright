@@ -55,7 +55,7 @@ export class Screen {
     return this.root.getByType(type);
   }
 
-  getByRole(role: Role, opts?: { name?: string | RegExp }): Locator {
+  getByRole(role: Role, opts?: { name?: string | RegExp; exact?: boolean }): Locator {
     return this.root.getByRole(role, opts);
   }
 

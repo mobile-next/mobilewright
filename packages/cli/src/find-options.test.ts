@@ -37,3 +37,7 @@ test('unknown roles and missing selectors are rejected with a helpful message', 
   expect(() => buildStrategy({})).toThrow('specify at least one of');
   expect(() => buildStrategy({ text: 'x', nth: 'two' })).toThrow('--nth must be an integer');
 });
+
+test('--exact applies to the role name as well', () => {
+  expect(buildStrategy({ role: 'button', name: 'Save', exact: true })).toEqual({ kind: 'role', value: 'button', name: 'Save', exact: true });
+});

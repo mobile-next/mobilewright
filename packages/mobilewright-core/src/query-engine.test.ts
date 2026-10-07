@@ -720,3 +720,52 @@ test.describe('filter strategy on flat hierarchy (bounds-based)', () => {
     expect(results[0].label).toBe('Row 2');
   });
 });
+
+// Playwright's text matching, now shared by native locators: a string matches
+// case-insensitively as a substring of the whitespace-normalized text; `exact:
+// true` is a case-sensitive whole-string match (whitespace still normalized);
+// a RegExp is tested against the normalized text.
+test.describe('text matching follows Playwright', () => {
+  const tree = [
+    node({ type: 'Window', children: [
+      node({ type: 'Button', label: 'Sign In', identifier: 'login' }),
+      node({ type: 'Button', label: 'Sign In with Apple', identifier: 'apple' }),
+      node({ type: 'StaticText', text: '  Total:\n\t$12.00  ', identifier: 'total' }),
+      node({ type: 'TextField', placeholder: 'Enter your email', identifier: 'email' }),
+    ] }),
+  ];
+  const ids = (results: ReturnType<typeof queryAll>) => results.map((n) => n.identifier);
+
+  test('getByText is a case-insensitive substring match by default', () => {
+    expect(ids(queryAll(tree, { kind: 'text', value: 'sign in' }))).toEqual(['login', 'apple']);
+    expect(ids(queryAll(tree, { kind: 'text', value: 'APPLE' }))).toEqual(['apple']);
+  });
+
+  test('getByText with exact: true is a case-sensitive whole-string match', () => {
+    expect(ids(queryAll(tree, { kind: 'text', value: 'Sign In', exact: true }))).toEqual(['login']);
+    expect(queryAll(tree, { kind: 'text', value: 'sign in', exact: true })).toHaveLength(0);
+    expect(queryAll(tree, { kind: 'text', value: 'Sign', exact: true })).toHaveLength(0);
+  });
+
+  test('whitespace is trimmed and collapsed on both sides, even with exact: true', () => {
+    expect(ids(queryAll(tree, { kind: 'text', value: 'Total: $12.00' }))).toEqual(['total']);
+    expect(ids(queryAll(tree, { kind: 'text', value: '  Total:   $12.00 ', exact: true }))).toEqual(['total']);
+  });
+
+  test('a RegExp runs against the normalized text', () => {
+    expect(ids(queryAll(tree, { kind: 'text', value: /^Total: \$12\.00$/ }))).toEqual(['total']);
+  });
+
+  test('getByLabel and getByPlaceholder use the same rules', () => {
+    expect(ids(queryAll(tree, { kind: 'label', value: 'sign in' }))).toEqual(['login', 'apple']);
+    expect(ids(queryAll(tree, { kind: 'label', value: 'Sign In', exact: true }))).toEqual(['login']);
+    expect(ids(queryAll(tree, { kind: 'placeholder', value: 'YOUR EMAIL' }))).toEqual(['email']);
+    expect(queryAll(tree, { kind: 'placeholder', value: 'your email', exact: true })).toHaveLength(0);
+  });
+
+  test('getByRole name is a case-insensitive substring unless exact: true', () => {
+    expect(ids(queryAll(tree, { kind: 'role', value: 'button', name: 'sign in' }))).toEqual(['login', 'apple']);
+    expect(ids(queryAll(tree, { kind: 'role', value: 'button', name: 'Sign In', exact: true }))).toEqual(['login']);
+    expect(queryAll(tree, { kind: 'role', value: 'button', name: 'sign in', exact: true })).toHaveLength(0);
+  });
+});

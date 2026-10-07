@@ -18,9 +18,9 @@ const TYPES_TOO_GENERIC_TO_SUGGEST = new Set(['other']);
 /** Discriminated union of the four locator strategies mobilewright supports. */
 export type Locator =
   | { kind: 'testId'; value: string }
-  | { kind: 'role';   value: string; name: string | undefined }
-  | { kind: 'label';  value: string }
-  | { kind: 'text';   value: string };
+  | { kind: 'role';   value: string; name: string | undefined; exact?: boolean }
+  | { kind: 'label';  value: string; exact?: boolean }
+  | { kind: 'text';   value: string; exact?: boolean };
 
 export interface ElementEntry {
   node: ViewNode;
@@ -156,7 +156,29 @@ export function deriveElementList(roots: ViewNode[]): ElementEntry[] {
   }
 
   walk(roots, 0);
-  return preferUniqueRolesOverDuplicateTestIds(result);
+  return preferUniqueRolesOverDuplicateTestIds(result).map((entry) => promoteExactWhenAmbiguous(roots, entry));
+}
+
+/**
+ * Text matching is a case-insensitive substring match by default (like
+ * Playwright), so getByText('Email') also matches "Email address". When the
+ * substring form is ambiguous but the exact form is unique, suggest
+ * `{ exact: true }` — the same call Playwright's codegen makes.
+ */
+function promoteExactWhenAmbiguous(roots: ViewNode[], entry: ElementEntry): ElementEntry {
+  const promote = (locator: Locator): Locator => {
+    if (locator.kind === 'testId' || (locator.kind === 'role' && locator.name === undefined)) {
+      return locator;
+    }
+    if (queryAll(roots, locator).length <= 1) {
+      return locator;
+    }
+    const exactForm: Locator = { ...locator, exact: true };
+    return queryAll(roots, exactForm).length === 1 ? exactForm : locator;
+  };
+  const locators = entry.locators.map(promote);
+  const locator = entry.locator ? promote(entry.locator) : null;
+  return { ...entry, locator, locators };
 }
 
 /** Where a node sits among every node its locator matches. */

@@ -8,3 +8,4 @@ export { expect, ExpectError, setSoftFailureHandler, setDefaultStepFn, type Expe
 export { queryAll, ROLE_TYPE_MAP, bareTypeName, type LocatorStrategy, type Role } from './query-engine.js';
 export { sleep } from './sleep.js';
 export type { HardwareButton } from '@mobilewright/protocol';
+export { normalizeWhiteSpace, textMatches } from './text-match.js';
