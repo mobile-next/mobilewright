@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import type { DeviceInfo } from '@mobilewright/protocol';
 import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliReachable } from '@mobilewright/driver-mobilecli';
-import { loadConfig } from './config.js';
+import { loadConfig, HTML_REPORT_DIR } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
 import { scarf, telemetry } from './telemetry.js';
@@ -18,7 +18,6 @@ import { scarf, telemetry } from './telemetry.js';
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
 
-const HTML_REPORT_DIR = 'mobilewright-report';
 const TEMPLATES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
 const program = new Command();
@@ -103,9 +102,9 @@ program
 
     telemetry('mw_test-ended', { Status: status });
 
-    // Post-process HTML report with Mobilewright branding.
-    // Apply whenever the report dir exists — covers both --reporter html
-    // and reporter configured in the config file.
+    // Post-process HTML report with Mobilewright branding. Both --reporter html
+    // and an html reporter in the config file write to HTML_REPORT_DIR
+    // (defineConfig sets the folder), so checking the dir covers both.
     if (existsSync(resolve(process.cwd(), HTML_REPORT_DIR))) {
       try {
         brandReport(resolve(process.cwd(), HTML_REPORT_DIR));
