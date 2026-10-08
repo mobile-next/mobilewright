@@ -108,6 +108,19 @@ of the collapsed framework class above — these are also recognized:
 | `XCUIElementTypeLink` | `link` |
 | `XCUIElementTypeNavigationBar` | `header` |
 
+## Strict mode
+
+Like Playwright, a locator used for an action (`tap`, `fill`, `check`, …) or a single-element query or assertion (`getText`, `isVisible`, `toBeVisible`, …) must resolve to exactly one element. When it matches several, the call fails at once — not after the timeout — with the locator and the matches spelled out:
+
+```text
+strict mode violation: getByRole('button') resolved to 2 elements:
+  1) Button "Submit" [submitBtn]
+  2) Button "Cancel" [cancelBtn]
+Narrow the locator, or use .first(), .last(), .nth(i) or .filter().
+```
+
+`count()`, `all()`, `first()`, `last()`, `nth()` and `expect(...).toHaveCount()` are not strict. Native trees often report one control at two levels — an iOS `Button` and the `StaticText` inside it both carry the label — and such an ancestor chain counts as a single element, resolved to the outermost node.
+
 ## Notes and known gaps
 
 - **Classes with no role.** Anything not listed above has no role mapping —

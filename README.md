@@ -168,6 +168,8 @@ const tree = await screen.viewTree()                 // raw accessibility tree (
 
 Lazy, chainable element reference. No queries execute until you call an action or assertion.
 
+Locators are **strict**, like Playwright's: an action or single-element query on a locator that matches more than one element fails immediately with `strict mode violation: getByRole('button') resolved to 2 elements`, listing the matches. Narrow the locator, or pick one with `first()`, `last()`, `nth()` or `filter()`. `count()`, `all()` and `toHaveCount()` are not strict. A container and its own text child reporting the same label (an iOS button wrapping its text) count as one element.
+
 **Actions** (all auto-wait for the element to be visible, enabled, and have stable bounds):
 
 ```typescript

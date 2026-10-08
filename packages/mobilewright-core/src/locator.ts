@@ -1,5 +1,5 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
+import { queryAll, matchesRole, describeStrategy, describeNode, collapseAncestorChains, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
 import { runStep, type StepLocation } from './stackTrace.js';
 
@@ -263,7 +263,7 @@ export class Locator {
   /** Read the element's current value from the latest hierarchy, '' if absent. */
   private async _currentValue(): Promise<string> {
     const roots = await this.driver.getViewHierarchy();
-    return queryAll(roots, this.strategy)[0]?.value ?? '';
+    return this.resolveStrict(roots)?.value ?? '';
   }
 
   async screenshot(opts?: { timeout?: number }): Promise<Buffer> {
@@ -290,7 +290,7 @@ export class Locator {
 
       for (let i = 0; i < maxSwipes; i++) {
         const roots = await this.driver.getViewHierarchy();
-        const node = queryAll(roots, this.strategy)[0] ?? null;
+        const node = this.resolveStrict(roots);
 
         if (node && isWithinViewport(node.bounds, screenSize)) {
           return;
@@ -320,7 +320,7 @@ export class Locator {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
       return true;
     } catch (error) {
-      if (!(error instanceof LocatorError)) {
+      if (!(error instanceof LocatorError) || error instanceof StrictModeViolationError) {
         throw error;
       }
       return false;
@@ -388,7 +388,7 @@ export class Locator {
 
     while (true) {
       const roots = await this.driver.getViewHierarchy();
-      const node = queryAll(roots, this.strategy)[0] ?? null;
+      const node = this.resolveStrict(roots);
 
       if (checkState(node, state)) {
         return node;
@@ -396,7 +396,7 @@ export class Locator {
 
       if (Date.now() >= deadline) {
         throw new LocatorError(
-          `Locator timed out waiting for state "${state}" after ${effectiveTimeout}ms`,
+          `Locator timed out waiting for state "${state}" after ${effectiveTimeout}ms (${describeStrategy(this.strategy)})`,
           this.strategy,
         );
       }
@@ -422,7 +422,7 @@ export class Locator {
 
     while (true) {
       const roots = await this.driver.getViewHierarchy();
-      const node = queryAll(roots, this.strategy)[0];
+      const node = this.resolveStrict(roots);
 
       if (!node) {
         lastReason = 'no matching element found';
@@ -445,12 +445,31 @@ export class Locator {
 
       if (Date.now() >= deadline) {
         throw new LocatorError(
-          `Locator: ${lastReason} after ${effectiveTimeout}ms`,
+          `Locator: ${lastReason} after ${effectiveTimeout}ms (${describeStrategy(this.strategy)})`,
           this.strategy,
         );
       }
       await sleep(pollInterval);
     }
+  }
+
+  /**
+   * The single element this locator resolves to in `roots`, or null when none.
+   * Playwright strict mode: more than one match is an error, raised at once —
+   * unless the matches are one ancestor chain (a container and its own text
+   * child carrying the same label), which resolves to the outermost node.
+   */
+  private resolveStrict(roots: ViewNode[]): ViewNode | null {
+    const elements = collapseAncestorChains(queryAll(roots, this.strategy));
+    if (elements.length <= 1) {
+      return elements[0] ?? null;
+    }
+    throw new StrictModeViolationError(
+      `strict mode violation: ${describeStrategy(this.strategy)} resolved to ${elements.length} elements:\n`
+        + elements.map((n, i) => `  ${i + 1}) ${describeNode(n)}`).join('\n')
+        + '\nNarrow the locator, or use .first(), .last(), .nth(i) or .filter().',
+      this.strategy,
+    );
   }
 
   /** Resolve without waiting — returns null if not found */
@@ -461,9 +480,9 @@ export class Locator {
 
     do {
       const roots = await this.driver.getViewHierarchy();
-      const matches = queryAll(roots, this.strategy);
-      if (matches.length > 0) {
-        return matches[0];
+      const node = this.resolveStrict(roots);
+      if (node) {
+        return node;
       }
       if (timeout <= 0) {
         return null;
@@ -557,5 +576,13 @@ export class LocatorError extends Error {
   ) {
     super(message);
     this.name = 'LocatorError';
+  }
+}
+
+/** A locator matched more than one element where exactly one was required. Never retried. */
+export class StrictModeViolationError extends LocatorError {
+  constructor(message: string, strategy: LocatorStrategy) {
+    super(message, strategy);
+    this.name = 'StrictModeViolationError';
   }
 }
