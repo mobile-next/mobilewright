@@ -167,9 +167,11 @@ export class MobileWebViewLocator {
     return result;
   }
 
-  // Wait for the element to be visible, then return a value read from it.
+  // Wait for the element to be attached (Playwright's value readers do not
+  // require visibility: an empty <span> or a display:none node is still
+  // readable), then return a value read from it.
   private async readFromFirst<T>(valueExpr: string, opts?: { timeout?: number }): Promise<T> {
-    await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
+    await this.pollUntilAttached(opts?.timeout ?? DEFAULT_TIMEOUT);
     return this.evalOnFirst<T>(`return ${valueExpr};`);
   }
 
@@ -385,6 +387,18 @@ export class MobileWebViewLocator {
       (ready) => ready,
       timeout,
       'MobileWebViewLocator: timed out waiting for element to be actionable',
+    );
+  }
+
+  // Wait until the selector resolves to an element (strict mode still applies).
+  // The injected querySelector yields undefined, not null, for a miss.
+  private async pollUntilAttached(timeout: number): Promise<void> {
+    const js = `Boolean(${this.firstEl()})`;
+    await retryUntil(
+      () => this.pollBoolean(js, 0, 'attached'),
+      (attached) => attached,
+      timeout,
+      'MobileWebViewLocator: timed out waiting for element to be attached',
     );
   }
 
