@@ -1,5 +1,5 @@
 import createDebug from 'debug';
-import type { Locator } from '@playwright/test';
+import type { Locator, FrameLocator } from '@playwright/test';
 import type { Bounds, WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
@@ -15,6 +15,7 @@ import {
   getByTestIdSelector,
   TEST_ID_ATTR,
   evaluateWithEngine,
+  scopedEngineExpr,
 } from './playwright-engine.js';
 import { buildExpectEvaluate, missingElementVerdict, type FrameExpectParams, type ExpectResult, type ExpectedTextValue } from './web-expect-matcher.js';
 
@@ -81,12 +82,19 @@ export class MobileWebViewLocator {
     return runStep(this._stepFn, title, fn);
   }
 
+  // In-page expression built by `build` from the engine and document that own
+  // this locator's selector — the page's own, or an iframe's when the locator
+  // came through frameLocator()/contentFrame(). Evaluates to `frameMissing` when
+  // an iframe on the path is absent.
+  private scoped(build: (is: string, doc: string, sel: string) => string, frameMissing: string): string {
+    return scopedEngineExpr(this.selector, build, frameMissing);
+  }
+
   // JS expression resolving to the first match via the imported Playwright
   // engine. strict=true: a selector matching >1 element throws a strict-mode
   // violation in-page, matching Playwright's strict locators.
   private firstEl(): string {
-    const sel = JSON.stringify(this.selector);
-    return `window.__mwInjected.querySelector(window.__mwInjected.parseSelector(${sel}), document, true)`;
+    return this.scoped((is, doc, sel) => `${is}.querySelector(${is}.parseSelector(${sel}), ${doc}, true)`, 'null');
   }
 
   private firstElExpr(body: string): string {
@@ -149,9 +157,11 @@ export class MobileWebViewLocator {
   // state. Throws "<what>: element not found" when no element resolves —
   // matching Playwright's isEnabled/isChecked, which require an attached element.
   private async readElementState(state: 'enabled' | 'checked', timeout: number, what: string): Promise<boolean> {
-    const sel = JSON.stringify(this.selector);
     const stateArg = JSON.stringify(state);
-    const js = `(() => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return null; } return is.elementState(el, ${stateArg}).matches; })()`;
+    const js = this.scoped(
+      (is, doc, sel) => `(() => { const is = ${is}; const el = is.querySelector(is.parseSelector(${sel}), ${doc}, true); if (!el) { return null; } return is.elementState(el, ${stateArg}).matches; })()`,
+      'null',
+    );
     let result = false;
     await retryUntil(
       async () => {
@@ -211,6 +221,17 @@ export class MobileWebViewLocator {
     return this.child(getByTitleSelector(text));
   }
 
+  // ─── Frames ──────────────────────────────────────────────────
+
+  // This locator points at an <iframe>; locate elements inside its document.
+  contentFrame(): MobileWebViewFrameLocator {
+    return new MobileWebViewFrameLocator(this, this.derive(`${this.selector} >> internal:control=enter-frame`));
+  }
+
+  frameLocator(selector: string): MobileWebViewFrameLocator {
+    return this.locator(selector).contentFrame();
+  }
+
   // ─── Collection ──────────────────────────────────────────────
 
   first(): MobileWebViewLocator {
@@ -226,9 +247,8 @@ export class MobileWebViewLocator {
   }
 
   async count(): Promise<number> {
-    const sel = JSON.stringify(this.selector);
     return this.evalEngine<number>(
-      `window.__mwInjected.querySelectorAll(window.__mwInjected.parseSelector(${sel}), document).length`,
+      this.scoped((is, doc, sel) => `${is}.querySelectorAll(${is}.parseSelector(${sel}), ${doc}).length`, '0'),
     );
   }
 
@@ -249,8 +269,10 @@ export class MobileWebViewLocator {
   // ─── State queries ───────────────────────────────────────────
 
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
-    const sel = JSON.stringify(this.selector);
-    const js = `(() => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } return is.elementState(el, 'visible').matches; })()`;
+    const js = this.scoped(
+      (is, doc, sel) => `(() => { const is = ${is}; const el = is.querySelector(is.parseSelector(${sel}), ${doc}, true); if (!el) { return false; } return is.elementState(el, 'visible').matches; })()`,
+      'false',
+    );
     return this.pollBoolean(js, opts?.timeout ?? DEFAULT_TIMEOUT, 'visible');
   }
 
@@ -376,12 +398,13 @@ export class MobileWebViewLocator {
   // given states (it returns undefined when they all pass). Used by click to
   // gate on visible+enabled before a synthetic dispatch (slice-1 behavior).
   private async pollActionable(states: string[], timeout: number): Promise<void> {
-    const sel = JSON.stringify(this.selector);
     const list = JSON.stringify(states);
+    const js = this.scoped(
+      (is, doc, sel) => `(async () => { const is = ${is}; const el = is.querySelector(is.parseSelector(${sel}), ${doc}, true); if (!el) { return false; } const missing = await is.checkElementStates(el, ${list}); return missing === undefined; })()`,
+      'false',
+    );
     await retryUntil(
-      () => this.evalEngine<boolean>(
-        `(async () => { const is = window.__mwInjected; const el = is.querySelector(is.parseSelector(${sel}), document, true); if (!el) { return false; } const missing = await is.checkElementStates(el, ${list}); return missing === undefined; })()`,
-      ),
+      () => this.evalEngine<boolean>(js),
       (ready) => ready,
       timeout,
       'MobileWebViewLocator: timed out waiting for element to be actionable',
@@ -467,3 +490,74 @@ export interface MobileWebViewLocator extends Locator {}
 
 // Back-compat alias for internal callers that still import WebLocator.
 export { MobileWebViewLocator as WebLocator };
+
+// Playwright's FrameLocator for a same-origin <iframe> inside the webview, from
+// page.frameLocator(), locator.frameLocator() or locator.contentFrame(). Its
+// locators carry Playwright's enter-frame marker in their selector, and every
+// engine call resolves them inside the iframe's document (see
+// installFrameScope), so actions, queries and expect() work unchanged.
+export class MobileWebViewFrameLocator {
+  constructor(
+    // The locator of the <iframe> element itself.
+    private readonly frameElement: MobileWebViewLocator,
+    // frameElement's selector followed by the enter-frame marker.
+    private readonly content: MobileWebViewLocator,
+  ) {}
+
+  owner(): MobileWebViewLocator {
+    return this.frameElement;
+  }
+
+  locator(selector: string): MobileWebViewLocator {
+    return this.content.locator(selector);
+  }
+
+  getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): MobileWebViewLocator {
+    return this.content.getByRole(role, opts);
+  }
+
+  getByText(text: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
+    return this.content.getByText(text, opts);
+  }
+
+  getByLabel(label: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
+    return this.content.getByLabel(label, opts);
+  }
+
+  getByPlaceholder(text: string | RegExp, opts?: { exact?: boolean }): MobileWebViewLocator {
+    return this.content.getByPlaceholder(text, opts);
+  }
+
+  getByTestId(testId: string): MobileWebViewLocator {
+    return this.content.getByTestId(testId);
+  }
+
+  getByAltText(text: string | RegExp): MobileWebViewLocator {
+    return this.content.getByAltText(text);
+  }
+
+  getByTitle(text: string | RegExp): MobileWebViewLocator {
+    return this.content.getByTitle(text);
+  }
+
+  // A nested iframe inside this one.
+  frameLocator(selector: string): MobileWebViewFrameLocator {
+    return this.content.frameLocator(selector);
+  }
+
+  first(): MobileWebViewFrameLocator {
+    return this.frameElement.first().contentFrame();
+  }
+
+  last(): MobileWebViewFrameLocator {
+    return this.frameElement.last().contentFrame();
+  }
+
+  nth(index: number): MobileWebViewFrameLocator {
+    return this.frameElement.nth(index).contentFrame();
+  }
+}
+
+// Declaration-merge Playwright's FrameLocator surface, as MobileWebViewLocator
+// does for Locator, so it is a drop-in FrameLocator.
+export interface MobileWebViewFrameLocator extends FrameLocator {}
