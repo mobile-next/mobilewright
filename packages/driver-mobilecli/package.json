@@ -31,7 +31,7 @@
   "dependencies": {
     "@mobilewright/protocol": "^0.0.1",
     "debug": "^4.4.3",
-    "mobilecli": "1.0.18",
+    "mobilecli": "1.0.19",
     "ws": "^8.21.3"
   },
   "devDependencies": {
