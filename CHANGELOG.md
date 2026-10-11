@@ -1,3 +1,11 @@
+## [0.0.65] (2026-10-11)
+* Feat: support Android (Termux) by mapping the android platform to the linux binaries ([#394](https://github.com/mobile-next/mobilewright/pull/394), [mobilecli#499](https://github.com/mobile-next/mobilecli/pull/499)), thanks to [@Jobians](https://github.com/Jobians)
+* Fix: `installApps` accepts cloud storage references (`storage:…` for Sauce Labs, `bs://…` for BrowserStack, `file:…` for Mobile Next) ([#398](https://github.com/mobile-next/mobilewright/pull/398))
+* Fix: uninstalling an app that is not installed is a no-op, and a missing app file is reported by path ([#382](https://github.com/mobile-next/mobilewright/pull/382), [mobilecli#500](https://github.com/mobile-next/mobilecli/pull/500))
+* Fix(iOS): dumping the UI no longer times out after 10s on heavy screens ([mobilecli#497](https://github.com/mobile-next/mobilecli/pull/497)), thanks to [@Cassian433](https://github.com/Cassian433)
+* Docs: add Allure Report integration guide ([#391](https://github.com/mobile-next/mobilewright/pull/391))
+* Chore: upgrade bundled mobilecli to 1.0.19 ([#399](https://github.com/mobile-next/mobilewright/pull/399))
+
 ## [0.0.64] (2026-10-05)
 * Feat: add `locator.check()`, `uncheck()` and `setChecked()` with Playwright semantics ([#379](https://github.com/mobile-next/mobilewright/pull/379))
 * Feat(driver-mobilenext): install apps before allocating a cloud device ([#389](https://github.com/mobile-next/mobilewright/pull/389))
