@@ -18,6 +18,7 @@ import { expect, setSoftFailureHandler, setDefaultStepFn } from '@mobilewright/c
 import type { Device, Screen, StepFn } from '@mobilewright/core';
 import {
   assertValidZipFile,
+  isRemoteAppReference,
   mergeDeviceConfig,
   assertSupportedPlatform,
   annotationsForDevice,
@@ -137,7 +138,9 @@ export const test = base.extend<MobilewrightTestFixtures>({
     const supportedPlatform = assertSupportedPlatform(merged.platform);
 
     for (const appPath of toArray(merged.installApps)) {
-      assertValidZipFile(appPath);
+      if (!isRemoteAppReference(appPath)) {
+        assertValidZipFile(appPath);
+      }
     }
 
     const client = getClient();

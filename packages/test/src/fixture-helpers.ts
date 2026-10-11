@@ -18,6 +18,13 @@ type Annotation = { type: string; description: string };
 type VideoPlan = { shouldRecord: boolean; path: string; shouldAttach(failed: boolean): boolean };
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+// A scheme prefix such as `storage:` (Sauce Labs), `bs://` (BrowserStack) or `file:` (Mobile Next).
+const URI_SCHEME = /^[a-z][a-z0-9+.-]+:/i;
+
+/** An app already stored on a cloud provider, passed through to the driver as-is. */
+export function isRemoteAppReference(app: string): boolean {
+  return URI_SCHEME.test(app);
+}
 
 export function assertValidZipFile(path: string): void {
   if (!existsSync(path)) {

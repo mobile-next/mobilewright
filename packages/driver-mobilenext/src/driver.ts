@@ -185,6 +185,8 @@ function appendQueryParam(url: string, key: string, value: string): string {
 }
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+// An installApps entry naming a file already in Mobile Next storage, rather than a path on disk.
+const STORED_FILE_PREFIX = 'file:';
 
 function assertValidZipFile(path: string): void {
   const buf = Buffer.alloc(4);
@@ -555,6 +557,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   // Caches the promise so concurrent allocations share one upload; a failure is evicted so a later
   // call can retry.
   private uploadApp(path: string): Promise<string> {
+    if (path.startsWith(STORED_FILE_PREFIX)) {
+      return Promise.resolve(path.slice(STORED_FILE_PREFIX.length));
+    }
     let fileId = this.fileIdByPath.get(path);
     if (!fileId) {
       assertValidZipFile(path);

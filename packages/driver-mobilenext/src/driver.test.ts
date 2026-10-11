@@ -74,3 +74,29 @@ test.describe('pointer coordinates are sent as integers', () => {
     expect(calls[0].params.duration).toBe(300);
   });
 });
+
+test.describe('installApps on allocation', () => {
+  type AllocateCall = { fileIds: string[] };
+
+  function driverWithFakeFleet(): { driver: MobileNextDriver; allocations: AllocateCall[]; uploads: string[] } {
+    const driver = new MobileNextDriver({ apiKey: 'mob_key', testResult: { uploadReport: 'off' } });
+    const allocations: AllocateCall[] = [];
+    const uploads: string[] = [];
+    (driver as any).getFleetSession = async () => 'session-1';
+    (driver as any).fleetClient = {
+      uploadFile: async (path: string) => { uploads.push(path); return 'uploaded-id'; },
+      allocateDevice: async (_sessionId: string, _filters: unknown, fileIds: string[]) => {
+        allocations.push({ fileIds });
+        return { id: 'alloc-1', info: { serial: 'serial-1', platform: 'android', name: 'Pixel', osVersion: '15' } };
+      },
+    };
+    return { driver, allocations, uploads };
+  }
+
+  test('an already stored file:<id> is installed by id without uploading', async () => {
+    const { driver, allocations, uploads } = driverWithFakeFleet();
+    await driver.allocate({ platform: 'android', installApps: ['file:file-1'] }, new Set());
+    expect(uploads).toEqual([]);
+    expect(allocations).toEqual([{ fileIds: ['file-1'] }]);
+  });
+});
