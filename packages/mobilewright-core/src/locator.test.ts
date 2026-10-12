@@ -724,6 +724,73 @@ test.describe('Locator', () => {
     });
   });
 
+  // Playwright strict mode: an action or single-element query on a locator
+  // that resolves to more than one element fails immediately with a message
+  // naming the locator, instead of silently acting on the first match.
+  // Native trees repeat a label on a container and its text child (an iOS
+  // Button wraps a StaticText with the same label); matches that form one
+  // ancestor chain are a single element, resolved to the outermost node.
+  test.describe('strict mode', () => {
+    // `hierarchy` has two sibling buttons: Submit and Cancel.
+    const twoButtons = () => new Locator(createMockDriver(hierarchy), { kind: 'role', value: 'button' });
+
+    test('tap() on a locator matching two sibling elements fails without tapping', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'role', value: 'button' });
+      await expect(locator.tap({ timeout: 2000 })).rejects.toThrow(/strict mode violation: getByRole\('button'\) resolved to 2 elements/);
+      expect(driver._tracker.tapCalls).toEqual([]);
+    });
+
+    test('the violation is raised at once, not after the timeout', async () => {
+      const started = Date.now();
+      await expect(twoButtons().tap({ timeout: 5000 })).rejects.toThrow(LocatorError);
+      expect(Date.now() - started).toBeLessThan(1000);
+    });
+
+    test('the message lists the matched elements', async () => {
+      const error = await twoButtons().tap().then(() => null, (e: Error) => e);
+      expect(error!.message).toContain('Button "Submit"');
+      expect(error!.message).toContain('Button "Cancel"');
+    });
+
+    test('single-element queries and assertions are strict too', async () => {
+      await expect(twoButtons().getText()).rejects.toThrow(/strict mode violation/);
+      await expect(twoButtons().isVisible()).rejects.toThrow(/strict mode violation/);
+      await expect(twoButtons().exists()).rejects.toThrow(/strict mode violation/);
+      await expect(twoButtons().waitFor({ state: 'visible' })).rejects.toThrow(/strict mode violation/);
+    });
+
+    test('count(), all(), first(), last() and nth() are not strict', async () => {
+      expect(await twoButtons().count()).toBe(2);
+      expect((await twoButtons().all()).length).toBe(2);
+      expect(await twoButtons().first().getText()).toBe('Submit');
+      expect(await twoButtons().last().getText()).toBe('Cancel');
+      expect(await twoButtons().nth(1).getText()).toBe('Cancel');
+    });
+
+    test('a container and its own text child with the same label count as one element', async () => {
+      const row = node({
+        type: 'Button', label: 'Basic UI', bounds: { x: 16, y: 261, width: 370, height: 52 },
+        children: [node({ type: 'StaticText', label: 'Basic UI', bounds: { x: 31, y: 276, width: 61, height: 20 } })],
+      });
+      const driver = createMockDriver([node({ type: 'Window', children: [row] })]);
+      const locator = new Locator(driver, { kind: 'text', value: 'Basic UI' });
+      await locator.tap();
+      // outermost node: the button's centre, not the text's
+      expect(driver._tracker.tapCalls).toEqual([[201, 287]]);
+    });
+
+    test('two rows that both contain the text are still a violation', async () => {
+      const rowWith = (label: string, y: number) => node({
+        type: 'Cell', label, bounds: { x: 0, y, width: 390, height: 44 },
+        children: [node({ type: 'StaticText', label, bounds: { x: 16, y: y + 12, width: 100, height: 20 } })],
+      });
+      const driver = createMockDriver([node({ type: 'Window', children: [rowWith('Delete', 100), rowWith('Delete', 200)] })]);
+      const locator = new Locator(driver, { kind: 'text', value: 'Delete' });
+      await expect(locator.tap()).rejects.toThrow(/resolved to 2 elements/);
+    });
+  });
+
   test.describe('scrollIntoViewIfNeeded', () => {
     test('returns immediately without swiping when element is already in the viewport', async () => {
       const driver = createMockDriver(hierarchy);

@@ -340,3 +340,74 @@ function isContainedWithin(inner: Bounds, outer: Bounds): boolean {
     inner.y + inner.height <= outer.y + outer.height
   );
 }
+
+function describeValue(value: string | RegExp): string {
+  if (value instanceof RegExp) {
+    return String(value);
+  }
+  const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
+  return `'${escaped}'`;
+}
+
+function describeExact(exact: boolean | undefined): string {
+  return exact ? ', { exact: true }' : '';
+}
+
+/** Render a strategy the way a test would write it, e.g. getByRole('button', { name: 'Save' }). */
+export function describeStrategy(strategy: LocatorStrategy): string {
+  switch (strategy.kind) {
+    case 'root': return 'screen';
+    case 'label': return `getByLabel(${describeValue(strategy.value)}${describeExact(strategy.exact)})`;
+    case 'testId': return `getByTestId(${describeValue(strategy.value)})`;
+    case 'text': return `getByText(${describeValue(strategy.value)}${describeExact(strategy.exact)})`;
+    case 'type': return `getByType(${describeValue(strategy.value)})`;
+    case 'placeholder': return `getByPlaceholder(${describeValue(strategy.value)}${describeExact(strategy.exact)})`;
+    case 'webview': return strategy.testId === undefined ? 'getByWebView()' : `getByWebView({ testId: ${describeValue(strategy.testId)} })`;
+    case 'role': {
+      const name = strategy.name === undefined ? '' : `, { name: ${describeValue(strategy.name)} }`;
+      return `getByRole(${describeValue(strategy.value)}${name})`;
+    }
+    case 'chain':
+      return strategy.parent.kind === 'root'
+        ? describeStrategy(strategy.child)
+        : `${describeStrategy(strategy.parent)}.${describeStrategy(strategy.child)}`;
+    case 'nth':
+      if (strategy.index === 0) return `${describeStrategy(strategy.parent)}.first()`;
+      if (strategy.index === -1) return `${describeStrategy(strategy.parent)}.last()`;
+      return `${describeStrategy(strategy.parent)}.nth(${strategy.index})`;
+    case 'filter': {
+      const parts: string[] = [];
+      if (strategy.hasText !== undefined) parts.push(`hasText: ${describeValue(strategy.hasText)}`);
+      if (strategy.hasNotText !== undefined) parts.push(`hasNotText: ${describeValue(strategy.hasNotText)}`);
+      if (strategy.has !== undefined) parts.push(`has: ${describeStrategy(strategy.has)}`);
+      if (strategy.hasNot !== undefined) parts.push(`hasNot: ${describeStrategy(strategy.hasNot)}`);
+      return `${describeStrategy(strategy.parent)}.filter({ ${parts.join(', ')} })`;
+    }
+    case 'and': return `${describeStrategy(strategy.left)}.and(${describeStrategy(strategy.right)})`;
+    case 'or': return `${describeStrategy(strategy.left)}.or(${describeStrategy(strategy.right)})`;
+  }
+}
+
+/** Short description of a node for error messages: type, visible text and test id. */
+export function describeNode(node: ViewNode): string {
+  const text = node.label ?? node.text ?? node.value ?? '';
+  const id = node.identifier ?? node.resourceId ?? node.key;
+  return `${node.type} ${JSON.stringify(text)}${id ? ` [${id}]` : ''}`;
+}
+
+/**
+ * Collapse matches that sit on one ancestor chain into their outermost node:
+ * an iOS Button and the StaticText inside it carry the same label and are one
+ * element reported at two levels. `matches` is in document order, so an
+ * ancestor always precedes its descendants.
+ */
+export function collapseAncestorChains(matches: ViewNode[]): ViewNode[] {
+  const kept: ViewNode[] = [];
+  for (const node of matches) {
+    const insideKept = kept.some((outer) => flattenNodes(outer.children).includes(node));
+    if (!insideKept) {
+      kept.push(node);
+    }
+  }
+  return kept;
+}
