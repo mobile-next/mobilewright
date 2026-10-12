@@ -285,6 +285,62 @@ test.describe('expect', () => {
     });
   });
 
+  // Playwright: only the visibility matchers tolerate a missing element
+  // (toBeHidden / not.toBeVisible pass). Every other state matcher needs an
+  // element to read the state from and fails — even when negated — otherwise a
+  // typo'd locator makes `toBeDisabled()` or `not.toBeChecked()` pass vacuously.
+  test.describe('state assertions on an element that does not exist', () => {
+    const NO_SUCH_ELEMENT = 'Expected element to be';
+    function locatorForMissingElement() {
+      const driver = createMockDriver(hierarchy);
+      return new Locator(driver, { kind: 'testId', value: 'does-not-exist' });
+    }
+
+    test('toBeDisabled fails and says the element was not found', async () => {
+      await expect(mwExpect(locatorForMissingElement()).toBeDisabled({ timeout: 200 }))
+        .rejects.toThrow('Expected element to be disabled, but no matching element was found');
+    });
+
+    test('not.toBeEnabled fails', async () => {
+      await expect(mwExpect(locatorForMissingElement()).not.toBeEnabled({ timeout: 200 }))
+        .rejects.toThrow(NO_SUCH_ELEMENT);
+    });
+
+    test('not.toBeChecked fails', async () => {
+      await expect(mwExpect(locatorForMissingElement()).not.toBeChecked({ timeout: 200 }))
+        .rejects.toThrow('Expected element to be checked, but no matching element was found');
+    });
+
+    test('not.toBeFocused fails', async () => {
+      await expect(mwExpect(locatorForMissingElement()).not.toBeFocused({ timeout: 200 }))
+        .rejects.toThrow(NO_SUCH_ELEMENT);
+    });
+
+    test('not.toBeSelected fails', async () => {
+      await expect(mwExpect(locatorForMissingElement()).not.toBeSelected({ timeout: 200 }))
+        .rejects.toThrow(NO_SUCH_ELEMENT);
+    });
+
+    test('toBeEnabled and toBeChecked still fail (unchanged)', async () => {
+      await expect(mwExpect(locatorForMissingElement()).toBeEnabled({ timeout: 200 })).rejects.toThrow(ExpectError);
+      await expect(mwExpect(locatorForMissingElement()).toBeChecked({ timeout: 200 })).rejects.toThrow(ExpectError);
+    });
+
+    test('toBeHidden and not.toBeVisible still pass (visibility tolerates absence)', async () => {
+      await mwExpect(locatorForMissingElement()).toBeHidden({ timeout: 200 });
+      await mwExpect(locatorForMissingElement()).not.toBeVisible({ timeout: 200 });
+    });
+
+    test('a late-appearing disabled element satisfies toBeDisabled once it shows up', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'testId', value: 'lateBtn' });
+      setTimeout(() => driver._setHierarchy([
+        node({ type: 'Button', label: 'Late', identifier: 'lateBtn', isEnabled: false }),
+      ]), 150);
+      await mwExpect(locator).toBeDisabled({ timeout: 2000 });
+    });
+  });
+
   test.describe('toBeSelected', () => {
     test('passes when element is selected', async () => {
       const selectedTree: ViewNode[] = [
