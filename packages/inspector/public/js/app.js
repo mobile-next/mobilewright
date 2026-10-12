@@ -73,11 +73,13 @@ function isMostlyBlack(img) {
 }
 
 // Stands in for a screenshot the device could not capture, so the element names still show.
-function blankScreenshot(width, height) {
+// A device that reports no screen size (0x0) gets one covering the elements' bounds instead.
+function blankScreenshot(width, height, elements) {
+  const bounds = elements.filter(el => el.bounds).map(el => el.bounds)
   const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  canvas.getContext('2d').fillRect(0, 0, width, height)  // the default fill is black
+  canvas.width = width || Math.max(1, ...bounds.map(b => b.x + b.width))
+  canvas.height = height || Math.max(1, ...bounds.map(b => b.y + b.height))
+  canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height)  // the default fill is black
   return canvas.toDataURL()
 }
 
@@ -737,7 +739,7 @@ export class Inspector {
 
       this.#state.hiddenIndices = this.#computeHiddenIndices()
 
-      const screenshot = data.screenshot ?? blankScreenshot(this.#state.logicalWidth, this.#state.logicalHeight)
+      const screenshot = data.screenshot ?? blankScreenshot(this.#state.logicalWidth, this.#state.logicalHeight, this.#state.elements)
       this.#screenshotPane.showScreenshot(screenshot, this.#state.logicalWidth, this.#state.logicalHeight, data.screen?.scale ?? 0)
       this.#elementsPane.render(this.#state.elements, this.#state.hiddenIndices)
       this.#screenshotPane.renderHighlights(this.#state.elements, this.#state.hiddenIndices, null)
