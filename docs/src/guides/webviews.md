@@ -94,6 +94,8 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+`press()` takes Playwright's key syntax (`'Enter'`, `'Backspace'`, `'a'`, `'Shift+Enter'`). Besides dispatching the keyboard events, it performs the key's default action the way a real key press would: `Enter` submits the form the field belongs to (or inserts a newline in a textarea, or activates a button), `Backspace` deletes, and printable keys insert their character. A `keydown` handler that calls `preventDefault()` cancels the default action.
+
 ## Assertions
 
 Web views use Playwright's **web-first assertions**, which retry until the condition holds or the timeout elapses:
