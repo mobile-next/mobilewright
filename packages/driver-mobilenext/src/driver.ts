@@ -166,7 +166,7 @@ function elementToViewNode(el: MobileNextElement): ViewNode {
   return {
     type: el.type ?? 'Unknown',
     label: el.label || undefined,
-    identifier: el.identifier || undefined,
+    identifier: el.identifier || el.name || undefined,
     key: el.key || undefined,
     value: el.value || undefined,
     text: el.text || undefined,
