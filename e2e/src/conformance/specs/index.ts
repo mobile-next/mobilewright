@@ -6,6 +6,7 @@ import { webAssertionsSpec } from './assertions-web.spec.js';
 import { missingElementAssertionsSpec } from './assertions-missing.spec.js';
 import { locatorsSpec } from './locators.spec.js';
 import { realNavigationSpec } from './real-navigation.spec.js';
+import { framesSpec } from './frames.spec.js';
 
 export interface ConformanceCase {
   name: string;
@@ -23,4 +24,5 @@ export const conformanceSpecs: ConformanceCase[] = [
   { name: 'assertions on a missing element behave like Playwright', run: missingElementAssertionsSpec },
   { name: 'locator factories resolve like Playwright', run: locatorsSpec },
   { name: 'navigates to a live page and drives it like Playwright', run: realNavigationSpec },
+  { name: 'frame locators reach into same-origin iframes like Playwright', run: framesSpec },
 ];

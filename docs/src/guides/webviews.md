@@ -94,6 +94,27 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+## Frames
+
+Hybrid apps (Ionic, Cordova, Capacitor and similar) often render part of their UI in an `<iframe>` inside the web view. Reach into a same-origin iframe the same way as in Playwright, with `page.frameLocator()` or `locator.contentFrame()`:
+
+```typescript
+const app = page.frameLocator('#app');
+await app.getByLabel('Email').fill('user@example.com');
+await app.getByRole('button', { name: 'Continue' }).click();
+await expect(app.getByText('Welcome')).toBeVisible();
+
+// The same frame, reached from a locator of the <iframe> element:
+const sameApp = page.locator('#app').contentFrame();
+
+// Nested iframes:
+await expect(app.frameLocator('#details').getByText('Total')).toBeVisible();
+```
+
+Locators from a frame support the same actions, queries and web-first assertions as page locators. Mobilewright injects its engine into an iframe the first time a locator enters it, and again after the iframe loads a new document.
+
+Only **same-origin** iframes can be entered: the browser does not let a page script into a cross-origin iframe, so a locator that crosses one fails with a clear error. `page.frameLocator()` needs a selector for the iframe; Playwright's selector-less form, which searches every frame, is not supported.
+
 ## Assertions
 
 Web views use Playwright's **web-first assertions**, which retry until the condition holds or the timeout elapses:
