@@ -56,6 +56,31 @@ function buildDuplicateSet(elements) {
   return dupes
 }
 
+// A screen the app protects from capture (Android FLAG_SECURE) screenshots as black. Allows a
+// little non-black for system bar icons, which are drawn outside the app's window.
+function isMostlyBlack(img) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 32
+  canvas.height = 64
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  let black = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (Math.max(data[i], data[i + 1], data[i + 2]) < 16) black++
+  }
+  return black / (canvas.width * canvas.height) >= 0.9
+}
+
+// Stands in for a screenshot the device could not capture, so the element names still show.
+function blankScreenshot(width, height) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  canvas.getContext('2d').fillRect(0, 0, width, height)  // the default fill is black
+  return canvas.toDataURL()
+}
+
 // ---- ScreenshotPane ----
 // Owns the screenshot image, SVG highlight overlay, and placeholder state.
 
@@ -77,12 +102,15 @@ export class ScreenshotPane {
   #rectByIndex = new Map()
   #showAllHighlights
   #hoverRect = null
+  #blankMsg
+  #isBlank = false  // the screenshot came back black, so element names are drawn over it
 
   // showAllHighlights: false draws no element boxes, only the one passed to showHoverBox (codegen).
   constructor({ showAllHighlights = true } = {}) {
     this.#showAllHighlights = showAllHighlights
     this.#img = document.getElementById('screenshot-img')
     this.#overlay = document.getElementById('highlight-overlay')
+    this.#blankMsg = document.getElementById('blank-screenshot-msg')
     this.#placeholder = document.getElementById('no-device-msg')
     this.#placeholderTitle = document.getElementById('placeholder-title')
     this.#placeholderSub = document.getElementById('placeholder-sub')
@@ -146,6 +174,7 @@ export class ScreenshotPane {
     this.#placeholder.hidden = false
     this.#img.hidden = true
     this.#overlay.setAttribute('hidden', '')
+    this.#blankMsg.hidden = true
     this.#placeholderTitle.textContent = title
     this.#placeholderSub.textContent = sub
     this.#placeholder.classList.toggle('loading', loading)
@@ -160,7 +189,15 @@ export class ScreenshotPane {
     this.#img.hidden = false
     this.#overlay.removeAttribute('hidden')
     this.#img.src = dataUrl
-    this.#img.onload = () => this.#constrainSize()
+    this.#img.onload = () => {
+      this.#constrainSize()
+      const isBlank = isMostlyBlack(this.#img)
+      this.#blankMsg.hidden = !isBlank
+      if (isBlank !== this.#isBlank) {
+        this.#isBlank = isBlank
+        this.#buildRects()
+      }
+    }
   }
 
   renderHighlights(elements, hiddenIndices, selectedIndex) {
@@ -181,6 +218,9 @@ export class ScreenshotPane {
     this.#overlay.innerHTML = ''
     this.#hoverRect = null
     this.#rectByIndex.clear()
+    if (this.#isBlank) {
+      for (const el of this.#visibleElements()) this.#appendLabel(el)
+    }
     if (!this.#showAllHighlights) {
       return
     }
@@ -199,6 +239,30 @@ export class ScreenshotPane {
       this.#rectByIndex.set(el.index, rect)
       this.#overlay.appendChild(rect)
     }
+  }
+
+  // Writes the element's text or label inside its bounds, clipped to them.
+  #appendLabel(el) {
+    const name = el.text || el.label
+    if (!name) {
+      return
+    }
+    const { x, y, width, height } = el.bounds
+    const box = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    box.setAttribute('x', x)
+    box.setAttribute('y', y)
+    box.setAttribute('width', width)
+    box.setAttribute('height', height)
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    text.setAttribute('x', width * 0.04)
+    text.setAttribute('y', height / 2)
+    text.setAttribute('dominant-baseline', 'central')
+    // Bounds are in logical units (pixels on Android, points on iOS), so size against the screen width.
+    text.setAttribute('font-size', Math.min(height * 0.6, (this.#logicalWidth || this.#img.naturalWidth) / 30))
+    text.classList.add('element-label')
+    text.textContent = name
+    box.appendChild(text)
+    this.#overlay.appendChild(box)
   }
 
   #visibleElements() {
@@ -673,7 +737,8 @@ export class Inspector {
 
       this.#state.hiddenIndices = this.#computeHiddenIndices()
 
-      this.#screenshotPane.showScreenshot(data.screenshot, this.#state.logicalWidth, this.#state.logicalHeight, data.screen?.scale ?? 0)
+      const screenshot = data.screenshot ?? blankScreenshot(this.#state.logicalWidth, this.#state.logicalHeight)
+      this.#screenshotPane.showScreenshot(screenshot, this.#state.logicalWidth, this.#state.logicalHeight, data.screen?.scale ?? 0)
       this.#elementsPane.render(this.#state.elements, this.#state.hiddenIndices)
       this.#screenshotPane.renderHighlights(this.#state.elements, this.#state.hiddenIndices, null)
       this.#setStatus(`${this.#state.elements.length} elements`)
