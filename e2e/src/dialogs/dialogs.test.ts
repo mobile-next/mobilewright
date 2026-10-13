@@ -3,11 +3,11 @@ import type { Device, Screen, Dialog } from 'mobilewright';
 
 const PLAYGROUND_APP = 'com.mobilenext.playground';
 
-test.use({ platform: 'android' });
-
 // ─── Helpers ─────────────────────────────────────────────────────
 
-// clearAppData also resets runtime permissions, so permission prompts show up on every run.
+// On Android, clearAppData also resets runtime permissions, so permission prompts show up on every run.
+// On an iOS simulator it does not: reset them with `xcrun simctl privacy <udid> reset all <bundle>`,
+// and reinstall the app to reset notifications.
 async function openPermissionsAndAlertsWithFreshPermissions(device: Device, screen: Screen): Promise<void> {
   await device.terminateApp(PLAYGROUND_APP).catch(() => {});
   await device.clearAppData(PLAYGROUND_APP);
@@ -16,15 +16,22 @@ async function openPermissionsAndAlertsWithFreshPermissions(device: Device, scre
 }
 
 function alertResult(screen: Screen) {
-  return screen.getByLabel('alert_result');
+  return screen.getByTestId('alert_result');
+}
+
+function deniedStatus(platform: 'ios' | 'android' | undefined): string {
+  return platform === 'ios' ? 'Denied' : 'Not Granted';
 }
 
 function permissionStatus(screen: Screen, permission: 'camera' | 'location' | 'notifications') {
-  return screen.getByLabel(`${permission}_permission_status`);
+  return screen.getByTestId(`${permission}_permission_status`);
 }
 
-async function pressButton(screen: Screen, testLabel: string): Promise<void> {
-  await screen.getByLabel(testLabel).tap();
+async function pressButton(screen: Screen, testId: string): Promise<void> {
+  // the alert buttons sit below the fold on smaller screens, and iOS only lists rendered rows
+  const button = screen.getByTestId(testId);
+  await button.scrollIntoViewIfNeeded();
+  await button.tap();
 }
 
 function recordDialogs(screen: Screen, respond: (dialog: Dialog) => Promise<void>): Dialog[] {
@@ -34,17 +41,6 @@ function recordDialogs(screen: Screen, respond: (dialog: Dialog) => Promise<void
     await respond(dialog);
   });
   return seen;
-}
-
-// Dialogs are spotted while the screen is polled; poll until `count` dialogs were seen.
-async function waitUntilDialogsSeen(screen: Screen, dialogs: Dialog[], count: number): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (dialogs.length < count) {
-    if (Date.now() > deadline) {
-      throw new Error(`expected ${count} dialog(s), saw ${dialogs.length}`);
-    }
-    await screen.viewTree();
-  }
 }
 
 test.beforeEach(async ({ device, screen }) => {
@@ -100,16 +96,37 @@ test('accepting the location prompt grants location', async ({ screen }) => {
   expect(dialogs[0].isSystem()).toBe(true);
 });
 
-test('dismissing the camera prompt denies the camera', async ({ screen }) => {
-  const dialogs = recordDialogs(screen, (dialog) => dialog.dismiss());
+test('dismissing the camera prompt denies the camera', async ({ screen, platform }) => {
+  const dialogPromise = screen.waitForEvent('dialog');
   await pressButton(screen, 'request_camera_permission_button');
-  await waitUntilDialogsSeen(screen, dialogs, 1);
-  await expect(screen.getByText('Don’t allow')).toBeHidden();
-  await expect(permissionStatus(screen, 'camera')).toHaveText('Not Granted');
+  const dialog = await dialogPromise;
+  expect(dialog.type()).toBe('permission');
+  await dialog.dismiss();
+  await expect(screen.getByText(/Don’t allow/i)).toBeHidden();
+  await expect(permissionStatus(screen, 'camera')).toHaveText(deniedStatus(platform));
 });
 
 test('accepting the notifications prompt grants notifications', async ({ screen }) => {
   recordDialogs(screen, (dialog) => dialog.accept());
   await pressButton(screen, 'request_notifications_permission_button');
   await expect(permissionStatus(screen, 'notifications')).toHaveText('Granted');
+});
+
+// ─── Sheets are not dialogs ──────────────────────────────────────
+
+test('an action sheet is left alone, and the test picks an option with a locator', async ({ screen }) => {
+  const dialogs = recordDialogs(screen, (dialog) => dialog.accept());
+  await pressButton(screen, 'show_action_sheet_button');
+  await screen.getByText(/^red$/i).tap();
+  await expect(alertResult(screen)).toHaveText('Red');
+  expect(dialogs).toHaveLength(0);
+});
+
+test('a bottom sheet is left alone, and the test picks an option with a locator', async ({ screen, platform }) => {
+  test.skip(platform === 'ios', 'bottom sheets are an Android control');
+  const dialogs = recordDialogs(screen, (dialog) => dialog.accept());
+  await pressButton(screen, 'show_bottom_sheet_button');
+  await screen.getByText(/^red$/i).tap();
+  await expect(alertResult(screen)).toHaveText('Red');
+  expect(dialogs).toHaveLength(0);
 });
