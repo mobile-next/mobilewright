@@ -1,4 +1,5 @@
 import type { MobilewrightDriver, ViewNode } from '@mobilewright/protocol';
+import { bareTypeName } from './query-engine.js';
 
 export type DialogType = 'alert' | 'confirm' | 'prompt' | 'permission';
 
@@ -13,6 +14,8 @@ const ACTION_SHEET_LIST_ID = /:id\/select_dialog_listview$/;
 // Runtime permission prompt shown by com.android.permissioncontroller (or a vendor fork of it).
 const PERMISSION_MESSAGE_ID = /:id\/permission_message$/;
 const PERMISSION_BUTTON_ID = /:id\/permission_\w+_button$/;
+// iOS permission alerts quote the app name: “Playground” would like to access the Camera.
+const IOS_QUOTED_APP_NAME = /“.+”/;
 
 function flatten(roots: ViewNode[]): ViewNode[] {
   return roots.flatMap((node) => [node, ...flatten(node.children)]);
@@ -83,7 +86,7 @@ export class Dialog {
     await this.tapNode(this.input);
     await this.driver.typeText(promptText);
     // the keyboard that opened for typing pushes the dialog up, so find the button again
-    const moved = flatten(await this.driver.getViewHierarchy()).find((node) => node.identifier === button.identifier);
+    const moved = findDialog(await this.driver.getViewHierarchy(), this.driver)?.acceptButton;
     await this.tapNode(moved ?? button);
   }
 
@@ -120,7 +123,7 @@ export class Dialog {
   }
 }
 
-function findPermissionDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
+function findAndroidPermissionDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
   const message = nodes.find((node) => matchesId(node, PERMISSION_MESSAGE_ID));
   if (!message) {
     return undefined;
@@ -133,7 +136,7 @@ function findPermissionDialog(nodes: ViewNode[], driver: MobilewrightDriver): Di
   return new Dialog(driver, 'permission', '', textOf(message), buttons, accept, dismiss, undefined);
 }
 
-function findAlertDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
+function findAndroidAlertDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
   const buttons = nodes.filter((node) => matchesId(node, ALERT_BUTTON_ID));
   if (buttons.length === 0 || nodes.some((node) => matchesId(node, ACTION_SHEET_LIST_ID))) {
     return undefined;
@@ -148,8 +151,45 @@ function findAlertDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog 
   return new Dialog(driver, type, title, message, buttons, positive, negative ?? positive, input);
 }
 
-/** Detect an Android alert or permission dialog in a view tree. iOS is not supported yet. */
+function isSideBySide(buttons: ViewNode[]): boolean {
+  return buttons.every((node) => node.bounds.y === buttons[0].bounds.y);
+}
+
+// iOS puts the cancel button on the left of a side-by-side pair and at the bottom of a stack.
+function iosAlertButtons(buttons: ViewNode[], isPermission: boolean): { accept?: ViewNode; dismiss?: ViewNode } {
+  if (isSideBySide(buttons)) {
+    const leftToRight = [...buttons].sort((a, b) => a.bounds.x - b.bounds.x);
+    return { accept: leftToRight.at(-1), dismiss: leftToRight[0] };
+  }
+  const topToBottom = [...buttons].sort((a, b) => a.bounds.y - b.bounds.y);
+  // ponytail: a stacked permission alert reads Allow Once / Allow While Using App / Don't Allow,
+  // so accept the one above Don't Allow; an app alert's preferred action is on top
+  return { accept: isPermission ? topToBottom.at(-2) : topToBottom[0], dismiss: topToBottom.at(-1) };
+}
+
+function findIosAlert(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
+  const alert = nodes.find((node) => bareTypeName(node.type) === 'alert');
+  if (!alert) {
+    return undefined;
+  }
+  const children = flatten(alert.children);
+  const buttons = children.filter((node) => bareTypeName(node.type) === 'button');
+  const input = children.find((node) => ['textfield', 'securetextfield'].includes(bareTypeName(node.type)));
+  const title = alert.label ?? '';
+  const message = children
+    .filter((node) => bareTypeName(node.type) === 'statictext' && textOf(node) !== title)
+    .map(textOf)
+    .join('\n');
+  // ponytail: nothing in the iOS tree marks a system alert, so this keys off the quoted app name;
+  // a locale that quotes differently („Playground“) reads as an app alert
+  const isPermission = IOS_QUOTED_APP_NAME.test(title);
+  const type: DialogType = isPermission ? 'permission' : input ? 'prompt' : buttons.length > 1 ? 'confirm' : 'alert';
+  const { accept, dismiss } = iosAlertButtons(buttons, isPermission);
+  return new Dialog(driver, type, title, message, buttons, accept, dismiss, input);
+}
+
+/** Detect an alert or permission dialog in a view tree. */
 export function findDialog(roots: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
   const nodes = flatten(roots);
-  return findPermissionDialog(nodes, driver) ?? findAlertDialog(nodes, driver);
+  return findIosAlert(nodes, driver) ?? findAndroidPermissionDialog(nodes, driver) ?? findAndroidAlertDialog(nodes, driver);
 }

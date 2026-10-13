@@ -14,10 +14,22 @@ import { runStep } from './stackTrace.js';
 import { WebViewLocator } from './webview-locator.js';
 import type { Role } from './query-engine.js';
 import { findDialog, type Dialog, type DialogHandler } from './dialog.js';
+import { sleep } from './sleep.js';
+
+const DEFAULT_TIMEOUT = 5_000;
+const DEFAULT_POLL_INTERVAL = 100;
 
 export interface GetByWebViewOptions {
   /** Match a web view whose native testId (accessibility id / resource-id) equals this. */
   testId?: string;
+}
+
+export type DialogPredicate = (dialog: Dialog) => boolean;
+
+export interface WaitForDialogOptions {
+  predicate?: DialogPredicate;
+  /** Maximum time to wait in ms. Default: the action timeout (5000). */
+  timeout?: number;
 }
 
 export class Screen {
@@ -68,6 +80,39 @@ export class Screen {
   off(event: 'dialog', handler: DialogHandler): this {
     this.dialogHandlers = this.dialogHandlers.filter((h) => h !== handler);
     return this;
+  }
+
+  /**
+   * Wait for the next dialog, like Playwright's page.waitForEvent('dialog'). Start waiting before the
+   * action that opens it; the dialog is left for you to accept or dismiss. Unlike a browser, the device
+   * doesn't push dialog events, so this polls the screen until a dialog shows up.
+   */
+  async waitForEvent(event: 'dialog', optionsOrPredicate?: DialogPredicate | WaitForDialogOptions): Promise<Dialog> {
+    const options = typeof optionsOrPredicate === 'function' ? { predicate: optionsOrPredicate } : optionsOrPredicate ?? {};
+    const timeout = options.timeout ?? this.locatorDefaults.timeout ?? DEFAULT_TIMEOUT;
+    const pollInterval = this.locatorDefaults.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    let found: Dialog | undefined;
+    const handler: DialogHandler = (dialog) => {
+      if (!found && (options.predicate?.(dialog) ?? true)) {
+        found = dialog;
+      }
+    };
+    this.on(event, handler);
+    try {
+      const deadline = Date.now() + timeout;
+      while (!found) {
+        if (Date.now() > deadline) {
+          throw new Error(`Timeout ${timeout}ms exceeded while waiting for event "${event}"`);
+        }
+        await this.viewTreeHandlingDialogs();
+        if (!found) {
+          await sleep(pollInterval);
+        }
+      }
+      return found;
+    } finally {
+      this.off(event, handler);
+    }
   }
 
   private async viewTreeHandlingDialogs(): Promise<ViewNode[]> {
