@@ -180,7 +180,8 @@ await locator.check()                                // checkbox / radio / switc
 await locator.uncheck()                              // tap only if currently checked
 await locator.setChecked(true)                       // check() or uncheck() by value
 await locator.swipe({ direction: 'left' })           // swipe on a specific element
-await locator.scrollIntoViewIfNeeded()               // scroll until element is visible
+await locator.scrollIntoViewIfNeeded()               // scroll until element is visible (swipes 'up' while searching, 5 attempts)
+await locator.scrollIntoViewIfNeeded({ direction: 'down', maxSwipes: 10 })
 await locator.screenshot()                           // capture just this element (cropped PNG)
 ```
 
