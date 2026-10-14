@@ -48,8 +48,13 @@ test('an unsupported platform throws an error', () => {
   expect(() => getPlatformBinary('freebsd', 'x64')).toThrow('Unsupported platform: freebsd-x64');
 });
 
-test('an explicit path is returned as-is', () => {
-  expect(resolveMobilecliBinary('/opt/bin/mobilecli')).toBe('/opt/bin/mobilecli');
+test('an explicit path to an existing file is returned as-is', () => {
+  expect(resolveMobilecliBinary(process.execPath)).toBe(process.execPath);
+});
+
+test('an explicit path that does not exist is rejected with a clear error', () => {
+  expect(() => resolveMobilecliBinary('/nonexistent/path/to/mobilecli'))
+    .toThrow('mobilecli binary not found at /nonexistent/path/to/mobilecli');
 });
 
 test('the resolved binary for this machine exists on disk', () => {
