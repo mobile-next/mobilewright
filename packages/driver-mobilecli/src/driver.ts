@@ -515,8 +515,12 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async clearText(): Promise<void> {
-    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.pressKeys([selectAll, 'backspace']);
+    if (this.requireSession().platform === 'ios') {
+      // HID keyboard clear wipes the focused field in one event; cmd+a can be dropped right after focus.
+      await this.pressKeys(['clear']);
+      return;
+    }
+    await this.pressKeys(['ctrl+a', 'backspace']);
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {

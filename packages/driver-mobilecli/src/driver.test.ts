@@ -330,14 +330,14 @@ test.describe('MobilecliDriver.webViewBridge', () => {
 });
 
 test.describe('MobilecliDriver.clearText()', () => {
-  test('selects all with cmd+a then deletes on iOS', async () => {
+  test('sends the clear key on iOS', async () => {
     const driver = createDriverWithSession({ platform: 'ios' });
     const calls = recordRpc(driver, { 'device.io.keys': {} });
 
     await driver.clearText();
 
     expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['cmd+a', 'backspace'] } },
+      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['clear'] } },
     ]);
   });
 
