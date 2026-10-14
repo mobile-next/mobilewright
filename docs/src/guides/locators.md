@@ -10,6 +10,21 @@ even though each platform names its native classes differently. Mobilewright doe
 this by normalizing the native type reported by the device and mapping it to a
 semantic **role**.
 
+
+## Matching rules
+
+Text-based locators (`getByText`, `getByLabel`, `getByPlaceholder`, and the `name` of `getByRole`) follow Playwright's rules on native elements and in web views alike:
+
+- A string matches **case-insensitively as a substring**: `getByText('sign in')` finds "Sign In" and "Sign In with Apple".
+- Pass `{ exact: true }` for a **case-sensitive, whole-string** match: `getByText('Sign In', { exact: true })`.
+- Whitespace is trimmed and runs of whitespace collapse to one space on both sides, so `getByText('Total: $12.00')` matches a label rendered as `"Total:\n $12.00"`.
+- A RegExp is tested against the normalized text: `getByText(/^sign in$/i)`.
+
+```typescript
+await screen.getByRole('button', { name: 'save' }).tap();                 // "Save" or "Save as draft"
+await screen.getByRole('button', { name: 'Save', exact: true }).tap();   // only "Save"
+```
+
 ## How a native type becomes a role
 
 When you call `screen.getByRole('textfield')`, the query engine:
