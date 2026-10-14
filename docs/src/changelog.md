@@ -7,6 +7,16 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.66] (2026-10-14)
+* Feat(Android): add `screen.on('dialog')` for alerts and permission prompts ([#360](https://github.com/mobile-next/mobilewright/pull/360))
+* Feat(iOS): dialogs support, plus `screen.waitForEvent('dialog')` ([#407](https://github.com/mobile-next/mobilewright/pull/407))
+* Fix: `expect(page).toHaveURL()` reads the live webview URL instead of the cached one ([#375](https://github.com/mobile-next/mobilewright/pull/375))
+* Fix: `toHaveText`/`toContainText` normalize whitespace, accept RegExp and `ignoreCase` like Playwright ([#368](https://github.com/mobile-next/mobilewright/pull/368))
+* Fix: web `fill()`/`type()` assign through the native value setter so React controlled inputs update ([#372](https://github.com/mobile-next/mobilewright/pull/372))
+* Fix(cli): `reporter: 'html'` in the config file writes to `mobilewright-report` like `--reporter html` ([#377](https://github.com/mobile-next/mobilewright/pull/377))
+* Fix(iOS): clear text fields with the HID clear key instead of cmd+a ([#406](https://github.com/mobile-next/mobilewright/pull/406))
+* Fix: remove the unused `sharp` dependency, which failed to install on many setups ([#405](https://github.com/mobile-next/mobilewright/pull/405))
+
 ## [0.0.65] (2026-10-11)
 * Feat: support Android (Termux) by mapping the android platform to the linux binaries ([#394](https://github.com/mobile-next/mobilewright/pull/394), [mobilecli#499](https://github.com/mobile-next/mobilecli/pull/499)), thanks to [@Jobians](https://github.com/Jobians)
 * Fix: `installApps` accepts cloud storage references (`storage:…` for Sauce Labs, `bs://…` for BrowserStack, `file:…` for Mobile Next) ([#398](https://github.com/mobile-next/mobilewright/pull/398))
