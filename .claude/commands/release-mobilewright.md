@@ -51,9 +51,29 @@ The file `docs/src/changelog.md` is a human readable version of the CHANGELOG.md
 ### 7. Show
 
 Display the new CHANGELOG.md entries and ask the human to review. Present two options: 1. Looks good to me, and 2. Let me edit.
-If the user chooses option 1, then continue to step 7, otherwise stop.
+If the user chooses option 1, then continue to step 8, otherwise stop.
 
 ### 8. Create branch
 
-User approved, create a new branch called "docs-changelog-$major-$minor-$patch" and commit CHANGELOG.md on it, then create a pr.
+User approved, create a new branch called "docs/changelog-$major-$minor-$patch" and commit CHANGELOG.md on it, then create a pr.
 
+
+### 9. Slack announcement
+
+Write a human-readable summary of the release for pasting in Slack, in a code block. Example:
+
+```
+Mobilewright v0.0.65 is out :rocket:
+
+- Improved app-management errors:
+  - Uninstalling an absent app is now a harmless no-op.
+  - Missing app files are reported with their path.
+
+- Fixed UI hierarchy timeouts on complex iOS screens.
+- Added an Allure Report integration guide.
+```
+
+- First line: `Mobilewright v<VERSION> is out  :rocket:`
+- Plain text, no markdown, no PR links or numbers
+- Group related changes under a short heading line, put the most user-visible changes first
+- Explain why a change matters when it isn't obvious (e.g. a removed dependency that broke installs)
