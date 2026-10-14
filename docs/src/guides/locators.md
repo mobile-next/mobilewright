@@ -10,6 +10,116 @@ even though each platform names its native classes differently. Mobilewright doe
 this by normalizing the native type reported by the device and mapping it to a
 semantic **role**.
 
+## Where each locator looks
+
+Every element in the UI dump carries a handful of attributes. Each `getBy…()` locator
+reads one of them, but Android and iOS fill those attributes from different native
+properties.
+
+### The same text field on both platforms
+
+Here is one text field from the Mobilewright playground app (Basic UI screen), as each
+platform's accessibility layer reports it. The user has typed into it.
+
+**Android** (`AccessibilityNodeInfo`):
+
+```json
+{
+  "class": "android.widget.EditText",
+  "text": "Hello World",
+  "hint": "Text Field",
+  "content-desc": "text_field",
+  "resource-id": "com.mobilenext.playground:id/text_field",
+  "enabled": true,
+  "focused": true
+}
+```
+
+**iOS** (XCUITest element snapshot):
+
+```json
+{
+  "elementType": "XCUIElementTypeTextField",
+  "identifier": "text_field",
+  "label": "",
+  "value": "hello",
+  "placeholderValue": "Enter text",
+  "enabled": true,
+  "hasFocus": true
+}
+```
+
+### Which native property feeds which locator
+
+| Attribute | Android source | iOS source | Locator / assertion |
+| --- | --- | --- | --- |
+| type | `class` | `elementType` | `getByRole()` (normalized), `getByType()` (raw) |
+| label | `content-desc` (`contentDescription`) | `label` (`accessibilityLabel`) | `getByLabel()`, `getByRole(…, { name })` |
+| testId | `resource-id` (`android:id`) | `identifier` (`accessibilityIdentifier`) | `getByTestId()` |
+| text | `text` | — never reported | `getByText()`, `toHaveText()` |
+| value | slider position (`RangeInfo`), text field content | `value` (`accessibilityValue`) | `toHaveValue()`, `getValue()` |
+| placeholder | `hint` (`hintText`) | `placeholderValue` | `getByPlaceholder()` |
+| checked | `checked` | switch `value` of `"1"` | `toBeChecked()` |
+
+A few rules that follow from this table:
+
+- **`getByText()` falls back.** It matches the first non-empty of text, label, then
+  value. iOS never reports text, so on iOS `getByText()` matches the label, or for a
+  text field without a label, what the user typed.
+- **`getByRole(…, { name })` reads the label first**, then text. An iOS text field
+  without an `accessibilityLabel` has no name, so match it by role alone or by another
+  locator.
+- **`getByTestId()` accepts the short Android id.** `getByTestId('text_field')`
+  matches `com.mobilenext.playground:id/text_field`, so one test id works on both
+  platforms.
+- **There is no `getByValue()`.** A value changes as the user interacts, so find the
+  element another way and assert on it with `toHaveValue()`.
+- **Not every accessibility property is visible to tests.** XCUITest does not expose
+  `accessibilityHint` or `accessibilityTraits`, and Android's `tooltipText` and
+  `stateDescription` are not reported, so no locator can match them.
+
+:::note
+Android reports `value` for text fields and sliders, and iOS reports `checked` for
+switches, starting with the mobilecli release that includes
+[mobilecli#455](https://github.com/mobile-next/mobilecli/pull/455). With older mobilecli
+versions, `toHaveValue()` on Android and `toBeChecked()` on iOS do not match.
+:::
+
+### Finding the text field
+
+Each of these finds the field above (Basic UI has three text fields on Android and two on iOS):
+
+```ts
+// test id: identical on both platforms
+screen.getByTestId('text_field');
+
+// role: the native class, normalized; without a name it matches every text field
+screen.getByRole('textfield').first();
+screen.getByRole('textfield', { name: 'text_field' }); // Android only: iOS has no label here
+
+// label: Android content-desc / iOS accessibilityLabel
+screen.getByLabel('text_field'); // Android only, for the same reason
+
+// placeholder: Android hint / iOS placeholderValue
+screen.getByPlaceholder('Text Field'); // Android
+screen.getByPlaceholder('Enter text'); // iOS
+
+// text: Android text / iOS falls back to value
+screen.getByText('Hello World'); // Android
+screen.getByText('hello'); // iOS
+```
+
+And to check what the user typed:
+
+```ts
+const field = screen.getByTestId('text_field');
+await expect(field).toHaveValue('hello');
+```
+
+Prefer `getByTestId()`, then `getByRole()` with a name, for locators that survive
+copy changes and work on both platforms. Placeholder and text differ between the two
+apps here, which is common, so they make weaker cross-platform locators.
+
 ## How a native type becomes a role
 
 When you call `screen.getByRole('textfield')`, the query engine:
