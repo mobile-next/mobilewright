@@ -305,6 +305,12 @@ function iosThreeButtonAlert(): ViewNode[] {
   ]);
 }
 
+function iosQuotedTitleAlert(): ViewNode[] {
+  return iosAlert('Delete “Draft”?', 'This cannot be undone.', [
+    iosButton('Delete', 0, 100), iosButton('Archive', 0, 200), iosButton('Cancel', 0, 300),
+  ]);
+}
+
 function iosPromptAlert(okButtonY = 300): ViewNode[] {
   return iosAlert('Prompt Alert', 'What is your name?', [
     node({ type: 'TextField', y: TEXT_FIELD_Y }),
@@ -372,6 +378,14 @@ test.describe('iOS dialogs', () => {
     const dismissing = createFakeDevice(iosThreeButtonAlert());
     await (await firstDialogSeenBy(new Screen(dismissing.driver))).dismiss();
     expect(dismissing.taps).toEqual([centerOfButtonAt(300)]);
+  });
+
+  test('an app alert with quoted text in its title is not a permission', async () => {
+    const device = createFakeDevice(iosQuotedTitleAlert());
+    const dialog = await firstDialogSeenBy(new Screen(device.driver));
+    expect(dialog.type()).toBe('confirm');
+    await dialog.accept();
+    expect(device.taps).toEqual([centerOfButtonAt(100)]);
   });
 
   test('an alert with a text field is a prompt, and accept types into it', async () => {
@@ -443,6 +457,15 @@ test.describe('screen.waitForEvent(dialog)', () => {
   test('rejects when no dialog opens within the timeout', async () => {
     const screen = new Screen(createFakeDevice(appScreenWithButton('Continue')).driver, { pollInterval: 10 });
     await expect(screen.waitForEvent('dialog', { timeout: 100 })).rejects.toThrow('Timeout 100ms exceeded while waiting for event "dialog"');
+  });
+
+  test('the same dialog opening again right after it was answered is reported again', async () => {
+    const device = createFakeDevice(confirmAlert());
+    const screen = new Screen(device.driver, { pollInterval: 10 });
+    await (await screen.waitForEvent('dialog')).dismiss();
+    device.show(confirmAlert());
+    const again = await screen.waitForEvent('dialog', { timeout: 200 });
+    expect(again.title()).toBe('Confirm Alert');
   });
 
   test('other dialog listeners still see the dialog', async () => {

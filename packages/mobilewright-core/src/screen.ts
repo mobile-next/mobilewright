@@ -35,6 +35,7 @@ export interface WaitForDialogOptions {
 export class Screen {
   private readonly root: Locator;
   private readonly driver: MobilewrightDriver;
+  private readonly dialogDriver: MobilewrightDriver;
   private dialogHandlers: DialogHandler[] = [];
   // key of the dialog last reported, so each dialog fires 'dialog' once rather than on every poll
   private lastDialogKey: string | undefined;
@@ -55,6 +56,19 @@ export class Screen {
       },
     });
     this.root = Locator.root(this.driver, locatorDefaults);
+    // Dialog buttons are tapped through this driver: an answered dialog that shows up again is a new event.
+    this.dialogDriver = new Proxy(rawDriver, {
+      get: (target, prop) => {
+        if (prop === 'tap') {
+          return (x: number, y: number) => {
+            this.lastDialogKey = undefined;
+            return target.tap(x, y);
+          };
+        }
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
   }
 
   // ─── Dialogs ──────────────────────────────────────────────────
@@ -120,7 +134,7 @@ export class Screen {
     if (this.dialogHandlers.length === 0) {
       return roots;
     }
-    const dialog = findDialog(roots, this.rawDriver);
+    const dialog = findDialog(roots, this.dialogDriver);
     if (dialog?.key === this.lastDialogKey) {
       return roots;
     }

@@ -14,8 +14,8 @@ const ACTION_SHEET_LIST_ID = /:id\/select_dialog_listview$/;
 // Runtime permission prompt shown by com.android.permissioncontroller (or a vendor fork of it).
 const PERMISSION_MESSAGE_ID = /:id\/permission_message$/;
 const PERMISSION_BUTTON_ID = /:id\/permission_\w+_button$/;
-// iOS permission alerts quote the app name: “Playground” would like to access the Camera.
-const IOS_QUOTED_APP_NAME = /“.+”/;
+// "Allow “App” to use your location?" (iOS 17+) or "“App” would like to access the Camera." (older).
+const IOS_PERMISSION_TITLE = /^(Allow “.+” to |“.+” would like to )/i;
 
 function flatten(roots: ViewNode[]): ViewNode[] {
   return roots.flatMap((node) => [node, ...flatten(node.children)]);
@@ -180,9 +180,9 @@ function findIosAlert(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | u
     .filter((node) => bareTypeName(node.type) === 'statictext' && textOf(node) !== title)
     .map(textOf)
     .join('\n');
-  // ponytail: nothing in the iOS tree marks a system alert, so this keys off the quoted app name;
-  // a locale that quotes differently („Playground“) reads as an app alert
-  const isPermission = IOS_QUOTED_APP_NAME.test(title);
+  // ponytail: nothing in the iOS tree marks a system alert, so this keys off the English permission
+  // title wording; other locales read as app alerts
+  const isPermission = IOS_PERMISSION_TITLE.test(title);
   const type: DialogType = isPermission ? 'permission' : input ? 'prompt' : buttons.length > 1 ? 'confirm' : 'alert';
   const { accept, dismiss } = iosAlertButtons(buttons, isPermission);
   return new Dialog(driver, type, title, message, buttons, accept, dismiss, input);
