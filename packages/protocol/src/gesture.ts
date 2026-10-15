@@ -32,14 +32,14 @@ export function gestureSequenceToTapActions(sequence: GestureSequence): TapActio
 function pathToTapActions(path: GesturePoint[]): TapAction[] {
   const [first, ...rest] = path;
   const start: TapAction[] = [
-    { type: 'pointerMove', x: first.x, y: first.y, duration: 0 },
+    { type: 'pointerMove', x: Math.round(first.x), y: Math.round(first.y), duration: 0 },
     { type: 'pointerDown' },
   ];
 
   const moves = rest.map((point, i) => {
     const previousTime = path[i].time ?? 0;
     const duration = Math.max(0, (point.time ?? previousTime) - previousTime);
-    return { type: 'pointerMove', x: point.x, y: point.y, duration } as TapAction;
+    return { type: 'pointerMove', x: Math.round(point.x), y: Math.round(point.y), duration } as TapAction;
   });
 
   return [...start, ...moves, { type: 'pointerUp' }];

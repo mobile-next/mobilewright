@@ -41,3 +41,10 @@ test('multi-touch is rejected with a clear error', () => {
 test('an empty sequence is rejected', () => {
   expect(() => gestureSequenceToTapActions({ pointers: [] })).toThrow('at least one pointer');
 });
+
+// mobilecli unmarshals x/y into ints and rejects 699.2 outright
+test('fractional coordinates are rounded to integers', () => {
+  const actions = gestureSequenceToTapActions({ pointers: [[{ x: 201.4, y: 699.2 }, { x: 201.6, y: 174.8, time: 300 }]] });
+  expect(actions[0]).toEqual({ type: 'pointerMove', x: 201, y: 699, duration: 0 });
+  expect(actions[2]).toEqual({ type: 'pointerMove', x: 202, y: 175, duration: 300 });
+});
