@@ -98,7 +98,7 @@ export class Device {
   }
 
   get screen(): Screen {
-    this._screen ??= new Screen(this.driver, this.opts.locatorDefaults, () => this.session?.platform);
+    this._screen ??= new Screen(this.driver, this.opts.locatorDefaults);
     return this._screen;
   }
 

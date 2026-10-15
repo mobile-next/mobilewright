@@ -4,7 +4,6 @@ import type {
   GestureSequence,
   HardwareButton,
   MobilewrightDriver,
-  Platform,
   ScreenshotOptions,
   SwipeDirection,
   SwipeOptions,
@@ -44,7 +43,6 @@ export class Screen {
   constructor(
     private readonly rawDriver: MobilewrightDriver,
     private readonly locatorDefaults: LocatorOptions = {},
-    private readonly getPlatform: () => Platform | undefined = () => undefined,
   ) {
     // Every locator poll and expect() retry fetches the view tree through this driver,
     // so that is where dialogs get spotted, at no extra cost per poll.
@@ -239,13 +237,7 @@ export class Screen {
   }
 
   async goBack(): Promise<void> {
-    return this._step('screen.goBack()', async () => {
-      // iOS has no back button; going back is app-specific (nav bar button, edge swipe)
-      if (this.getPlatform() === 'ios') {
-        throw new Error('screen.goBack() is not implemented on iOS');
-      }
-      await this.driver.pressButton('BACK');
-    });
+    return this._step('screen.goBack()', () => this.driver.pressButton('BACK'));
   }
   
   // ─── View tree ──────────────────────────────────────────────────
