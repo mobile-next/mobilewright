@@ -130,7 +130,6 @@ function swallowSoftFailure(error: unknown): unknown {
   return error;
 }
 
-expect.soft = soft;
 
 export interface PollOptions {
   /** How long to keep polling, in ms; 0 polls with no time limit. Default: 5000. */
@@ -158,12 +157,15 @@ function pollOptions(messageOrOptions: string | PollOptions | undefined): PollOp
 }
 
 expect.poll = poll;
-soft.poll = softPoll;
+// Object.assign, not soft.poll = ..., so expect.soft's type doesn't name the private soft (TS4033).
+expect.soft = Object.assign(soft, { poll: softPoll });
 
 // Value matchers, each turned async: what .rejects, .resolves and expect.poll() return.
 type ValueMatchers<T> = Omit<ValueAssertions<T>, 'not' | 'rejects' | 'resolves' | '_message' | '_soft'>;
+// Promise.reject() is Promise<never>; never would make every matcher argument never.
+type Settled<T> = [T] extends [never] ? unknown : T;
 export type AsyncValueAssertions<T> = {
-  [K in keyof ValueMatchers<T>]: ValueMatchers<T>[K] extends (...args: infer A) => unknown ? (...args: A) => Promise<void> : never;
+  [K in keyof ValueMatchers<Settled<T>>]: ValueMatchers<Settled<T>>[K] extends (...args: infer A) => unknown ? (...args: A) => Promise<void> : never;
 } & { readonly not: AsyncValueAssertions<T> };
 
 type MatcherCall = (matcher: string, args: unknown[], negated: boolean) => Promise<void>;
