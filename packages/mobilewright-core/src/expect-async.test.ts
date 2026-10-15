@@ -168,9 +168,18 @@ test.describe('expect.poll', () => {
     const recordCall = (): number => calledAt.push(Date.now());
     await mwExpect.poll(recordCall, { intervals: [10, 50] }).toBe(4);
     const gaps = calledAt.slice(1).map((time, i) => time - calledAt[i]);
-    expect(gaps[0]).toBeGreaterThanOrEqual(10);
-    expect(gaps[1]).toBeGreaterThanOrEqual(50);
-    expect(gaps[2]).toBeGreaterThanOrEqual(50);
+    // Date.now() has millisecond resolution, so a 50ms timer can measure as 49ms
+    expect(gaps[0]).toBeGreaterThanOrEqual(9);
+    expect(gaps[1]).toBeGreaterThanOrEqual(49);
+    expect(gaps[2]).toBeGreaterThanOrEqual(49);
+  });
+
+  test('only real matchers are exposed, so serializing a poll does not start polling', () => {
+    const polled: number[] = [];
+    const assertions = mwExpect.poll(() => polled.push(1));
+    expect(JSON.stringify(assertions)).toBe('{}');
+    expect((assertions as Record<string, unknown>).toJSON).toBeUndefined();
+    expect(polled).toHaveLength(0);
   });
 
   test('reports one step for the whole poll, not one per attempt', async () => {

@@ -177,13 +177,19 @@ function asyncAssertions(call: MatcherCall, negated: boolean): object {
       if (prop === 'not') {
         return asyncAssertions(call, !negated);
       }
-      // ponytail: no `then`, so an accidental `await expect.poll(fn)` doesn't treat this as a promise
-      if (typeof prop !== 'string' || prop === 'then') {
+      // only real matchers: no `then` (an accidental `await expect.poll(fn)`) and no `toJSON` (serializers),
+      // or touching one would start a poll that fails later with "Unknown matcher"
+      if (typeof prop !== 'string' || !isValueMatcher(prop)) {
         return undefined;
       }
       return (...args: unknown[]) => call(prop, args, negated);
     },
   });
+}
+
+function isValueMatcher(name: string): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(ValueAssertions.prototype, name);
+  return name !== 'constructor' && typeof descriptor?.value === 'function';
 }
 
 // Run one value matcher without reporting a step of its own; the caller reports one step for the whole call.
