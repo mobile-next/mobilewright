@@ -132,3 +132,29 @@ expect('hello world').toContain('world');
 expect(value).toBeNull();
 expect(value).toBeUndefined();
 ```
+
+### Promises
+
+`.rejects` and `.resolves` wait for a promise, then run any value matcher on the rejection reason or the resolved value. `rejects.toThrow()` matches the error's message, like Playwright.
+
+```typescript
+await expect(screen.getByText('Vogon Poetry').tap({ timeout: 1000 })).rejects.toThrow('timed out');
+await expect(device.getOrientation()).resolves.toBe('portrait');
+```
+
+## Polling
+
+`expect.poll` turns any value matcher into a retrying one: it calls the function until the matcher passes or the timeout runs out. If the function throws, that attempt counts as a failure and polling continues.
+
+```typescript
+await expect.poll(async () => (await device.getForegroundApp()).bundleId).not.toBe(bundleId);
+
+await expect.poll(() => device.getOrientation(), {
+  message: 'device should rotate',  // step title, and prefix of the failure
+  timeout: 10_000,                  // default 5000; 0 polls with no limit
+  intervals: [100, 250, 500, 1000], // default; the last interval repeats
+}).toBe('landscape');
+
+// soft: record the failure and keep running
+await expect.soft.poll(() => device.getOrientation()).toBe('landscape');
+```

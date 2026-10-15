@@ -338,6 +338,10 @@ await expect(locator).toBeVisible({ timeout: 10_000 });
 // Soft assertions record the failure but let the test keep running (Playwright semantics)
 await expect.soft(locator).toHaveText('Success');
 await expect.soft(locator, 'eta should be shown').not.toBeEmpty();
+
+// Retry any value matcher until it passes, and match promise rejections (Playwright semantics)
+await expect.poll(() => device.getOrientation()).toBe('landscape');
+await expect(locator.tap({ timeout: 1000 })).rejects.toThrow('timed out');
 ```
 
 ### Role Mapping
