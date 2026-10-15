@@ -107,6 +107,12 @@ export class WebViewLocator extends Locator {
     try {
       this._page = await Page.attach(session);
       this._page._stepFn = this._stepFn;
+      // Real taps and typing go through the driver, at the webview's live bounds.
+      this._page._nativeInput = {
+        bounds: () => this.boundingBox(),
+        tap: (x, y) => this.driver.tap(x, y),
+        typeText: (text) => this.driver.typeText(text),
+      };
       return this._page;
     } catch (err) {
       // Engine injection failed — release the session we just opened rather than
