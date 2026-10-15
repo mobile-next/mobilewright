@@ -13,6 +13,7 @@ type CallTracker = {
   doubleTapCalls: any[][];
   longPressCalls: any[][];
   gestureCalls: any[][];
+  pressButtonCalls: any[][];
 };
 
 function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
@@ -21,6 +22,7 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     doubleTapCalls: [],
     longPressCalls: [],
     gestureCalls: [],
+    pressButtonCalls: [],
   };
 
   return {
@@ -36,7 +38,7 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     clearText: async () => {},
     swipe: async () => {},
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
-    pressButton: async () => {},
+    pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
     screenshot: async () => Buffer.from(''),
     getScreenSize: async () => ({ width: 390, height: 844, scale: 3 }),
     getOrientation: async () => 'portrait' as Orientation,
@@ -129,5 +131,22 @@ test.describe('Screen step reporting', () => {
       'screen.pressButton()',
       'screen.goBack()',
     ]);
+  });
+});
+
+test.describe('Screen.goBack', () => {
+  test('presses the BACK button on Android', async () => {
+    const driver = createMockDriver();
+    const screen = new Screen(driver, {}, () => 'android');
+    await screen.goBack();
+    expect(driver._tracker.pressButtonCalls).toEqual([['BACK']]);
+  });
+
+  // iOS has no back button, and swiping from the edge or tapping the nav bar is app-specific
+  test('throws a clear error on iOS instead of sending an unsupported BACK button', async () => {
+    const driver = createMockDriver();
+    const screen = new Screen(driver, {}, () => 'ios');
+    await expect(screen.goBack()).rejects.toThrow('screen.goBack() is not implemented on iOS');
+    expect(driver._tracker.pressButtonCalls).toEqual([]);
   });
 });

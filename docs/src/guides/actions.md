@@ -108,7 +108,7 @@ await screen.swipe('left', { startX: 300, startY: 500, duration: 400 });
 
 ```ts
 await screen.pressButton('HOME');
-await screen.goBack(); // Android — shorthand for pressButton('BACK')
+await screen.goBack(); // Android only — shorthand for pressButton('BACK'); throws on iOS
 ```
 
 Available buttons: `HOME`, `BACK`, `POWER`, `VOLUME_UP`, `VOLUME_DOWN`, `ENTER`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`, `DPAD_CENTER`, `APP_SWITCH`, `LOCK`.
