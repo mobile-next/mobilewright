@@ -162,7 +162,7 @@ function matchesStrategy(
         // displayed text, mirroring ARIA accessible-name computation.
         const nodeLabel = NAME_FROM_CONTENT_ROLES.has(strategy.value.toLowerCase())
           ? accessibleName(node)
-          : node.label ?? node.text ?? '';
+          : labelOf(node) ?? node.text ?? '';
         if (strategy.name instanceof RegExp) {
           return strategy.name.test(nodeLabel);
         }
