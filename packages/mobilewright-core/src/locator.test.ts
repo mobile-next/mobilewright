@@ -111,6 +111,7 @@ test.describe('Locator', () => {
           type: 'TextField',
           label: 'Email',
           identifier: 'emailField',
+          isFocused: true,
           bounds: { x: 20, y: 200, width: 350, height: 44 },
         }),
         node({
@@ -195,6 +196,7 @@ test.describe('Locator', () => {
           type: 'TextField',
           identifier: 'emailField',
           value: 'leftover',
+          isFocused: true,
           bounds: { x: 20, y: 200, width: 350, height: 44 },
         }),
       ];
@@ -202,6 +204,36 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
 
       await expect(locator.clear()).rejects.toThrow(LocatorError);
+    });
+  });
+
+  test.describe('clear waits for focus', () => {
+    function emailField(isFocused: boolean): ViewNode[] {
+      return [node({ type: 'TextField', identifier: 'emailField', isFocused, bounds: { x: 20, y: 200, width: 350, height: 44 } })];
+    }
+
+    test('clears only once the tap has focused the field', async () => {
+      const driver = createMockDriver(emailField(false));
+      const events: string[] = [];
+      driver.tap = async () => {
+        events.push('tap');
+        // the field takes focus a moment after the tap, like a Compose TextField
+        setTimeout(() => { events.push('focused'); driver._setHierarchy(emailField(true)); }, 100);
+      };
+      driver.clearText = async () => { events.push('clear'); };
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' }, { pollInterval: 10 });
+
+      await locator.clear();
+
+      expect(events).toEqual(['tap', 'focused', 'clear']);
+    });
+
+    test('throws when the tap never focuses the field', async () => {
+      const driver = createMockDriver(emailField(false));
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' }, { timeout: 100, pollInterval: 10 });
+
+      await expect(locator.clear()).rejects.toThrow('Tapping the element did not focus it');
+      expect(driver._tracker.clearTextCalls).toHaveLength(0);
     });
   });
 

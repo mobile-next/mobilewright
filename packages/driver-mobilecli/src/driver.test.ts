@@ -341,14 +341,14 @@ test.describe('MobilecliDriver.clearText()', () => {
     ]);
   });
 
-  test('selects all with ctrl+a then deletes on Android', async () => {
+  test('asks mobilecli to clear the focused field on Android', async () => {
     const driver = createDriverWithSession({ platform: 'android' });
-    const calls = recordRpc(driver, { 'device.io.keys': {} });
+    const calls = recordRpc(driver, { 'device.io.clear': {} });
 
     await driver.clearText();
 
     expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['ctrl+a', 'backspace'] } },
+      { method: 'device.io.clear', params: { deviceId: SIMULATOR_DEVICE_ID } },
     ]);
   });
 });

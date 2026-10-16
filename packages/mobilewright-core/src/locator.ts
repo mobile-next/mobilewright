@@ -250,6 +250,9 @@ export class Locator {
   /** Focus the element by tapping it, then clear its contents. */
   private async _tapAndClear(timeout?: number): Promise<void> {
     await this._resolveAndTap(timeout);
+    // Keys sent before the field has focus are lost: on Android the select-all is
+    // dropped and the backspace that lands later deletes one character.
+    await this._waitUntilFocused(timeout);
     await this.driver.clearText();
 
     // Verify the clear actually emptied the field; if the driver's select-all
@@ -257,6 +260,22 @@ export class Locator {
     // silently leave residual text for fill() to append to.
     if ((await this._currentValue()) !== '') {
       throw new LocatorError('Failed to clear element', this.strategy);
+    }
+  }
+
+  private async _waitUntilFocused(timeout?: number): Promise<void> {
+    const effectiveTimeout = timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
+    const pollInterval = this.options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    const deadline = Date.now() + effectiveTimeout;
+    while (true) {
+      const roots = await this.driver.getViewHierarchy();
+      if (queryAll(roots, this.strategy)[0]?.isFocused) {
+        return;
+      }
+      if (Date.now() >= deadline) {
+        throw new LocatorError('Tapping the element did not focus it', this.strategy);
+      }
+      await sleep(pollInterval);
     }
   }
 

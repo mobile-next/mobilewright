@@ -521,7 +521,9 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       await this.pressKeys(['clear']);
       return;
     }
-    await this.pressKeys(['ctrl+a', 'backspace']);
+    // ctrl+a then backspace races a Compose TextField, which moves its cursor to the tap a
+    // moment after focusing and collapses the selection; mobilecli clears through accessibility
+    await this.call('device.io.clear', {});
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
