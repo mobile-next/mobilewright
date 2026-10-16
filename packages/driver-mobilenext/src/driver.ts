@@ -309,13 +309,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    if (this.requireSession().platform === 'ios') {
-      // HID keyboard clear wipes the focused field in one event; cmd+a can be dropped right after focus.
-      await this.pressKeys(['clear']);
-      return;
-    }
-    await this.pressKeys(['ctrl+a', 'backspace']);
+  async fill(text: string): Promise<void> {
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {

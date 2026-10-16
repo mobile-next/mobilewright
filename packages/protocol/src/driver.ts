@@ -154,8 +154,8 @@ export interface MobilewrightSession {
   typeText(text: string): Promise<void>;
   /** Press one or more key combinations in order, e.g. ["ctrl+a", "backspace"]. */
   pressKeys(keys: string[]): Promise<void>;
-  /** Clear the currently-focused text field, using the platform's select-all chord. */
-  clearText(): Promise<void>;
+  /** Replace the text of the currently-focused field in one step; '' clears it. */
+  fill(text: string): Promise<void>;
   /** Swipe in the given direction, optionally from a start point and with extra options. */
   swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void>;
   /** Perform a custom multi-touch gesture sequence. */

@@ -67,7 +67,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async (...args: any[]) => { tracker.typeTextCalls.push(args); },
     pressKeys: async () => {},
-    clearText: async () => {},
+    fill: async () => {},
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },

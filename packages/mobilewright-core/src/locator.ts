@@ -229,14 +229,11 @@ export class Locator {
   }
 
   async clear(opts?: { timeout?: number }): Promise<void> {
-    return this._step('locator.clear()', () => this._tapAndClear(opts?.timeout));
+    return this._step('locator.clear()', () => this._tapAndFill('', opts?.timeout));
   }
 
   async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
-      await this._tapAndClear(opts?.timeout);
-      await this.driver.typeText(text);
-    });
+    return this._step(`locator.fill(${JSON.stringify(text)})`, () => this._tapAndFill(text, opts?.timeout));
   }
 
   /** Resolve the element, tap its center to focus/activate it, and return the node. */
@@ -247,35 +244,14 @@ export class Locator {
     return node;
   }
 
-  /** Focus the element by tapping it, then clear its contents. */
-  private async _tapAndClear(timeout?: number): Promise<void> {
+  /** Focus the element by tapping it, then replace its text; '' clears it. */
+  private async _tapAndFill(text: string, timeout?: number): Promise<void> {
     await this._resolveAndTap(timeout);
-    // Keys sent before the field has focus are lost: on Android the select-all is
-    // dropped and the backspace that lands later deletes one character.
-    await this._waitUntilFocused(timeout);
-    await this.driver.clearText();
+    await this.driver.fill(text);
 
-    // Verify the clear actually emptied the field; if the driver's select-all
-    // didn't take, only a single character is removed and we'd otherwise
-    // silently leave residual text for fill() to append to.
-    if ((await this._currentValue()) !== '') {
+    // Verify a clear actually emptied the field, rather than leaving residual text behind
+    if (text === '' && (await this._currentValue()) !== '') {
       throw new LocatorError('Failed to clear element', this.strategy);
-    }
-  }
-
-  private async _waitUntilFocused(timeout?: number): Promise<void> {
-    const effectiveTimeout = timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
-    const pollInterval = this.options.pollInterval ?? DEFAULT_POLL_INTERVAL;
-    const deadline = Date.now() + effectiveTimeout;
-    while (true) {
-      const roots = await this.driver.getViewHierarchy();
-      if (queryAll(roots, this.strategy)[0]?.isFocused) {
-        return;
-      }
-      if (Date.now() >= deadline) {
-        throw new LocatorError('Tapping the element did not focus it', this.strategy);
-      }
-      await sleep(pollInterval);
     }
   }
 

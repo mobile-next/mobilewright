@@ -515,15 +515,10 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    if (this.requireSession().platform === 'ios') {
-      // HID keyboard clear wipes the focused field in one event; cmd+a can be dropped right after focus.
-      await this.pressKeys(['clear']);
-      return;
-    }
-    // ctrl+a then backspace races a Compose TextField, which moves its cursor to the tap a
-    // moment after focusing and collapses the selection; mobilecli clears through accessibility
-    await this.call('device.io.clear', {});
+  async fill(text: string): Promise<void> {
+    // mobilecli sets the text through accessibility on Android, which doesn't race a Compose
+    // TextField moving its cursor after focus; on iOS it presses the HID clear key, then types
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {

@@ -544,8 +544,7 @@ test.describe('POST /api/fill', () => {
     server = await serveWithDevice({
       screen: { tap: async (x: number, y: number) => { calls.push(`tap(${x}, ${y})`); } },
       driver: {
-        clearText: async () => { calls.push('clearText()'); },
-        typeText: async (text: string) => { calls.push(`typeText(${text})`); },
+        fill: async (text: string) => { calls.push(`fill(${text})`); },
       },
     });
   });
@@ -563,16 +562,16 @@ test.describe('POST /api/fill', () => {
     expect(calls).toEqual([]);
   });
 
-  test('taps the element, clears it and types the text, like locator.fill()', async () => {
+  test('taps the element and fills it, like locator.fill()', async () => {
     const { status } = await post(`${server.base}/api/fill`, { x: 10, y: 20, text: 'hello' });
     expect(status).toBe(200);
-    expect(calls).toEqual(['tap(10, 20)', 'clearText()', 'typeText(hello)']);
+    expect(calls).toEqual(['tap(10, 20)', 'fill(hello)']);
   });
 
   test('fills with empty text, which just clears the element', async () => {
     const { status } = await post(`${server.base}/api/fill`, { x: 1, y: 2, text: '' });
     expect(status).toBe(200);
-    expect(calls).toEqual(['tap(1, 2)', 'clearText()', 'typeText()']);
+    expect(calls).toEqual(['tap(1, 2)', 'fill()']);
   });
 });
 
