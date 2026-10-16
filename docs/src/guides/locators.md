@@ -96,7 +96,7 @@ find it:
 
 ```typescript
 await screen.getByLabel('Email').fill('glorpax@milliways.space');
-await expect(screen.getByRole('textfield', { name: 'Email' })).toBeEmpty();
+await expect(screen.getByRole('textfield', { name: 'Email' })).toHaveValue('glorpax@milliways.space');
 ```
 
 ## iOS class → role
