@@ -762,6 +762,23 @@ test.describe('Jetpack Compose role mapping', () => {
     expect(results[0]).toBe(composeTree[1]);
   });
 
+  test('a list is not named by the text of its children', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Coffee' })).toHaveLength(0);
+  });
+
+  test('a list is still named by its own label', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      label: 'Menu',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Menu' })).toEqual([list]);
+  });
+
   test('a button name regex matches the text of its children', () => {
     const results = queryAll(composeTree, { kind: 'role', value: 'button', name: /order/i });
     expect(results).toHaveLength(1);

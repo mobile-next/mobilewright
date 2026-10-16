@@ -158,7 +158,9 @@ function matchesStrategy(
         // Accessible-name order (label before text) is intentionally the reverse of
         // the `text` locator above: an explicit label/accessibilityLabel outranks
         // displayed text, mirroring ARIA accessible-name computation.
-        const nodeLabel = accessibleName(node);
+        const nodeLabel = NAME_FROM_CONTENT_ROLES.has(strategy.value.toLowerCase())
+          ? accessibleName(node)
+          : node.label ?? node.text ?? '';
         if (strategy.name instanceof RegExp) {
           return strategy.name.test(nodeLabel);
         }
@@ -234,8 +236,11 @@ export function bareTypeName(type: string): string {
     : afterPackage;
 }
 
+/** Roles that ARIA lets take their name from their content; a list or a text field never does. */
+const NAME_FROM_CONTENT_ROLES = new Set(['button', 'link', 'tab', 'header', 'switch', 'checkbox', 'radio']);
+
 /**
- * The name getByRole matches against: the node's own label, then its own text,
+ * The name a name-from-content role matches against: the node's own label, then its own text,
  * then the text of its descendants. The last step mirrors ARIA's name-from-content,
  * and covers Jetpack Compose buttons, which keep their caption on a child node.
  */
