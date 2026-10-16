@@ -784,3 +784,46 @@ test.describe('Jetpack Compose role mapping', () => {
     expect(results).toHaveLength(1);
   });
 });
+
+test.describe('Jetpack Compose text field labels', () => {
+  // Compose reports a TextField's floating label as a child of the EditText
+  const composeForm: ViewNode[] = [
+    node({
+      type: 'android.widget.EditText',
+      text: 'Glorpax',
+      children: [node({ type: 'android.widget.TextView', text: 'Display name' })],
+    }),
+    node({
+      type: 'android.widget.EditText',
+      text: '',
+      children: [node({ type: 'android.widget.TextView', text: 'Phone' })],
+    }),
+    node({
+      type: 'android.view.View',
+      children: [node({ type: 'android.widget.TextView', text: 'Profile' })],
+    }),
+  ];
+
+  test('getByLabel finds a text field by its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'Display name' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[0]);
+  });
+
+  test('getByLabel with exact: false finds a text field by part of its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'display', exact: false });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[0]);
+  });
+
+  test('a floating label does not label a node that is not a text field', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'Profile' });
+    expect(results).toHaveLength(0);
+  });
+
+  test('an empty text field is named by its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'role', value: 'textfield', name: 'Phone' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[1]);
+  });
+});
