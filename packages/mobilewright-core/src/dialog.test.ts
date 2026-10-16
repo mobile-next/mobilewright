@@ -476,3 +476,70 @@ test.describe('screen.waitForEvent(dialog)', () => {
     expect(events).toBe(1);
   });
 });
+
+// ─── Jetpack Compose (Material3) dialogs ─────────────────────────
+
+// Material3 draws its AlertDialog itself: no android:id/* ids, just a pane titled "Dialog"
+// holding the title, the text, and clickable Views captioned by a child TextView.
+function composeButton(caption: string, y: number): ViewNode {
+  return { ...node({ type: 'android.view.View', y }, [node({ type: 'android.widget.TextView', text: caption, y })]), raw: { clickable: true } };
+}
+
+function composeDialog(texts: string[], buttons: ViewNode[], paneTitle = 'Dialog'): ViewNode[] {
+  const pane = { ...node({ type: 'android.view.View' }, [
+    ...texts.map((text) => node({ type: 'android.widget.TextView', text })),
+    ...buttons,
+  ]), raw: { paneTitle } };
+  return [node({ identifier: 'android:id/content' }, [pane])];
+}
+
+test.describe('Compose dialogs', () => {
+  test('reads a Material3 confirm alert', async () => {
+    const tree = composeDialog(['Delete order?', 'This cannot be undone'], [composeButton('Cancel', 100), composeButton('Delete', 200)]);
+    const dialog = await firstDialogSeenBy(new Screen(createFakeDevice(tree).driver));
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.isSystem()).toBe(false);
+    expect(dialog.title()).toBe('Delete order?');
+    expect(dialog.message()).toBe('This cannot be undone');
+    expect(dialog.buttons()).toEqual(['Cancel', 'Delete']);
+  });
+
+  test('a Material3 alert with only a title has an empty message', async () => {
+    const tree = composeDialog(['You must be 18 or older'], [composeButton('Cancel', 100), composeButton('I\'m 18 or older', 200)]);
+    const dialog = await firstDialogSeenBy(new Screen(createFakeDevice(tree).driver));
+    expect(dialog.title()).toBe('You must be 18 or older');
+    expect(dialog.message()).toBe('');
+  });
+
+  test('a single-button Material3 alert is of type alert', async () => {
+    const tree = composeDialog(['Saved'], [composeButton('OK', 200)]);
+    expect((await firstDialogSeenBy(new Screen(createFakeDevice(tree).driver))).type()).toBe('alert');
+  });
+
+  test('accept presses the confirm button, which Material3 places last', async () => {
+    const device = createFakeDevice(composeDialog(['Delete order?'], [composeButton('Cancel', 100), composeButton('Delete', 200)]));
+    await (await firstDialogSeenBy(new Screen(device.driver))).accept();
+    expect(device.taps).toEqual([centerOfButtonAt(200)]);
+  });
+
+  test('dismiss presses the dismiss button, which Material3 places first', async () => {
+    const device = createFakeDevice(composeDialog(['Delete order?'], [composeButton('Cancel', 100), composeButton('Delete', 200)]));
+    await (await firstDialogSeenBy(new Screen(device.driver))).dismiss();
+    expect(device.taps).toEqual([centerOfButtonAt(100)]);
+  });
+
+  test('tap presses a Material3 button by its caption', async () => {
+    const device = createFakeDevice(composeDialog(['Delete order?'], [composeButton('Cancel', 100), composeButton('Delete', 200)]));
+    await (await firstDialogSeenBy(new Screen(device.driver))).tap('delete');
+    expect(device.taps).toEqual([centerOfButtonAt(200)]);
+  });
+
+  test('a bottom sheet is not a dialog', async () => {
+    const tree = composeDialog(['Share'], [composeButton('Copy link', 100), composeButton('Cancel', 200)], 'Bottom Sheet');
+    const screen = new Screen(createFakeDevice(tree).driver);
+    let seen = false;
+    screen.once('dialog', () => { seen = true; });
+    await screen.getByText('anything').isVisible();
+    expect(seen).toBe(false);
+  });
+});
