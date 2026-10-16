@@ -88,6 +88,7 @@ arrives as a clickable `View` with its caption on a child `TextView`.
 | Compose node | `getByRole()` |
 | --- | --- |
 | `android.view.View` | `button` — only when clickable |
+| `android.view.View` | `alert` — only when its pane title is `Dialog`, as on a Material3 `AlertDialog` |
 
 A Compose `TextField` / `OutlinedTextField` is a real `android.widget.EditText`
 (`textfield`), but its floating `label = { Text("Email") }` is a child `TextView`.
