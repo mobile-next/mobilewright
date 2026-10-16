@@ -89,6 +89,16 @@ arrives as a clickable `View` with its caption on a child `TextView`.
 | --- | --- |
 | `android.view.View` | `button` — only when clickable |
 
+A Compose `TextField` / `OutlinedTextField` is a real `android.widget.EditText`
+(`textfield`), but its floating `label = { Text("Email") }` is a child `TextView`.
+A text field without a label of its own is labelled by that child, so both of these
+find it:
+
+```typescript
+await screen.getByLabel('Email').fill('glorpax@milliways.space');
+await expect(screen.getByRole('textfield', { name: 'Email' })).toBeEmpty();
+```
+
 ## iOS class → role
 
 | Native class | `getByRole()` |
@@ -130,6 +140,7 @@ await screen.getByRole('button', { name: 'Save' }).tap();
 ```
 
 Other roles are never named by their children, so a `list` isn't named by its items.
+The one exception is a `textfield`, which is named by its floating label (see above).
 
 ## Notes and known gaps
 
