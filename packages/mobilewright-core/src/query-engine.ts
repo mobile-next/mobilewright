@@ -158,7 +158,7 @@ function matchesStrategy(
         // Accessible-name order (label before text) is intentionally the reverse of
         // the `text` locator above: an explicit label/accessibilityLabel outranks
         // displayed text, mirroring ARIA accessible-name computation.
-        const nodeLabel = node.label ?? node.text ?? '';
+        const nodeLabel = accessibleName(node);
         if (strategy.name instanceof RegExp) {
           return strategy.name.test(nodeLabel);
         }
@@ -234,6 +234,27 @@ export function bareTypeName(type: string): string {
     : afterPackage;
 }
 
+/**
+ * The name getByRole matches against: the node's own label, then its own text,
+ * then the text of its descendants. The last step mirrors ARIA's name-from-content,
+ * and covers Jetpack Compose buttons, which keep their caption on a child node.
+ */
+function accessibleName(node: ViewNode): string {
+  const ownName = node.label || node.text;
+  if (ownName) {
+    return ownName;
+  }
+  return node.children
+    .map(accessibleName)
+    .filter((name) => name !== '')
+    .join(' ');
+}
+
+/** mobilecli reports clickable as a boolean, Appium-style drivers as a string. */
+function isClickable(node: ViewNode): boolean {
+  return node.raw?.['clickable'] === true || node.raw?.['clickable'] === 'true';
+}
+
 export function matchesRole(node: ViewNode, role: string): boolean {
   const normalizedType = bareTypeName(node.type);
   // ROLE_TYPE_MAP is `as const`, so its keys are a closed union; widen for the
@@ -248,6 +269,12 @@ export function matchesRole(node: ViewNode, role: string): boolean {
       return node.raw?.['clickable'] === 'true' || node.raw?.['accessible'] === 'true';
     }
     return false;
+  }
+
+  // Jetpack Compose only reports android.widget.Button for a button without
+  // children, so a Button { Text(...) } shows up as a clickable plain View.
+  if (normalizedType === 'view' && role.toLowerCase() === 'button') {
+    return isClickable(node);
   }
 
   if (roleTypes) {
