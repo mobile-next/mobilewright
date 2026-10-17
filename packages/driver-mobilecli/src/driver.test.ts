@@ -329,26 +329,28 @@ test.describe('MobilecliDriver.webViewBridge', () => {
   });
 });
 
-test.describe('MobilecliDriver.clearText()', () => {
-  test('sends the clear key on iOS', async () => {
-    const driver = createDriverWithSession({ platform: 'ios' });
-    const calls = recordRpc(driver, { 'device.io.keys': {} });
+test.describe('MobilecliDriver.fill()', () => {
+  for (const platform of ['ios', 'android'] as const) {
+    test(`asks mobilecli to fill the focused field on ${platform}`, async () => {
+      const driver = createDriverWithSession({ platform });
+      const calls = recordRpc(driver, { 'device.io.fill': {} });
 
-    await driver.clearText();
+      await driver.fill('Zaphod');
 
-    expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['clear'] } },
-    ]);
-  });
+      expect(calls).toEqual([
+        { method: 'device.io.fill', params: { deviceId: SIMULATOR_DEVICE_ID, text: 'Zaphod' } },
+      ]);
+    });
+  }
 
-  test('selects all with ctrl+a then deletes on Android', async () => {
+  test('fills with an empty string to clear', async () => {
     const driver = createDriverWithSession({ platform: 'android' });
-    const calls = recordRpc(driver, { 'device.io.keys': {} });
+    const calls = recordRpc(driver, { 'device.io.fill': {} });
 
-    await driver.clearText();
+    await driver.fill('');
 
     expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['ctrl+a', 'backspace'] } },
+      { method: 'device.io.fill', params: { deviceId: SIMULATOR_DEVICE_ID, text: '' } },
     ]);
   });
 });
