@@ -87,7 +87,7 @@ arrives as a clickable `View` with its caption on a child `TextView`.
 
 | Compose node | `getByRole()` |
 | --- | --- |
-| `android.view.View` | `button` — only when clickable (needs a mobilecli release that reports `clickable`) |
+| `android.view.View` | `button` — only when clickable |
 
 ## iOS class → role
 
