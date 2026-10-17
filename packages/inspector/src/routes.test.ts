@@ -91,11 +91,11 @@ async function serveWithDevice(fakeDevice: object): Promise<TestServer> {
 }
 
 /** A device the inspect endpoint can capture: fixed screenshot, empty tree, 390x844 at 3x. */
-function inspectableDevice(overrides: { screenshot?: (opts: unknown) => Promise<Buffer>; screenSize?: () => Promise<unknown> } = {}) {
+function inspectableDevice(overrides: { screenshot?: (opts: unknown) => Promise<Buffer>; viewTree?: () => Promise<unknown[]>; screenSize?: () => Promise<unknown> } = {}) {
   return {
     screen: {
       screenshot: overrides.screenshot ?? (async () => Buffer.from('jpeg')),
-      viewTree: async () => [],
+      viewTree: overrides.viewTree ?? (async () => []),
     },
     screenSize: overrides.screenSize ?? (async () => ({ width: 390, height: 844, scale: 3 })),
   };
@@ -377,6 +377,38 @@ test.describe('GET /api/inspect — screen size', () => {
     const { body } = await get(`${server.base}/api/inspect`);
     expect(screenSizeCalls).toBe(1);
     expect((body as { screen: unknown }).screen).toEqual({ width: 390, height: 844, scale: 3 });
+  });
+});
+
+test.describe('GET /api/inspect — screenshot blocked by the app', () => {
+  test('returns the elements without a screenshot when the screenshot keeps failing', async () => {
+    const server = await serveWithDevice(inspectableDevice({
+      screenshot: async () => { throw new Error('screen capture is blocked'); },
+      viewTree: async () => [{ type: 'Button', text: 'Sign in', bounds: { x: 10, y: 20, width: 100, height: 40 }, isVisible: true, children: [] }],
+    }));
+    try {
+      const { status, body } = await get(`${server.base}/api/inspect`);
+      expect(status).toBe(200);
+      const { screenshot, screen, elements } = body as { screenshot: unknown; screen: unknown; elements: { text: string }[] };
+      expect(screenshot).toBeNull();
+      expect(screen).toEqual({ width: 390, height: 844, scale: 3 });
+      expect(elements.map(el => el.text)).toEqual(['Sign in']);
+    } finally {
+      await server.close();
+    }
+  });
+
+  test('still fails when the view tree cannot be read', async () => {
+    const server = await serveWithDevice(inspectableDevice({
+      viewTree: async () => { throw new Error('view tree unavailable'); },
+    }));
+    try {
+      const { status, body } = await get(`${server.base}/api/inspect`);
+      expect(status).toBe(500);
+      expect((body as { error: string }).error).toBe('Inspect failed: tree did not complete');
+    } finally {
+      await server.close();
+    }
   });
 });
 
