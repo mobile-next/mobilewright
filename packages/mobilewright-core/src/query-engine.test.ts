@@ -827,3 +827,12 @@ test.describe('Jetpack Compose text field labels', () => {
     expect(results[0]).toBe(composeForm[1]);
   });
 });
+
+test.describe('Jetpack Compose alert role', () => {
+  const dialogPane = node({ type: 'android.view.View', raw: { paneTitle: 'Dialog' } });
+  const bottomSheetPane = node({ type: 'android.view.View', raw: { paneTitle: 'Bottom Sheet' } });
+
+  test('a Material3 dialog pane matches the alert role', () => {
+    expect(queryAll([dialogPane, bottomSheetPane], { kind: 'role', value: 'alert' })).toEqual([dialogPane]);
+  });
+});
