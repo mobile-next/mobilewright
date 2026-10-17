@@ -720,3 +720,67 @@ test.describe('filter strategy on flat hierarchy (bounds-based)', () => {
     expect(results[0].label).toBe('Row 2');
   });
 });
+
+test.describe('Jetpack Compose role mapping', () => {
+  // Compose reports Button { Text("New Order") } as a clickable View with the caption on a child
+  const composeTree: ViewNode[] = [
+    node({
+      type: 'android.view.View',
+      raw: { clickable: true },
+      children: [node({ type: 'android.widget.TextView', text: 'New Order' })],
+    }),
+    node({
+      type: 'android.view.View',
+      raw: { clickable: true },
+      children: [node({ type: 'android.view.View', label: 'Account' })],
+    }),
+    node({
+      type: 'android.view.View',
+      children: [node({ type: 'android.widget.TextView', text: 'Welcome to Milliways' })],
+    }),
+  ];
+
+  test('a clickable View matches the button role', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button' });
+    expect(results).toHaveLength(2);
+  });
+
+  test('a View that is not clickable does not match the button role', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'Welcome to Milliways' });
+    expect(results).toHaveLength(0);
+  });
+
+  test('a button is named by the text of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'New Order' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeTree[0]);
+  });
+
+  test('a button is named by the label of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'Account' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeTree[1]);
+  });
+
+  test('a list is not named by the text of its children', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Coffee' })).toHaveLength(0);
+  });
+
+  test('a list is still named by its own label', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      label: 'Menu',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Menu' })).toEqual([list]);
+  });
+
+  test('a button name regex matches the text of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: /order/i });
+    expect(results).toHaveLength(1);
+  });
+});

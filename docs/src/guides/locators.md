@@ -79,6 +79,16 @@ of the collapsed framework class above — these are also recognized:
 | `…scroll.ReactScrollView` | `list` |
 | `…view.ReactViewGroup` | `button` — only when `clickable="true"` or `accessible="true"` |
 
+### Jetpack Compose (Android)
+
+Compose reports most of its widgets as a plain `android.view.View`. It only reports
+`android.widget.Button` for a button with no children, so a `Button { Text("Save") }`
+arrives as a clickable `View` with its caption on a child `TextView`.
+
+| Compose node | `getByRole()` |
+| --- | --- |
+| `android.view.View` | `button` — only when clickable |
+
 ## iOS class → role
 
 | Native class | `getByRole()` |
@@ -107,6 +117,19 @@ of the collapsed framework class above — these are also recognized:
 | `XCUIElementTypeTabBar` | `tab` |
 | `XCUIElementTypeLink` | `link` |
 | `XCUIElementTypeNavigationBar` | `header` |
+
+## Accessible names
+
+`getByRole('button', { name })` matches the element's own label, then its own text.
+Roles that take their name from their content — `button`, `link`, `tab`, `header`,
+`switch`, `checkbox` and `radio`, as in ARIA — then fall back to the text of their
+children. That is how a Compose button is named by its caption:
+
+```typescript
+await screen.getByRole('button', { name: 'Save' }).tap();
+```
+
+Other roles are never named by their children, so a `list` isn't named by its items.
 
 ## Notes and known gaps
 
