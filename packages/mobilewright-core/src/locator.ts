@@ -308,13 +308,21 @@ export class Locator {
     });
   }
 
-  // ─── Queries (with auto-wait for visibility) ─────────────────
+  // ─── Queries: read the state right now, without waiting ──────
 
+  /**
+   * Whether a matching element is on screen right now. Doesn't wait.
+   * To assert, prefer `expect(locator).toHaveCount()`, which retries.
+   */
   async exists(): Promise<boolean> {
     const node = await this.resolve(0);
     return node !== null;
   }
 
+  /**
+   * Whether the element is visible right now; waits only up to `timeout`, 0 by default.
+   * To assert, prefer `expect(locator).toBeVisible()`, which retries.
+   */
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
@@ -327,21 +335,38 @@ export class Locator {
     }
   }
 
+  /**
+   * Whether the element is enabled right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeEnabled()`, which retries until it passes.
+   */
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isEnabled;
   }
 
+  /**
+   * Whether the element is selected right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeSelected()`, which retries until it passes.
+   */
   async isSelected(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isSelected === true;
   }
 
+  /**
+   * Whether the element has focus right now. Doesn't wait for the state to change: a tapped
+   * text field takes focus a moment after the tap returns, so read right away it may be false.
+   * To assert, prefer `expect(locator).toBeFocused()`, which retries until it passes.
+   */
   async isFocused(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isFocused === true;
   }
 
+  /**
+   * Whether the element is checked right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeChecked()`, which retries until it passes.
+   */
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isChecked === true;

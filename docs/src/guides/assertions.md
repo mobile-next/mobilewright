@@ -33,6 +33,24 @@ await expect(screen.getByRole('tab', { name: 'Home' })).toBeSelected();
 | `toBeFocused()` | Element has focus |
 | `toBeSelected()` | Element is selected |
 
+### Prefer assertions over `is*` reads
+
+`locator.isVisible()`, `isEnabled()`, `isChecked()`, `isFocused()`, `isSelected()` and `exists()` return the state **right now**, without waiting for it to change. On a device, an action's effect often lands a moment after the action returns. For example, a tapped text field takes focus slightly later, so reading `isFocused()` right after the tap can return `false`.
+
+To check a state, use the matching assertion, which retries until it passes:
+
+```typescript
+await screen.getByLabel('Email').tap();
+
+// ✗ flaky: reads focus once, maybe before the field has it
+expect(await screen.getByLabel('Email').isFocused()).toBe(true);
+
+// ✓ retries until the field has focus
+await expect(screen.getByLabel('Email')).toBeFocused();
+```
+
+Use the `is*` methods to branch on the current state, not to assert it.
+
 ### Text content
 
 ```typescript
