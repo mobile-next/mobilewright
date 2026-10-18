@@ -45,6 +45,8 @@ Mobilewright reads the screen many times a second while an action or `expect()` 
 
 On iOS, which button is positive comes from where it sits, following Apple's layout: with two buttons side by side, accept presses the right one and dismiss the left one. With stacked buttons, dismiss presses the bottom one. Accept presses the top one, or on a permission prompt the one just above Don't Allow (Allow While Using App). Use `dialog.tap(name)` when you need a specific button.
 
+On Android, Jetpack Compose's Material3 `AlertDialog` is recognized too. It has none of the ids a classic `AlertDialog` has, so Mobilewright finds it by the pane title Material3 gives it, `Dialog`. Its first text is the title, and the rest is the message. Material3 lays out the dismiss button before the confirm button, so accept presses the last button and dismiss the first. The pane title is localized, so for now this only works on a device set to English. A plain Compose `Dialog { }` has no pane title, and isn't detected.
+
 Use `screen.once('dialog', handler)` to handle only the next dialog, and `screen.off('dialog', handler)` to stop listening.
 
 ## Waiting for a dialog
