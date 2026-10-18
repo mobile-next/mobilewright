@@ -1,5 +1,5 @@
 import type { MobilewrightDriver, ViewNode } from '@mobilewright/protocol';
-import { bareTypeName } from './query-engine.js';
+import { accessibleName, bareTypeName, isClickable, isComposeDialogPane } from './query-engine.js';
 
 export type DialogType = 'alert' | 'confirm' | 'prompt' | 'permission';
 
@@ -28,8 +28,12 @@ function center(node: ViewNode): { x: number; y: number } {
   };
 }
 
+// A Compose button has no text of its own: its caption is on a child, which accessibleName reads.
 function textOf(node: ViewNode | undefined): string {
-  return node?.text ?? node?.label ?? '';
+  if (!node) {
+    return '';
+  }
+  return node.text || node.label || accessibleName(node);
 }
 
 function matchesId(node: ViewNode, pattern: RegExp | string): boolean {
@@ -151,6 +155,23 @@ function findAndroidAlertDialog(nodes: ViewNode[], driver: MobilewrightDriver): 
   return new Dialog(driver, type, title, message, buttons, positive, negative ?? positive, input);
 }
 
+// A Material3 AlertDialog: title and text first, then dismissButton before confirmButton.
+function findComposeAlertDialog(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
+  const pane = nodes.find(isComposeDialogPane);
+  if (!pane) {
+    return undefined;
+  }
+  const children = flatten(pane.children);
+  const buttons = children.filter(isClickable);
+  const insideButtons = new Set(buttons.flatMap((button) => flatten(button.children)));
+  const texts = children.filter((node) => bareTypeName(node.type) === 'textview' && !insideButtons.has(node)).map(textOf);
+  const input = children.find((node) => node.type.endsWith('EditText'));
+  const type: DialogType = input ? 'prompt' : buttons.length > 1 ? 'confirm' : 'alert';
+  const accept = buttons.at(-1);
+  const dismiss = buttons.length > 1 ? buttons[0] : accept;
+  return new Dialog(driver, type, texts[0] ?? '', texts.slice(1).join('\n'), buttons, accept, dismiss, input);
+}
+
 function isSideBySide(buttons: ViewNode[]): boolean {
   return buttons.every((node) => node.bounds.y === buttons[0].bounds.y);
 }
@@ -191,5 +212,5 @@ function findIosAlert(nodes: ViewNode[], driver: MobilewrightDriver): Dialog | u
 /** Detect an alert or permission dialog in a view tree. */
 export function findDialog(roots: ViewNode[], driver: MobilewrightDriver): Dialog | undefined {
   const nodes = flatten(roots);
-  return findIosAlert(nodes, driver) ?? findAndroidPermissionDialog(nodes, driver) ?? findAndroidAlertDialog(nodes, driver);
+  return findIosAlert(nodes, driver) ?? findAndroidPermissionDialog(nodes, driver) ?? findAndroidAlertDialog(nodes, driver) ?? findComposeAlertDialog(nodes, driver);
 }

@@ -246,7 +246,7 @@ const NAME_FROM_CONTENT_ROLES = new Set(['button', 'link', 'tab', 'header', 'swi
  * then the text of its descendants. The last step mirrors ARIA's name-from-content,
  * and covers Jetpack Compose buttons, which keep their caption on a child node.
  */
-function accessibleName(node: ViewNode): string {
+export function accessibleName(node: ViewNode): string {
   const ownName = node.label || node.text;
   if (ownName) {
     return ownName;
@@ -269,8 +269,18 @@ function labelOf(node: ViewNode): string | undefined {
 }
 
 /** mobilecli reports clickable as a boolean, Appium-style drivers as a string. */
-function isClickable(node: ViewNode): boolean {
+export function isClickable(node: ViewNode): boolean {
   return node.raw?.['clickable'] === true || node.raw?.['clickable'] === 'true';
+}
+
+/**
+ * Material3 marks an AlertDialog's container with the pane title "Dialog"; it is the only
+ * sign of a Compose dialog, which has none of android.app.AlertDialog's ids.
+ */
+export function isComposeDialogPane(node: ViewNode): boolean {
+  // ponytail: Material3's English string, so other locales go undetected; match the localized
+  // m3c_dialog string if that matters
+  return node.raw?.['paneTitle'] === 'Dialog';
 }
 
 export function matchesRole(node: ViewNode, role: string): boolean {
@@ -287,6 +297,10 @@ export function matchesRole(node: ViewNode, role: string): boolean {
       return node.raw?.['clickable'] === 'true' || node.raw?.['accessible'] === 'true';
     }
     return false;
+  }
+
+  if (role.toLowerCase() === 'alert' && isComposeDialogPane(node)) {
+    return true;
   }
 
   // Jetpack Compose only reports android.widget.Button for a button without
