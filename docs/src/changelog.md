@@ -7,6 +7,15 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.67] (2026-10-18)
+* Feat: add `expect.poll()` and `expect(promise).rejects` / `.resolves`, like Playwright ([#415](https://github.com/mobile-next/mobilewright/pull/415))
+* Feat(Android): `getByRole('button')` matches Jetpack Compose buttons, and a role's name falls back to its children's text ([#416](https://github.com/mobile-next/mobilewright/pull/416))
+* Fix: `fill()` and `clear()` replace the focused field's text in one step, fixing Jetpack Compose text fields; the driver's `clearText()` is replaced by `fill(text)` ([#419](https://github.com/mobile-next/mobilewright/pull/419))
+* Fix: relative `installApps` paths resolve against the config file's directory ([#370](https://github.com/mobile-next/mobilewright/pull/370))
+* Fix: round `screen.gesture()` coordinates before sending to mobilecli ([#413](https://github.com/mobile-next/mobilewright/pull/413))
+* Docs: `is*` locator reads don't wait, prefer the matching assertion ([#420](https://github.com/mobile-next/mobilewright/pull/420))
+* Chore: upgrade bundled mobilecli to 1.0.21 ([#421](https://github.com/mobile-next/mobilewright/pull/421))
+
 ## [0.0.66] (2026-10-14)
 * Feat(Android): add `screen.on('dialog')` for alerts and permission prompts ([#360](https://github.com/mobile-next/mobilewright/pull/360))
 * Feat(iOS): dialogs support, plus `screen.waitForEvent('dialog')` ([#407](https://github.com/mobile-next/mobilewright/pull/407))
