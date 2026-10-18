@@ -1,4 +1,5 @@
 import type { Bounds, ViewNode } from '@mobilewright/protocol';
+import { textMatches } from './text-match.js';
 
 export type LocatorStrategy =
   | { kind: 'root' }
@@ -6,7 +7,7 @@ export type LocatorStrategy =
   | { kind: 'testId'; value: string }
   | { kind: 'text'; value: string | RegExp; exact?: boolean }
   | { kind: 'type'; value: string }
-  | { kind: 'role'; value: string; name?: string | RegExp }
+  | { kind: 'role'; value: string; name?: string | RegExp; exact?: boolean }
   | { kind: 'placeholder'; value: string; exact?: boolean }
   | { kind: 'webview'; testId?: string }
   | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
@@ -117,9 +118,7 @@ function matchesStrategy(
 
     case 'label':
       if (!node.label) return false;
-      return strategy.exact === false
-        ? node.label.toLowerCase().includes(strategy.value.toLowerCase())
-        : node.label === strategy.value;
+      return textMatches(node.label, strategy.value, strategy.exact);
 
     case 'testId':
       if (node.key === strategy.value) {
@@ -139,12 +138,7 @@ function matchesStrategy(
 
     case 'text': {
       const nodeText = node.text ?? node.label ?? node.value ?? '';
-      if (strategy.value instanceof RegExp) {
-        return strategy.value.test(nodeText);
-      }
-      return strategy.exact === false
-        ? nodeText.toLowerCase().includes(strategy.value.toLowerCase())
-        : nodeText === strategy.value;
+      return textMatches(nodeText, strategy.value, strategy.exact);
     }
 
     case 'type':
@@ -159,18 +153,13 @@ function matchesStrategy(
         // the `text` locator above: an explicit label/accessibilityLabel outranks
         // displayed text, mirroring ARIA accessible-name computation.
         const nodeLabel = node.label ?? node.text ?? '';
-        if (strategy.name instanceof RegExp) {
-          return strategy.name.test(nodeLabel);
-        }
-        return nodeLabel === strategy.name;
+        return textMatches(nodeLabel, strategy.name, strategy.exact);
       }
       return true;
 
     case 'placeholder':
       if (!node.placeholder) return false;
-      return strategy.exact === false
-        ? node.placeholder.toLowerCase().includes(strategy.value.toLowerCase())
-        : node.placeholder === strategy.value;
+      return textMatches(node.placeholder, strategy.value, strategy.exact);
 
     case 'webview':
       if (!WEBVIEW_TYPES.has(node.type)) {

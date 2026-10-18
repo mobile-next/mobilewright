@@ -36,3 +36,8 @@ test('find flags render as the same chained locator a test would write', () => {
   expect(locatorForStrategy(buildStrategy({ role: 'listitem', hasText: 'Milk', last: true }))).toBe('screen.getByRole(\'listitem\').filter({ hasText: \'Milk\' }).last()');
   expect(locatorForStrategy(buildStrategy({ role: 'button', text: 'Go', nth: '2' }))).toBe('screen.getByText(\'Go\').and(screen.getByRole(\'button\')).nth(2)');
 });
+
+test('an exact role name is rendered with exact: true', () => {
+  expect(locatorForStrategy(buildStrategy({ role: 'button', name: 'Save', exact: true })))
+    .toBe('screen.getByRole(\'button\', { name: \'Save\', exact: true })');
+});
