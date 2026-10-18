@@ -115,11 +115,13 @@ function matchesStrategy(
     case 'root':
       return true;
 
-    case 'label':
-      if (!node.label) return false;
+    case 'label': {
+      const label = labelOf(node);
+      if (!label) return false;
       return strategy.exact === false
-        ? node.label.toLowerCase().includes(strategy.value.toLowerCase())
-        : node.label === strategy.value;
+        ? label.toLowerCase().includes(strategy.value.toLowerCase())
+        : label === strategy.value;
+    }
 
     case 'testId':
       if (node.key === strategy.value) {
@@ -160,7 +162,7 @@ function matchesStrategy(
         // displayed text, mirroring ARIA accessible-name computation.
         const nodeLabel = NAME_FROM_CONTENT_ROLES.has(strategy.value.toLowerCase())
           ? accessibleName(node)
-          : node.label ?? node.text ?? '';
+          : labelOf(node) ?? node.text ?? '';
         if (strategy.name instanceof RegExp) {
           return strategy.name.test(nodeLabel);
         }
@@ -253,6 +255,17 @@ function accessibleName(node: ViewNode): string {
     .map(accessibleName)
     .filter((name) => name !== '')
     .join(' ');
+}
+
+/**
+ * A node's label. A text field without one is labelled by its children, which is
+ * where a Jetpack Compose TextField keeps its floating label.
+ */
+function labelOf(node: ViewNode): string | undefined {
+  if (node.label || !matchesRole(node, 'textfield')) {
+    return node.label;
+  }
+  return node.children.map(accessibleName).filter((name) => name !== '').join(' ') || undefined;
 }
 
 /** mobilecli reports clickable as a boolean, Appium-style drivers as a string. */
