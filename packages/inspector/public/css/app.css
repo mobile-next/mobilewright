@@ -380,6 +380,29 @@ main {
   stroke-width: 2.5;
 }
 
+/* Drawn only over a blank screenshot, which shows nothing of the elements itself. */
+.element-label {
+  fill: #fff;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+#blank-screenshot-msg {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--c-pane-bg);
+  color: var(--c-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* ---- Elements pane ---- */
 
 #elements-pane {
