@@ -94,6 +94,26 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+### Real touch and typing
+
+`click()` dispatches a synthetic click in the page. `tap()` is a **real touch**: it scrolls the element into view and taps its on-screen center through the device, so the page receives trusted touch, pointer and click events, exactly as from a finger:
+
+```typescript
+await page.getByRole('button', { name: 'Continue' }).tap();
+```
+
+On a page from `screen.getByWebView().page()`, `fill()` is **real input** too. It taps the field, clears it and types the text through the device keyboard, so the page sees genuine key and input events. This matters for frameworks and input components that ignore synthetic `input` events. It then checks that the text arrived and types it once more if a slow device dropped keys.
+
+For a field that acts as soon as it is full, like a one-time-code input that submits itself, pass `verify: false` to type exactly once without the check. The option is specific to Mobilewright, so with Playwright's `Locator` type, cast to `MobileWebViewLocator`:
+
+```typescript
+import type { MobileWebViewLocator } from 'mobilewright';
+
+await (page.getByLabel('Code') as MobileWebViewLocator).fill('123456', { verify: false });
+```
+
+Real touch and typing need the web view to appear in the native view hierarchy, which gives its on-screen position. `tap()` throws on a page that has no device behind it.
+
 ## Assertions
 
 Web views use Playwright's **web-first assertions**, which retry until the condition holds or the timeout elapses:
@@ -177,7 +197,7 @@ The engine is re-injected automatically after navigations (a fresh document drop
 
 ## Supported API and limitations
 
-The web-first surface for driving content is supported: navigation, the `getBy*` locators, actions (`click`, `fill`, `type`, `press`, `hover`, `focus`, `scrollIntoViewIfNeeded`), value/state queries, and the web-first `expect` matchers (`toBeVisible`, `toHaveText`, `toHaveValue`, `toHaveCount`, `toHaveAttribute`, `toHaveClass`, `toHaveCSS`, `toHaveId`, `toHaveJSProperty`, `toBeChecked`, `toBeEnabled`, `toBeEditable`, `toHaveURL`, `toHaveTitle`, …).
+The web-first surface for driving content is supported: navigation, the `getBy*` locators, actions (`click`, `tap`, `fill`, `type`, `press`, `hover`, `focus`, `scrollIntoViewIfNeeded`), value/state queries, and the web-first `expect` matchers (`toBeVisible`, `toHaveText`, `toHaveValue`, `toHaveCount`, `toHaveAttribute`, `toHaveClass`, `toHaveCSS`, `toHaveId`, `toHaveJSProperty`, `toBeChecked`, `toBeEnabled`, `toBeEditable`, `toHaveURL`, `toHaveTitle`, …).
 
 Some Playwright capabilities have no equivalent inside an embedded web view and will throw if called:
 
