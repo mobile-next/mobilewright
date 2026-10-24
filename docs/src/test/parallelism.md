@@ -63,7 +63,7 @@ Serial mode is discouraged when tests can be made independent. Independent tests
 
 ## Controlling test file order
 
-Tests within a file always run in the order they are declared. Test files, however, run in alphabetical order. Passing files on the command line only filters which files run — it does not change their order:
+Tests within a file always run in the order they are declared. Test files, however, run in alphabetical order. Passing files on the command line only filters which files run - it does not change their order:
 
 ```bash
 # still runs inbox.spec.ts before login.spec.ts
