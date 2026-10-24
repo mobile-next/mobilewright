@@ -61,6 +61,52 @@ With serial mode, if one test fails the rest of the group are skipped. The entir
 
 Serial mode is discouraged when tests can be made independent. Independent tests are more reliable and run faster across devices.
 
+## Controlling test file order
+
+Tests within a file always run in the order they are declared. Test files, however, run in alphabetical order. Passing files on the command line only filters which files run — it does not change their order:
+
+```bash
+# still runs inbox.spec.ts before login.spec.ts
+npx mobilewright test login.spec.ts inbox.spec.ts
+```
+
+The simplest way to order files is to prefix their names, e.g. `01-login.spec.ts`, `02-inbox.spec.ts`.
+
+For explicit control, use a test list file. Each spec exports a function that declares its tests, and a single entry file calls them in the order you want:
+
+```ts
+// tests/login.spec.ts
+import { test } from '@mobilewright/test';
+
+export default function () {
+  test('user can log in', async ({ screen }) => {
+    // ...
+  });
+}
+```
+
+```ts
+// tests/test.list.ts
+import { test } from '@mobilewright/test';
+import loginTests from './login.spec.js';
+import inboxTests from './inbox.spec.js';
+
+test.describe(loginTests);
+test.describe(inboxTests);
+```
+
+Then point `testMatch` at the list file, so the spec files are not also collected on their own:
+
+```ts
+export default defineConfig({
+  testDir: './tests',
+  testMatch: 'test.list.ts',
+  fullyParallel: false,
+});
+```
+
+Add `test.describe.configure({ mode: 'serial' })` at the top of `test.list.ts` if later files should be skipped when an earlier one fails.
+
 ## How the device pool works
 
 When a test starts, Mobilewright's device pool assigns it a device:
