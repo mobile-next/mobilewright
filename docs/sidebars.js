@@ -42,6 +42,7 @@ const sidebars = {
         'guides/geolocation',
         'guides/inspector',
         'guides/locators',
+        'guides/mobile-mcp',
         'guides/screenshots',
         'guides/troubleshooting',
         'guides/webviews',
