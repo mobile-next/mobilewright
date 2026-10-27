@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-mobilenext
 sidebar_position: 2
 title: Mobile Next Cloud
 ---

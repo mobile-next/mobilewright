@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-browserstack
 sidebar_position: 3
 title: BrowserStack
 ---

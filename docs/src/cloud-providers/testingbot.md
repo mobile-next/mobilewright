@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-testingbot
 sidebar_position: 4
 title: TestingBot
 ---
