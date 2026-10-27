@@ -100,3 +100,9 @@ every run. Control this with the driver's `testResult` option — see
 
 Set `DEBUG=mw:driver-mobilenext` to log device allocation and connection details. See
 [Troubleshooting](../guides/troubleshooting.md).
+
+## Learn more
+
+The driver's source is in the
+[`@mobilewright/driver-mobilenext` package](https://github.com/mobile-next/mobilewright/tree/main/packages/driver-mobilenext)
+of the Mobilewright repository.
