@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-testmu
 sidebar_position: 6
 title: TestMu AI
 ---
