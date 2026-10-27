@@ -64,6 +64,7 @@ const sidebars = {
         'cloud-providers/mobile-next-cloud',
         'cloud-providers/browserstack',
         'cloud-providers/saucelabs',
+        'cloud-providers/testmu',
       ],
     },
     {
