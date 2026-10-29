@@ -63,6 +63,86 @@ function assignValueScript(newValueExpr: string): string {
     + 'if (desc && desc.set) { desc.set.call(el, next); } else { el.value = next; } } }';
 }
 
+const KEY_CODES: Record<string, number> = {
+  Backspace: 8, Tab: 9, Enter: 13, Escape: 27, ' ': 32, Space: 32,
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Delete: 46,
+};
+
+// Playwright key syntax: "Shift+Enter", "Control+a", "Meta+ArrowLeft", "a".
+// A trailing "+" is the key itself: "+" and "Shift++" both press "+".
+function parseKeyChord(chord: string): { key: string; alt: boolean; ctrl: boolean; meta: boolean; shift: boolean } {
+  const plusIsKey = chord.endsWith('+');
+  const parts = (plusIsKey ? chord.slice(0, -1) : chord).split('+');
+  const lastPart = parts.pop() ?? chord;
+  const key = plusIsKey ? '+' : lastPart;
+  const has = (name: string): boolean => parts.includes(name);
+  return {
+    key,
+    alt: has('Alt'),
+    ctrl: has('Control') || has('ControlOrMeta'),
+    meta: has('Meta') || has('ControlOrMeta'),
+    shift: has('Shift'),
+  };
+}
+
+// In-page statements for press(): dispatch keydown/keypress/keyup with the
+// fields handlers inspect, then perform the key's default action ourselves —
+// a synthetic (untrusted) KeyboardEvent never triggers the browser's own:
+// Enter submits the field's form (or inserts a newline in a textarea, or
+// activates a button), Backspace deletes, printable keys insert their
+// character. Handlers can still veto via preventDefault() on keydown. Only
+// text-entry inputs, textareas and contenteditable elements that are not
+// read-only take text; Backspace honors the caret and selection.
+export function pressKeyScript(chord: string): string {
+  const { key, alt, ctrl, meta, shift } = parseKeyChord(chord);
+  const keyCode = KEY_CODES[key] ?? (key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0);
+  const code = key.length === 1 ? (/[a-z]/i.test(key) ? `Key${key.toUpperCase()}` : /[0-9]/.test(key) ? `Digit${key}` : '') : key;
+  const init = `{ key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, keyCode: ${keyCode}, which: ${keyCode}, `
+    + `altKey: ${alt}, ctrlKey: ${ctrl}, metaKey: ${meta}, shiftKey: ${shift}, bubbles: true, cancelable: true }`;
+  return `const init = ${init};
+const keyDownAllowed = el.dispatchEvent(new KeyboardEvent('keydown', init));
+const keyPressAllowed = keyDownAllowed && init.key.length === 1
+  ? el.dispatchEvent(new KeyboardEvent('keypress', { ...init, charCode: init.key.charCodeAt(0) }))
+  : keyDownAllowed;
+if (keyPressAllowed && !init.defaultPrevented) {
+  const tag = el.tagName;
+  const textInputTypes = ['text', 'search', 'email', 'url', 'tel', 'password', 'number'];
+  const editable = el.isContentEditable
+    || ((tag === 'TEXTAREA' || (tag === 'INPUT' && textInputTypes.includes(el.type))) && !el.readOnly);
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value');
+  const current = () => el.isContentEditable ? (el.textContent || '') : (el.value || '');
+  const assignValue = (v) => { if (el.isContentEditable) { el.textContent = v; } else if (desc && desc.set) { desc.set.call(el, v); } else { el.value = v; } };
+  const fireInput = () => el.dispatchEvent(new Event('input', { bubbles: true }));
+  const setValue = (v) => { assignValue(v); fireInput(); };
+  const plain = !init.altKey && !init.ctrlKey && !init.metaKey;
+  if (init.key === 'Enter') {
+    if (editable && (tag === 'TEXTAREA' || el.isContentEditable)) { setValue(current() + '\\n'); }
+    else if (!init.shiftKey && tag === 'INPUT' && el.form) { if (el.form.requestSubmit) { el.form.requestSubmit(); } else { el.form.submit(); } }
+    else if (!init.shiftKey && (tag === 'BUTTON' || tag === 'A' || el.getAttribute('role') === 'button')) { el.click(); }
+  } else if (init.key === 'Backspace' && editable && plain) {
+    // email/number inputs report a null selection; contenteditable has none
+    const hasCaret = !el.isContentEditable && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number';
+    if (hasCaret) {
+      const value = current();
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const from = start === end ? Math.max(0, start - 1) : start;
+      assignValue(value.slice(0, from) + value.slice(end));
+      el.setSelectionRange(from, from);
+      fireInput();
+    } else {
+      setValue(current().slice(0, -1));
+    }
+  } else if ((init.key === ' ' || init.key === 'Space') && plain) {
+    if (tag === 'BUTTON' || (tag === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio'))) { el.click(); }
+    else if (editable) { setValue(current() + ' '); }
+  } else if (init.key.length === 1 && editable && plain) {
+    setValue(current() + init.key);
+  }
+}
+el.dispatchEvent(new KeyboardEvent('keyup', init));`;
+}
+
 export class MobileWebViewLocator {
   // Playwright's web-first matchers gate on `receiver._apiName` (see expectTypes
   // in playwright/lib/matchers/expect.js), a plain instance property every real
@@ -364,9 +444,10 @@ export class MobileWebViewLocator {
     });
   }
 
-  async press(key: string): Promise<void> {
+  async press(key: string, opts?: { timeout?: number }): Promise<void> {
     return this._step(`locator.press(${JSON.stringify(key)})`, async () => {
-      await this.actOnFirst(`['keydown','keypress','keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: ${JSON.stringify(key)}, bubbles: true })));`, 'locator.press()');
+      await this.pollActionable(['visible', 'enabled'], opts?.timeout ?? DEFAULT_TIMEOUT);
+      await this.actOnFirst(pressKeyScript(key), 'locator.press()');
     });
   }
 
