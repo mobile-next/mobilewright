@@ -73,8 +73,10 @@ await screen.getByText('Delete account').tap();
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `maxSwipes` | `10` | Give up after this many swipe attempts |
-| `direction` | `'up'` | Swipe direction while searching — `'up'` scrolls content down, `'down'` scrolls content up |
+| `maxSwipes` | `5` | Give up after this many swipe attempts |
+| `direction` | `'up'` | Swipe direction while the element is not in the hierarchy — `'up'` scrolls content down, `'down'` scrolls content up |
+
+Once the element has been seen (even off-screen), each swipe heads toward its last known position and covers only the distance needed to reveal it, so a short list does not overshoot. Pass `direction: 'down'` when the target is above the current viewport and not yet in the hierarchy.
 
 ## Screen actions
 
