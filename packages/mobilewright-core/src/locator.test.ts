@@ -220,6 +220,20 @@ test.describe('Locator', () => {
       expect(driver._tracker.fillCalls).toEqual([['test@example.com']]);
       expect(driver._tracker.typeTextCalls).toEqual([]);
     });
+
+    // Playwright's fill('') empties the field. mobilecli's device.io.text
+    // rejects an empty string ("text is required"), so fill('') must empty
+    // the field through driver.fill instead of typing the empty text.
+    test('fill with an empty string clears the field without typing', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'testId', value: 'emailField' });
+
+      await locator.fill('');
+
+      expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
+      expect(driver._tracker.fillCalls).toEqual([['']]);
+      expect(driver._tracker.typeTextCalls).toEqual([]);
+    });
   });
 
   test.describe('auto-waiting', () => {
