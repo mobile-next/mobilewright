@@ -20,6 +20,7 @@ export type { MobilewrightDriver } from '@mobilewright/protocol';
 
 // Errors
 export { MobilewrightError } from './errors.js';
+export { WebViewError, WebViewNotFoundError, WebViewStrictModeViolationError } from '@mobilewright/core';
 
 // Internal — used by @mobilewright/test fixtures. Not part of the public API.
 export { createDevicePoolClient } from './device-pool/client-factory.js';
