@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-saucelabs
 sidebar_position: 5
 title: Sauce Labs
 ---

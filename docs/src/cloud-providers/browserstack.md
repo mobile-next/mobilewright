@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-browserstack
 sidebar_position: 3
 title: BrowserStack
 ---
@@ -90,4 +91,7 @@ Local `.apk`/`.ipa` paths are uploaded automatically, once per run.
 
 BrowserStack Local, geolocation and network simulation, camera and biometric injection, and
 other App Automate features are documented in the
-[`@browserstack/mobilewright` package on npm](https://www.npmjs.com/package/@browserstack/mobilewright).
+[BrowserStack Mobilewright docs](https://www.browserstack.com/docs/app-automate/mobilewright) and
+the [`@browserstack/mobilewright` package on npm](https://www.npmjs.com/package/@browserstack/mobilewright).
+A complete example project is in the
+[BrowserStack sample repository](https://github.com/BrowserStackCE/MobileWright-Sample-Repo).
