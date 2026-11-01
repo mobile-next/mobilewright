@@ -29,18 +29,38 @@ Run tests from a specific project:
 npx mobilewright test --project=ios
 ```
 
+Measure flakiness by running each test many times, without retries:
+
+```bash
+npx mobilewright test tests/login.test.ts --repeat-each=20 --retries=0
+```
+
+Stop at the first failure:
+
+```bash
+npx mobilewright test -x
+```
+
+Flags override the matching option in `mobilewright.config.ts`.
+
 ### Options
 
 | Flag | Description |
 |------|-------------|
 | `-c, --config <file>` | Path to config file |
 | `--reporter <reporter>` | Reporter type: `list`, `html`, `json` |
-| `--grep <regex>` | Only run tests matching this pattern |
-| `--grep-invert <regex>` | Skip tests matching this pattern |
+| `-g, --grep <regex>` | Only run tests matching this pattern |
+| `-G, --grep-invert <regex>` | Skip tests matching this pattern |
 | `--project <name...>` | Run tests from specific projects |
 | `--retries <count>` | Retry failed tests up to this many times |
+| `--repeat-each <N>` | Run each test `N` times. Default: `1` |
+| `--fail-on-flaky-tests` | Fail the run if any test is flagged as flaky |
+| `--forbid-only` | Fail the run if `test.only` is called. Useful on CI |
+| `--max-failures <N>` | Stop after the first `N` test failures |
+| `-x` | Stop after the first failure. Same as `--max-failures=1` |
 | `--timeout <ms>` | Test timeout in milliseconds |
-| `--workers <count>` | Number of concurrent workers |
+| `-j, --workers <count>` | Number of concurrent workers |
+| `--shard <x/n>` | Run only shard `x` of `n`, e.g. `1/3` — see [Sharding](./sharding.md) |
 | `--pass-with-no-tests` | Exit with code 0 when no tests are found |
 | `--list` | List all tests without running them |
 

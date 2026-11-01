@@ -136,6 +136,9 @@ How tests are discovered and executed.
 | `timeout` | `number` | — | Per-test timeout in ms |
 | `globalTimeout` | `number` | — | Hard cap on the entire suite run in ms |
 | `retries` | `number` | — | Max retries for flaky tests — see [Retries](./retries.md) |
+| `repeatEach` | `number` | `1` | Run each test this many times — useful for measuring flakiness |
+| `maxFailures` | `number` | `0` | Stop the run after this many failures; `0` means no limit |
+| `failOnFlakyTests` | `boolean` | `false` | Fail the run if any test is flagged as flaky |
 | `workers` | `number \| string` | `1` | Concurrent workers — see [Parallelism](./parallelism.md) |
 | `fullyParallel` | `boolean` | `false` | Run all tests in parallel |
 | `forbidOnly` | `boolean` | — | Fail the run if `test.only` is present (useful in CI) |
@@ -186,4 +189,4 @@ export default defineConfig({
 });
 ```
 
-The project `use` block accepts `platform`, `deviceId`, `deviceName`, `deviceType`, `osVersion`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.
+The project `use` block accepts `platform`, `deviceId`, `deviceName`, `deviceType`, `osVersion`, `bundleId`, `installApps`, `animations`, `actionTimeout`, `appLaunchTimeout`, and `installTimeout`. Projects can also override `timeout`, `testDir`, `testMatch`, `testIgnore`, `outputDir`, `retries`, `repeatEach`, `grep`, `grepInvert`, and declare `dependencies` on other projects. See [Projects](./projects.md) for the full matrix.

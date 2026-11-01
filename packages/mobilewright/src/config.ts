@@ -70,6 +70,8 @@ export interface MobilewrightProjectConfig {
   outputDir?: string;
   /** Maximum retries (overrides top-level). */
   retries?: number;
+  /** Run each test this many times (overrides top-level). */
+  repeatEach?: number;
   /** Filter to only run tests matching this pattern. */
   grep?: RegExp | Array<RegExp>;
   /** Filter to skip tests matching this pattern. */
@@ -122,6 +124,12 @@ export interface MobilewrightConfig {
   expect?: MobilewrightExpectConfig;
   /** Maximum retry count for flaky tests. */
   retries?: number;
+  /** Run each test this many times. Useful for measuring flakiness. Default: 1. */
+  repeatEach?: number;
+  /** Stop the run after this many test failures. 0 means no limit. Default: 0. */
+  maxFailures?: number;
+  /** Fail the test run if any test is flagged as flaky. Default: false. */
+  failOnFlakyTests?: boolean;
   /** Number of concurrent workers. */
   workers?: number | string;
   /** Run all tests in parallel. Default: false. */

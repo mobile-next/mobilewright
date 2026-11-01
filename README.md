@@ -401,6 +401,9 @@ All options:
 | `outputDir` | `string` | Output directory for test artifacts. Default: `test-results` |
 | `reporter` | `'list' \| 'html' \| 'json' \| 'junit' \| Array` | Reporter to use (optional) |
 | `retries` | `number` | Maximum retry count for flaky tests (optional) |
+| `repeatEach` | `number` | Run each test this many times. Default: `1` |
+| `maxFailures` | `number` | Stop the run after this many failures. Default: `0` (no limit) |
+| `failOnFlakyTests` | `boolean` | Fail the run if any test is flagged as flaky. Default: `false` |
 | `workers` | `number \| string` | Number of concurrent workers (optional) |
 | `fullyParallel` | `boolean` | Run all tests in parallel. Default: `false` |
 | `use` | `MobilewrightUseOptions` | Per-action defaults applied to all tests (optional) |
@@ -571,6 +574,8 @@ npx mobilewright test --grep "sign in"      # filter by test name
 npx mobilewright test --reporter html       # generate HTML report
 npx mobilewright test --retries 2           # retry flaky tests
 npx mobilewright test --workers 4           # parallel workers
+npx mobilewright test --repeat-each 20      # run each test 20 times
+npx mobilewright test -x                    # stop after the first failure
 npx mobilewright test --list                # list tests without running
 ```
 

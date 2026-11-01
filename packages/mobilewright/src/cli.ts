@@ -13,6 +13,7 @@ import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliRe
 import { loadConfig, HTML_REPORT_DIR } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
+import { buildConfigOverrides, type TestCommandOptions } from './test-options.js';
 import { driverName, scarf, telemetry } from './telemetry.js';
 import { getActiveDriver } from './driver-registry.js';
 
@@ -31,12 +32,17 @@ program
   .description('run tests')
   .option('-c, --config <file>', 'configuration file')
   .option('--reporter <reporter>', 'reporter to use (e.g. list, html, json)')
-  .option('--grep <grep>', 'only run tests matching this regex')
-  .option('--grep-invert <grep>', 'only run tests NOT matching this regex')
+  .option('-g, --grep <grep>', 'only run tests matching this regex')
+  .option('-G, --grep-invert <grep>', 'only run tests NOT matching this regex')
   .option('--project <name...>', 'only run tests from specified projects')
   .option('--retries <retries>', 'maximum retry count for flaky tests')
+  .option('--repeat-each <N>', 'run each test N times (default: 1)')
+  .option('--fail-on-flaky-tests', 'fail if any test is flagged as flaky')
+  .option('--forbid-only', 'fail if test.only is called')
+  .option('--max-failures <N>', 'stop after the first N failures')
+  .option('-x', 'stop after the first failure')
   .option('--timeout <timeout>', 'test timeout in milliseconds')
-  .option('--workers <workers>', 'number of concurrent workers')
+  .option('-j, --workers <workers>', 'number of concurrent workers')
   .option('--shard <shard>', 'shard to run, e.g. 1/3 (run first of three shards)')
   .option('--pass-with-no-tests', 'exit with code 0 when no tests found')
   .option('--list', 'list all tests without running them')
@@ -46,32 +52,12 @@ program
     const { loadConfigFromFile } = configLoader;
     const { runAllTestsWithConfig } = testRunner;
 
-    const overrides: Record<string, unknown> = {};
-    if (opts.timeout) overrides.timeout = Number(opts.timeout);
-    if (opts.retries) overrides.retries = Number(opts.retries);
-    if (opts.shard) {
-      const match = (opts.shard as string).match(/^(\d+)\/(\d+)$/);
-      if (!match) {
-        console.error(`error: --shard must be in the format x/n (e.g. 1/3), got: ${opts.shard}`);
-        process.exit(1);
-      }
-      overrides.shard = { current: Number(match[1]), total: Number(match[2]) };
-    }
-    if (opts.workers) {
-      const n = Number(opts.workers);
-      if (!Number.isInteger(n) || n < 1) {
-        console.error(`error: --workers must be a positive integer, got: ${opts.workers}`);
-        process.exit(1);
-      }
-      overrides.workers = n;
-    }
-    if (opts.reporter) {
-      const names = (opts.reporter as string).split(',');
-      overrides.reporter = names.map((name: string) => {
-        const n = name.trim();
-        if (n === 'html') return [n, { outputFolder: HTML_REPORT_DIR }];
-        return [n];
-      });
+    let overrides: Record<string, unknown>;
+    try {
+      overrides = buildConfigOverrides(opts as TestCommandOptions);
+    } catch (err) {
+      console.error(`error: ${(err as Error).message}`);
+      process.exit(1);
     }
 
     // Default to mobilewright.config.{ts,js} if no --config is given.
