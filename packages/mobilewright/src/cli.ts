@@ -13,7 +13,8 @@ import { MobilecliDriver, DEFAULT_URL, resolveMobilecliBinary, ensureMobilecliRe
 import { loadConfig, HTML_REPORT_DIR } from './config.js';
 import { gatherChecks, renderTerminal, renderJSON } from './commands/doctor.js';
 import { brandReport } from './reporter.js';
-import { scarf, telemetry } from './telemetry.js';
+import { driverName, scarf, telemetry } from './telemetry.js';
+import { getActiveDriver } from './driver-registry.js';
 
 const _require = createRequire(import.meta.url);
 const _pkg = _require('../package.json') as { version: string };
@@ -96,7 +97,7 @@ program
       passWithNoTests: !!opts.passWithNoTests,
     };
 
-    telemetry('mw_test');
+    telemetry('mw_test', { Driver: driverName(getActiveDriver()) });
     scarf();
     const status = await runAllTestsWithConfig(config, runOptions);
 

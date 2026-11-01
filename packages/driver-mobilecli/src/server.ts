@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import WebSocket from 'ws';
 import { resolveMobilecliBinary } from './resolve-binary.js';
 
@@ -34,6 +35,9 @@ export async function startMobilecliServer(opts?: {
 }): Promise<ServerHandle> {
   const binary = opts?.binaryPath ?? 'mobilecli';
   const port = opts?.port ?? 12000;
+  if (opts?.binaryPath && !existsSync(opts.binaryPath)) {
+    throw new Error(`mobilecli binary not found at ${opts.binaryPath}`);
+  }
 
   const verbose = !!process.env['DEBUG'];
   const serverArgs = ['server', 'start', '--listen', `localhost:${port}`];
@@ -55,11 +59,20 @@ export async function startMobilecliServer(opts?: {
   };
   proc.stdout?.on('data', drain);
   proc.stderr?.on('data', drain);
+  // spawn() reports a missing or non-executable binary as an asynchronous
+  // 'error' event; without a listener Node raises it as an uncaught exception.
+  let spawnFailure: Error | null = null;
+  proc.on('error', (err) => {
+    spawnFailure = new Error(`Failed to start mobilecli (${binary}): ${err.message}`);
+  });
 
   const wsUrl = `ws://localhost:${port}/ws`;
   const deadline = Date.now() + SERVER_START_TIMEOUT;
 
   while (Date.now() < deadline) {
+    if (spawnFailure) {
+      throw spawnFailure;
+    }
     if (await checkWebSocket(wsUrl, 1_000)) {
       return {
         process: proc,
@@ -75,6 +88,9 @@ export async function startMobilecliServer(opts?: {
     await sleep(SERVER_POLL_INTERVAL);
   }
 
+  if (spawnFailure) {
+    throw spawnFailure;
+  }
   proc.kill('SIGTERM');
   throw new Error(
     `mobilecli server did not become ready within ${SERVER_START_TIMEOUT / 1000}s.\n` +
@@ -97,8 +113,15 @@ export async function ensureMobilecliReachable(
     );
   }
 
+  // An explicitly configured path that does not exist is a configuration
+  // error worth reporting as such; only the "no bundled binary" case falls
+  // through to the install hint below.
   let binaryPath: string | null;
-  try { binaryPath = resolveMobilecliBinary(opts?.binaryPath); } catch { binaryPath = null; }
+  if (opts?.binaryPath) {
+    binaryPath = resolveMobilecliBinary(opts.binaryPath);
+  } else {
+    try { binaryPath = resolveMobilecliBinary(); } catch { binaryPath = null; }
+  }
 
   if (opts?.autoStart && binaryPath) {
     let port = 12000;
