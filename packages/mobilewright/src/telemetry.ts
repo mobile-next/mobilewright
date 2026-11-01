@@ -47,6 +47,14 @@ function getTelemetryId(): string | null {
   }
 }
 
+/** Lowercased driver class name without a trailing "Driver", e.g. MobileNextDriver → "mobilenext". */
+export function driverName(driver: object | undefined): string {
+  if (!driver) {
+    return 'mobilecli';
+  }
+  return driver.constructor.name.replace(/Driver$/, '').toLowerCase();
+}
+
 export function telemetry(event: string, properties: Record<string, string> = {}): void {
   const distinct_id = getTelemetryId();
   if (!distinct_id) {
