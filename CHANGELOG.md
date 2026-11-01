@@ -1,3 +1,15 @@
+## [0.0.68] (2026-11-01)
+* Feat(Android): `screen.on('dialog')`, `waitForEvent('dialog')` and `getByRole('alert')` detect Jetpack Compose Material3 alert dialogs ([#423](https://github.com/mobile-next/mobilewright/pull/423))
+* Fix: `expect(page)` from `@playwright/test` works with a webview page ([#385](https://github.com/mobile-next/mobilewright/pull/385))
+* Fix: a missing mobilecli binary is reported with a clear error instead of crashing on an unhandled spawn error ([#378](https://github.com/mobile-next/mobilewright/pull/378))
+* Perf(iOS): dumping the UI is about 3x faster on heavy screens ([mobilecli#523](https://github.com/mobile-next/mobilecli/pull/523)), thanks to [@avilashp-sportsbet](https://github.com/avilashp-sportsbet)
+* Fix(Flutter): widgets on large Flutter screens are no longer left out of the UI dump ([mobilecli#546](https://github.com/mobile-next/mobilecli/pull/546)), thanks to [@aluedeke](https://github.com/aluedeke)
+* Fix(Android): the device agent starts on x86_64 emulators ([mobilecli#547](https://github.com/mobile-next/mobilecli/pull/547)), thanks to [@aluedeke](https://github.com/aluedeke)
+* Docs: add CI best practices guide ([#438](https://github.com/mobile-next/mobilewright/pull/438)) and a guide from a Mobile MCP agent session to a Mobilewright test in CI ([#430](https://github.com/mobile-next/mobilewright/pull/430))
+* Docs: add Sauce Labs ([#427](https://github.com/mobile-next/mobilewright/pull/427)), thanks to [@diemol](https://github.com/diemol), and TestMu AI ([#431](https://github.com/mobile-next/mobilewright/pull/431)) cloud provider pages
+* Docs: explain how to control test file order ([#429](https://github.com/mobile-next/mobilewright/pull/429))
+* Chore: upgrade bundled mobilecli to 1.0.22 ([#441](https://github.com/mobile-next/mobilewright/pull/441))
+
 ## [0.0.67] (2026-10-18)
 * Feat: add `expect.poll()` and `expect(promise).rejects` / `.resolves`, like Playwright ([#415](https://github.com/mobile-next/mobilewright/pull/415))
 * Feat(Android): `getByRole('button')` matches Jetpack Compose buttons, and a role's name falls back to its children's text ([#416](https://github.com/mobile-next/mobilewright/pull/416))
