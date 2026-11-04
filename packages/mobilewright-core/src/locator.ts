@@ -382,6 +382,18 @@ export class Locator {
     return node.value ?? '';
   }
 
+  /**
+   * The content expect(locator).toBeEmpty() inspects, mirroring Playwright: a
+   * text field's value, any other element's text. Internal.
+   */
+  async _emptinessContent(opts?: { timeout?: number }): Promise<string> {
+    const node = await this.resolveVisible(opts?.timeout);
+    if (matchesRole(node, 'textfield')) {
+      return node.value ?? '';
+    }
+    return node.text ?? node.label ?? node.value ?? '';
+  }
+
   async waitFor(opts?: {
     state?: 'visible' | 'hidden' | 'enabled' | 'disabled';
     timeout?: number;
