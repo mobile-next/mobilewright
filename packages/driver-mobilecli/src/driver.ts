@@ -36,6 +36,7 @@ import type {
 } from '@mobilewright/protocol';
 import { NoDeviceAvailableError, gestureSequenceToTapActions, osVersionSatisfies, parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
+import { rawIosTreeToViewNodes, type RawIosNode } from './ios-raw-tree.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
 import { ensureMobilecliReachable, type ServerHandle } from './server.js';
 
@@ -167,7 +168,7 @@ function elementToViewNode(el: MobilecliElement): ViewNode {
   return {
     type: el.type ?? 'Unknown',
     label: el.label || undefined,
-    identifier: el.identifier || undefined,
+    identifier: el.identifier || el.name || undefined,
     key: el.key || undefined,
     value: el.value || undefined,
     text: el.text || undefined,
@@ -485,6 +486,19 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   // ─── Element Operations ──────────────────────────────────────
 
   async getViewHierarchy(): Promise<ViewNode[]> {
+    // iOS: mobilecli's default filter drops labelled XCUIElementTypeOther nodes
+    // (custom tappable views), so build the tree from the raw dump instead.
+    // Set MOBILEWRIGHT_IOS_RAW_TREE=0 to go back to mobilecli's filtered tree.
+    if (this.requireSession().platform === 'ios' && process.env.MOBILEWRIGHT_IOS_RAW_TREE !== '0') {
+      try {
+        const raw = await this.call<{ rawData: RawIosNode }>('device.dump.ui', { format: 'raw' });
+        if (raw?.rawData) {
+          return rawIosTreeToViewNodes(raw.rawData);
+        }
+      } catch (err) {
+        debug('raw iOS dump failed, using filtered tree: %s', (err as Error).message);
+      }
+    }
     const result = await this.call<MobilecliUIDumpResponse>('device.dump.ui');
     return result.elements.map(elementToViewNode);
   }

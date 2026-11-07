@@ -547,3 +547,54 @@ test('installApp() with a path that does not exist reports the path instead of a
   const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
   await expect(driver.installApp('/no/such/dir/app.apk')).rejects.toThrow(`App file not found: ${resolve('/no/such/dir/app.apk')}`);
 });
+
+test.describe('MobilecliDriver.getViewHierarchy()', () => {
+  const rawTree = {
+    elementType: 2,
+    frame: { X: 0, Y: 0, Width: 390, Height: 844 },
+    children: [{ elementType: 1, label: 'Get started', identifier: '', frame: { X: 40, Y: 220, Width: 169, Height: 44 } }],
+  };
+
+  test('on iOS asks for the raw tree and keeps labelled Other nodes', async () => {
+    const driver = createDriverWithSession({ platform: 'ios' });
+    const calls = recordRpc(driver, { 'device.dump.ui': { rawData: rawTree } });
+
+    const nodes = await driver.getViewHierarchy();
+
+    expect(calls).toEqual([{ method: 'device.dump.ui', params: { deviceId: SIMULATOR_DEVICE_ID, format: 'raw' } }]);
+    expect(nodes.map((n) => n.label)).toEqual(['Get started']);
+  });
+
+  test('on iOS falls back to the filtered tree when the raw dump fails', async () => {
+    const driver = createDriverWithSession({ platform: 'ios' });
+    (driver as any).session.rpc.call = async (_method: string, params: Record<string, unknown>) => {
+      if (params.format === 'raw') throw new Error('unsupported');
+      return { elements: [{ type: 'Button', label: 'Fallback', rect: { x: 0, y: 0, width: 10, height: 10 } }] };
+    };
+
+    const nodes = await driver.getViewHierarchy();
+
+    expect(nodes.map((n) => n.label)).toEqual(['Fallback']);
+  });
+
+  test('on Android uses the default dump without a format', async () => {
+    const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+    const calls = recordRpc(driver, { 'device.dump.ui': { elements: [] } });
+
+    await driver.getViewHierarchy();
+
+    expect(calls).toEqual([{ method: 'device.dump.ui', params: { deviceId: SIMULATOR_DEVICE_ID } }]);
+  });
+
+  test('uses name as the identifier when an element has none', async () => {
+    const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+    recordRpc(driver, { 'device.dump.ui': { elements: [
+      { type: 'Button', name: 'submit-btn' },
+      { type: 'Button', identifier: 'real-id', name: 'ignored' },
+    ] } });
+
+    const nodes = await driver.getViewHierarchy();
+
+    expect(nodes.map((n) => n.identifier)).toEqual(['submit-btn', 'real-id']);
+  });
+});
