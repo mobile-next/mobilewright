@@ -164,7 +164,7 @@ export interface MobilewrightSession {
   pressButton(button: HardwareButton): Promise<void>;
   /** Whether the software keyboard is showing. */
   isKeyboardVisible(): Promise<boolean>;
-  /** Close the software keyboard. Does nothing if none is showing, and fails if it stays up. */
+  /** Close the software keyboard. Does nothing if none is showing, and fails if it stays up. Not supported on iOS yet. */
   hideKeyboard(): Promise<void>;
 
   // Screen

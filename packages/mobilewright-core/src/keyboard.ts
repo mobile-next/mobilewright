@@ -13,7 +13,7 @@ export class Keyboard {
     return this.step('keyboard.isVisible()', () => this.driver.isKeyboardVisible());
   }
 
-  /** Close the software keyboard. Does nothing if none is showing, and throws if it stays up. */
+  /** Close the software keyboard. Does nothing if none is showing, and throws if it stays up. Not supported on iOS yet: always throws there. */
   async hide(): Promise<void> {
     return this.step('keyboard.hide()', () => this.driver.hideKeyboard());
   }
