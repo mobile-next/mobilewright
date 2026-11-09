@@ -123,7 +123,7 @@ if (await screen.keyboard.isVisible()) {
 
 `isVisible()` tracks the software keyboard only, so it is `false` when a hardware keyboard is in use. `hide()` waits until the keyboard has closed, does nothing if none is showing, and throws if the keyboard stays up. On Android it never navigates back when the keyboard is already closed.
 
-`hide()` is not supported on real iOS devices yet and always throws there. On iOS simulators the first call for an app can take a few seconds, because Mobilewright attaches to the app.
+`hide()` is not supported on real iOS devices yet and always throws there. On iOS simulators the first call for an app can take several seconds, because Mobilewright attaches to the app.
 
 ### Custom gestures
 
