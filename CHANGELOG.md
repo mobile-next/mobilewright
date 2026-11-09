@@ -1,5 +1,5 @@
 ## Unreleased
-* Feat: `screen.keyboard.isVisible()` on iOS and Android, and `screen.keyboard.hide()` on Android
+* Feat: `screen.keyboard.isVisible()` on iOS and Android, and `screen.keyboard.hide()` on Android and iOS simulators
 
 ## [0.0.68] (2026-11-01)
 * Feat(Android): `screen.on('dialog')`, `waitForEvent('dialog')` and `getByRole('alert')` detect Jetpack Compose Material3 alert dialogs ([#423](https://github.com/mobile-next/mobilewright/pull/423))

@@ -19,10 +19,6 @@ async function focusTextFieldAndWaitForKeyboard(screen: Screen): Promise<void> {
   await expect.poll(() => screen.keyboard.isVisible()).toBe(true);
 }
 
-function skipOnIosWhereHideIsNotSupported(platform: 'ios' | 'android' | undefined): void {
-  test.skip(platform === 'ios', 'keyboard.hide() is not supported on iOS yet');
-}
-
 test.beforeEach(async ({ device, screen }) => {
   await openBasicUiScreen(device, screen);
 });
@@ -37,8 +33,7 @@ test('isVisible is true when a text field is focused', async ({ screen }) => {
   expect(await screen.keyboard.isVisible()).toBe(true);
 });
 
-test('hide closes the keyboard', async ({ screen, platform }) => {
-  skipOnIosWhereHideIsNotSupported(platform);
+test('hide closes the keyboard', async ({ screen }) => {
   await focusTextFieldAndWaitForKeyboard(screen);
 
   await screen.keyboard.hide();
@@ -46,25 +41,17 @@ test('hide closes the keyboard', async ({ screen, platform }) => {
   expect(await screen.keyboard.isVisible()).toBe(false);
 });
 
-test('hide with no keyboard showing stays on the same screen', async ({ screen, platform }) => {
-  skipOnIosWhereHideIsNotSupported(platform);
+test('hide with no keyboard showing stays on the same screen', async ({ screen }) => {
   await screen.keyboard.hide();
 
   await expect(textField(screen)).toBeVisible();
 });
 
-test('a tap straight after hide lands on the app, not the keyboard', async ({ screen, platform }) => {
-  skipOnIosWhereHideIsNotSupported(platform);
+test('a tap straight after hide lands on the app, not the keyboard', async ({ screen }) => {
   await focusTextFieldAndWaitForKeyboard(screen);
 
   await screen.keyboard.hide();
   await screen.getByTestId('picker').tap();
 
   await expect(screen.getByText('Option B')).toBeVisible();
-});
-
-test('hide fails with a clear error on iOS', async ({ screen, platform }) => {
-  test.skip(platform !== 'ios', 'iOS only');
-
-  await expect(screen.keyboard.hide()).rejects.toThrow('not supported on iOS');
 });
