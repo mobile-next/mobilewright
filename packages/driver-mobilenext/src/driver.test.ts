@@ -100,3 +100,39 @@ test.describe('installApps on allocation', () => {
     expect(allocations).toEqual([{ fileIds: ['file-1'] }]);
   });
 });
+
+test.describe('keyboard RPC calls', () => {
+  type RecordedKeyboardCall = { method: string; params: unknown; timeoutMs?: number };
+
+  function driverRecordingKeyboardCalls(): { driver: MobileNextDriver; calls: RecordedKeyboardCall[] } {
+    const driver = new MobileNextDriver({ apiKey: 'test-key' } as any);
+    const calls: RecordedKeyboardCall[] = [];
+    (driver as any).session = {
+      deviceId: 'device-1',
+      rpc: {
+        call: async (method: string, params: unknown, timeoutMs?: number) => {
+          calls.push({ method, params, timeoutMs });
+          return { visible: true };
+        },
+      },
+    };
+    return { driver, calls };
+  }
+
+  test('isKeyboardVisible asks device.io.keyboard.status and returns visible', async () => {
+    const { driver, calls } = driverRecordingKeyboardCalls();
+
+    const visible = await driver.isKeyboardVisible();
+
+    expect(visible).toBe(true);
+    expect(calls[0]?.method).toBe('device.io.keyboard.status');
+  });
+
+  test('hideKeyboard calls device.io.keyboard.hide with a longer timeout', async () => {
+    const { driver, calls } = driverRecordingKeyboardCalls();
+
+    await driver.hideKeyboard();
+
+    expect(calls).toEqual([{ method: 'device.io.keyboard.hide', params: { deviceId: 'device-1' }, timeoutMs: 60_000 }]);
+  });
+});

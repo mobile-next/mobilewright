@@ -547,3 +547,41 @@ test('installApp() with a path that does not exist reports the path instead of a
   const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
   await expect(driver.installApp('/no/such/dir/app.apk')).rejects.toThrow(`App file not found: ${resolve('/no/such/dir/app.apk')}`);
 });
+
+test.describe('keyboard RPC calls', () => {
+  function timeoutsOfRpcCalls(driver: MobilecliDriver): Array<number | undefined> {
+    const timeouts: Array<number | undefined> = [];
+    (driver as any).session.rpc.call = async (_method: string, _params: unknown, timeoutMs?: number) => {
+      timeouts.push(timeoutMs);
+    };
+    return timeouts;
+  }
+
+  test('isKeyboardVisible asks device.io.keyboard.status and returns visible', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const calls = recordRpc(driver, { 'device.io.keyboard.status': { visible: true } });
+
+    const visible = await driver.isKeyboardVisible();
+
+    expect(visible).toBe(true);
+    expect(calls).toEqual([{ method: 'device.io.keyboard.status', params: { deviceId: SIMULATOR_DEVICE_ID } }]);
+  });
+
+  test('hideKeyboard calls device.io.keyboard.hide', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const calls = recordRpc(driver, {});
+
+    await driver.hideKeyboard();
+
+    expect(calls).toEqual([{ method: 'device.io.keyboard.hide', params: { deviceId: SIMULATOR_DEVICE_ID } }]);
+  });
+
+  test('hideKeyboard allows longer than the default request timeout', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const timeouts = timeoutsOfRpcCalls(driver);
+
+    await driver.hideKeyboard();
+
+    expect(timeouts).toEqual([60_000]);
+  });
+});

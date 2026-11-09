@@ -23,7 +23,9 @@ function driverThatCannotCloseTheKeyboard(): FakeKeyboardDriver {
 }
 
 test('isVisible reports what the driver sees', async () => {
-  expect(await keyboardOn(driverWithVisibleKeyboard()).isVisible()).toBe(true);
+  const visible = await keyboardOn(driverWithVisibleKeyboard()).isVisible();
+
+  expect(visible).toBe(true);
 });
 
 test('hide fails when the keyboard stays up', async () => {

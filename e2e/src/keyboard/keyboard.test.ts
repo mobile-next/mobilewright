@@ -24,13 +24,17 @@ test.beforeEach(async ({ device, screen }) => {
 });
 
 test('isVisible is false when no field is focused', async ({ screen }) => {
-  expect(await screen.keyboard.isVisible()).toBe(false);
+  const visible = await screen.keyboard.isVisible();
+
+  expect(visible).toBe(false);
 });
 
 test('isVisible is true when a text field is focused', async ({ screen }) => {
   await focusTextFieldAndWaitForKeyboard(screen);
 
-  expect(await screen.keyboard.isVisible()).toBe(true);
+  const visible = await screen.keyboard.isVisible();
+
+  expect(visible).toBe(true);
 });
 
 test('hide closes the keyboard', async ({ screen }) => {
@@ -38,7 +42,9 @@ test('hide closes the keyboard', async ({ screen }) => {
 
   await screen.keyboard.hide();
 
-  expect(await screen.keyboard.isVisible()).toBe(false);
+  const visible = await screen.keyboard.isVisible();
+
+  expect(visible).toBe(false);
 });
 
 test('hide with no keyboard showing stays on the same screen', async ({ screen }) => {

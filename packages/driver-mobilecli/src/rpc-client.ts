@@ -106,6 +106,7 @@ export class RpcClient {
   async call<T = unknown>(
     method: string,
     params?: Record<string, unknown>,
+    timeoutMs = this.requestTimeout,
   ): Promise<T> {
     await this.connect();
     const ws = this.ws;
@@ -125,9 +126,9 @@ export class RpcClient {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(
-          new Error(`RPC call "${method}" timed out after ${this.requestTimeout}ms`),
+          new Error(`RPC call "${method}" timed out after ${timeoutMs}ms`),
         );
-      }, this.requestTimeout);
+      }, timeoutMs);
 
       this.pending.set(id, {
         resolve: resolve as (value: unknown) => void,
