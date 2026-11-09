@@ -15,6 +15,7 @@ import { WebViewLocator } from './webview-locator.js';
 import type { Role } from './query-engine.js';
 import { findDialog, type Dialog, type DialogHandler } from './dialog.js';
 import { sleep } from './sleep.js';
+import { Keyboard } from './keyboard.js';
 
 const DEFAULT_TIMEOUT = 5_000;
 const DEFAULT_POLL_INTERVAL = 100;
@@ -33,6 +34,9 @@ export interface WaitForDialogOptions {
 }
 
 export class Screen {
+  /** The on-screen keyboard. */
+  readonly keyboard: Keyboard;
+
   private readonly root: Locator;
   private readonly driver: MobilewrightDriver;
   private readonly dialogDriver: MobilewrightDriver;
@@ -56,6 +60,7 @@ export class Screen {
       },
     });
     this.root = Locator.root(this.driver, locatorDefaults);
+    this.keyboard = new Keyboard(this.driver, (title, fn) => this._step(title, fn));
     // Dialog buttons are tapped through this driver: an answered dialog that shows up again is a new event.
     this.dialogDriver = new Proxy(rawDriver, {
       get: (target, prop) => {

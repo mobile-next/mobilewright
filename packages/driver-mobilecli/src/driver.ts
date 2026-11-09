@@ -78,6 +78,10 @@ interface MobilecliElement {
   focused?: boolean;
 }
 
+interface MobilecliKeyboardStatusResponse {
+  visible: boolean;
+}
+
 interface MobilecliAppEntry {
   packageName?: string;
   bundleId?: string;
@@ -557,6 +561,15 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobilecliKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide');
   }
 
   // ─── Screen Operations ───────────────────────────────────────

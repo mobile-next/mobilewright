@@ -52,6 +52,10 @@ interface MobileNextElement {
   enabled?: boolean;
 }
 
+interface MobileNextKeyboardStatusResponse {
+  visible: boolean;
+}
+
 interface MobileNextAppEntry {
   packageName?: string;
   bundleId?: string;
@@ -349,6 +353,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobileNextKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide');
   }
 
   // ─── Screen ─────────────────────────────────────────────────
