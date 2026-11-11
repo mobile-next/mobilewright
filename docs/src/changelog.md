@@ -7,6 +7,13 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.69] (2026-11-11)
+* Feat: add `screen.keyboard.isVisible()` and `screen.keyboard.hide()`, with `hide()` working on real iOS devices in debuggable apps. Custom drivers must now implement `isKeyboardVisible()` and `hideKeyboard()` ([#446](https://github.com/mobile-next/mobilewright/pull/446))
+* Feat(cli): `mobilewright test` accepts `--repeat-each`, `--max-failures`, `-x`, `--fail-on-flaky-tests`, `--forbid-only` and the `-g`/`-G`/`-j` short flags ([#444](https://github.com/mobile-next/mobilewright/pull/444))
+* Fix(Android): System UI is left out of the UI dump, so locators no longer match status bar elements ([mobilecli#556](https://github.com/mobile-next/mobilecli/pull/556))
+* Fix(Android): screen size and orientation follow the display rotation ([mobilecli#545](https://github.com/mobile-next/mobilecli/pull/545)), thanks to [@edusperoni](https://github.com/edusperoni)
+* Chore: upgrade bundled mobilecli to 1.0.23 ([#447](https://github.com/mobile-next/mobilewright/pull/447))
+
 ## [0.0.68] (2026-11-01)
 * Feat(Android): `screen.on('dialog')`, `waitForEvent('dialog')` and `getByRole('alert')` detect Jetpack Compose Material3 alert dialogs ([#423](https://github.com/mobile-next/mobilewright/pull/423))
 * Fix: `expect(page)` from `@playwright/test` works with a webview page ([#385](https://github.com/mobile-next/mobilewright/pull/385))
