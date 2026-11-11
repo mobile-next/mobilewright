@@ -15,7 +15,7 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./guides/*": "./guides/*"
+    "./skills/*": "./skills/*"
   },
   "scripts": {
     "build": "tsc -b",
@@ -33,7 +33,7 @@
     "dist",
     "assets",
     "templates",
-    "guides"
+    "skills"
   ],
   "dependencies": {
     "@mobilewright/core": "^0.0.1",

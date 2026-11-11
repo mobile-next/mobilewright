@@ -1,8 +1,13 @@
-# Writing Mobilewright tests
+---
+name: mobilewright-write-tests
+description: Turns a mobile app flow into repeatable Mobilewright tests and runs them in GitHub Actions on Mobile Next Cloud devices. Use when asked to write smoke, acceptance or regression tests for an iOS or Android app, to turn a flow explored with Mobile MCP into tests, or to add Mobilewright tests to CI.
+---
 
-This guide is for an AI agent. Follow the steps in order. Every command and API name below matches the `mobilewright` version that ships this file.
+# Write Mobilewright tests
 
-## 1. When to use this guide
+Follow the steps in order. Every command and API name below matches the `mobilewright` version that ships this skill.
+
+## 1. When to use this skill
 
 Use it when the user wants a flow turned into repeatable Mobilewright tests, optionally running in CI. The flow is one you explored on a device with Mobile MCP, or one the user describes.
 
@@ -203,6 +208,8 @@ jobs:
 
   test:
     needs: build
+    # Fork pull requests get no secrets, so there is no device to test on.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -235,7 +242,7 @@ Adjust it to the project:
 - Add every login variable from section 7 to the test job's `env`, from `secrets`.
 - Don't turn on video recording. Failure screenshots are always captured.
 
-There is no emulator fallback. The workflow requires `MOBILENEXT_API_KEY`. Tell the user to create an API key at mobilenext.ai and add it as a repository secret named `MOBILENEXT_API_KEY`.
+There is no emulator fallback. The workflow requires `MOBILENEXT_API_KEY`. GitHub doesn't pass secrets to pull requests from forks, so keep the `if:` on the test job: it skips the tests on those pull requests instead of failing them. Tell the user to create an API key at mobilenext.ai and add it as a repository secret named `MOBILENEXT_API_KEY`.
 
 ## 10. Final message to the user
 
