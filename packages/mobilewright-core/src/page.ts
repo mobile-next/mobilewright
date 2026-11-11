@@ -3,7 +3,7 @@ import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { sleep } from './sleep.js';
 import { runStep } from './stackTrace.js';
-import { MobileWebViewLocator } from './web-locator.js';
+import { MobileWebViewLocator, type WebViewNativeInput } from './web-locator.js';
 import { type ExpectedTextValue } from './web-expect-matcher.js';
 import {
   bootstrapScript,
@@ -128,6 +128,8 @@ export class MobileWebViewPage {
   // it they refuse the page with "can be only used with Page object".
   _apiName = 'Page';
   _stepFn: StepFn | null = null;
+  // Device input for real taps and typing; set by screen.getByWebView().page().
+  _nativeInput: WebViewNativeInput | null = null;
   private _url = 'about:blank';
   private readonly _frame: MobileWebViewMainFrame;
 
@@ -163,6 +165,7 @@ export class MobileWebViewPage {
   private locatorFor(selector: string): MobileWebViewLocator {
     const loc = new MobileWebViewLocator(this.session, selector);
     loc._stepFn = this._stepFn;
+    loc._nativeInput = this._nativeInput;
     return loc;
   }
 
