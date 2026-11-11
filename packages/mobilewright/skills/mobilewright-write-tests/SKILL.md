@@ -175,6 +175,7 @@ if (process.env.MOBILENEXT_API_KEY) {
   config.driver = new MobileNextDriver();
   config.deviceType = 'real';
   config.installApps = ['./build/app.ipa'];
+  config.reporter = [['list'], ['html']];
 }
 
 export default defineConfig(config);
@@ -197,6 +198,8 @@ permissions:
 
 jobs:
   build:
+    # Pull requests from forks and Dependabot get no secrets, so there is no device to test on.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -208,8 +211,7 @@ jobs:
 
   test:
     needs: build
-    # Fork pull requests get no secrets, so there is no device to test on.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -224,7 +226,7 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
-      - run: npx mobilewright test --reporter list,html
+      - run: npx mobilewright test
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
@@ -238,11 +240,13 @@ jobs:
 Adjust it to the project:
 
 - Replace the build step with the repository's real build. If a workflow already builds the app, reuse its artifact instead of building again.
-- Tests in `mobile-tests/`: set `defaults.run.working-directory: mobile-tests` on the test job and adjust the paths.
+- Tests in `mobile-tests/`: set `defaults.run.working-directory: mobile-tests` on the test job. Paths in the config resolve from the config's directory, so `installApps` becomes `'../build/app.ipa'`, and the report paths to upload become `mobile-tests/mobilewright-report/` and `mobile-tests/test-results/`.
 - Add every login variable from section 7 to the test job's `env`, from `secrets`.
 - Don't turn on video recording. Failure screenshots are always captured.
 
-There is no emulator fallback. The workflow requires `MOBILENEXT_API_KEY`. GitHub doesn't pass secrets to pull requests from forks, so keep the `if:` on the test job: it skips the tests on those pull requests instead of failing them. Tell the user to create an API key at mobilenext.ai and add it as a repository secret named `MOBILENEXT_API_KEY`.
+There is no emulator fallback. The workflow requires `MOBILENEXT_API_KEY`. GitHub doesn't pass secrets to pull requests from forks or from Dependabot, so keep the `if:` on both jobs, or on the test job when you reuse an existing build: it skips the tests on those pull requests instead of failing them. Tell the user to create an API key at mobilenext.ai and add it as a repository secret named `MOBILENEXT_API_KEY`.
+
+Set reporters in the config, never with `--reporter` on the command line. The command-line flag replaces every configured reporter, including the one that uploads results to Mobile Next.
 
 ## 10. Final message to the user
 
