@@ -233,7 +233,7 @@ Adjust it to the project:
 - Replace the build step with the repository's real build. If a workflow already builds the app, reuse its artifact instead of building again.
 - Tests in `mobile-tests/`: set `defaults.run.working-directory: mobile-tests` on the test job and adjust the paths.
 - Add every login variable from section 7 to the test job's `env`, from `secrets`.
-- Leave video off. Failure screenshots are always captured.
+- Don't turn on video recording. Failure screenshots are always captured.
 
 There is no emulator fallback. The workflow requires `MOBILENEXT_API_KEY`. Tell the user to create an API key at mobilenext.ai and add it as a repository secret named `MOBILENEXT_API_KEY`.
 
