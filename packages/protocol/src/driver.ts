@@ -162,6 +162,10 @@ export interface MobilewrightSession {
   gesture(gestures: GestureSequence): Promise<void>;
   /** Press a hardware button (e.g. home, back, volume). */
   pressButton(button: HardwareButton): Promise<void>;
+  /** Whether the software keyboard is showing. */
+  isKeyboardVisible(): Promise<boolean>;
+  /** Close the software keyboard. Does nothing if none is showing, and fails if it stays up. On real iOS devices it only works in debuggable apps. */
+  hideKeyboard(): Promise<void>;
 
   // Screen
   /** Capture a screenshot of the device screen as a PNG buffer. */

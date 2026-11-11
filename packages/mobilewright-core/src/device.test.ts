@@ -24,6 +24,8 @@ function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
     swipe: async () => {},
     gesture: async () => {},
     pressButton: async () => {},
+    isKeyboardVisible: async () => false,
+    hideKeyboard: async () => {},
     screenshot: async () => Buffer.from(''),
     getScreenSize: async () => screenSize,
     getOrientation: async () => 'portrait' as Orientation,

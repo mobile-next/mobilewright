@@ -52,6 +52,14 @@ interface MobileNextElement {
   enabled?: boolean;
 }
 
+// The first hide in an app injects an agent, which can be slow. This matches
+// the write deadline mobilecli gives the method.
+const HIDE_KEYBOARD_TIMEOUT_MS = 60_000;
+
+interface MobileNextKeyboardStatusResponse {
+  visible: boolean;
+}
+
 interface MobileNextAppEntry {
   packageName?: string;
   bundleId?: string;
@@ -351,6 +359,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.button', { button });
   }
 
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobileNextKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide', undefined, HIDE_KEYBOARD_TIMEOUT_MS);
+  }
+
   // ─── Screen ─────────────────────────────────────────────────
 
   async screenshot(opts?: ScreenshotOptions): Promise<Buffer> {
@@ -575,9 +592,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     return fileId;
   }
 
-  private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  private call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const session = this.requireSession();
-    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params });
+    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params }, timeoutMs);
   }
 
   private requireSession() {

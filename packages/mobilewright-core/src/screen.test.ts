@@ -37,6 +37,8 @@ function createMockDriver(): MobilewrightDriver & { _tracker: CallTracker } {
     swipe: async () => {},
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async () => {},
+    isKeyboardVisible: async () => false,
+    hideKeyboard: async () => {},
     screenshot: async () => Buffer.from(''),
     getScreenSize: async () => ({ width: 390, height: 844, scale: 3 }),
     getOrientation: async () => 'portrait' as Orientation,

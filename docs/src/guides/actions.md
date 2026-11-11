@@ -113,6 +113,18 @@ await screen.goBack(); // Android — shorthand for pressButton('BACK')
 
 Available buttons: `HOME`, `BACK`, `POWER`, `VOLUME_UP`, `VOLUME_DOWN`, `ENTER`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`, `DPAD_CENTER`, `APP_SWITCH`, `LOCK`.
 
+### On-screen keyboard
+
+```ts
+if (await screen.keyboard.isVisible()) {
+  await screen.keyboard.hide();
+}
+```
+
+`isVisible()` tracks the software keyboard only, so it is `false` when a hardware keyboard is in use. `hide()` waits until the keyboard has closed, does nothing if none is showing, and throws if the keyboard stays up. On Android it never navigates back when the keyboard is already closed.
+
+On real iOS devices `hide()` only works in debuggable apps, so it throws for system apps, App Store apps and release builds. On iOS simulators it only works in apps you installed. On iOS the first call for an app can take several seconds, because Mobilewright attaches to the app.
+
 ### Custom gestures
 
 For multi-touch or precisely-timed paths, `gesture` takes one or more pointer paths. Each pointer is an array of points; `time` is the offset in ms from the start of the gesture.
