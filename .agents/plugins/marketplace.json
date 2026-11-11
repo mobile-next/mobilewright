@@ -1,0 +1,12 @@
+{
+  "name": "mobilewright",
+  "interface": { "displayName": "Mobilewright" },
+  "plugins": [
+    {
+      "name": "mobilewright",
+      "source": { "source": "local", "path": "./packages/mobilewright" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "mobilewright",
+  "description": "Skills for writing Mobilewright tests.",
+  "owner": {
+    "name": "Mobile Next",
+    "url": "https://mobilewright.dev"
+  },
+  "plugins": [
+    {
+      "name": "mobilewright",
+      "source": "./packages/mobilewright",
+      "description": "Write Mobilewright tests for iOS and Android apps and run them in GitHub Actions."
+    }
+  ]
+}

@@ -75,6 +75,24 @@ await expect(screen.getByText('Welcome')).toBeVisible();
 
 No XPath. No coordinates. No vision model. The agent reads the accessibility tree and acts on it directly.
 
+### Agent skill: write tests
+
+The `mobilewright-write-tests` skill teaches an agent to turn an app flow into Mobilewright tests that match your project, and to run them in GitHub Actions. Install it as a plugin:
+
+```bash
+# Claude Code
+claude plugin marketplace add mobile-next/mobilewright
+claude plugin install mobilewright@mobilewright
+
+# Codex
+codex plugin marketplace add mobile-next/mobilewright
+codex plugin add mobilewright@mobilewright
+```
+
+In Cursor, copy `packages/mobilewright` into `~/.cursor/plugins/local/mobilewright`, then run **Developer: Reload Window**.
+
+The skill also ships in the npm package, at `mobilewright/skills/mobilewright-write-tests/SKILL.md`, for tools that read it from the installed package.
+
 ## Prerequisites
 
 - Node.js >= 22.12
