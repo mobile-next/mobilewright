@@ -1,0 +1,13 @@
+{
+  "name": "mobilewright",
+  "description": "Write Mobilewright tests for iOS and Android apps and run them in GitHub Actions.",
+  "author": {
+    "name": "Mobile Next",
+    "url": "https://mobilewright.dev"
+  },
+  "homepage": "https://mobilewright.dev",
+  "repository": "https://github.com/mobile-next/mobilewright",
+  "license": "Apache-2.0",
+  "keywords": ["mobilewright", "testing", "ios", "android", "mobile"],
+  "skills": "./skills/"
+}
