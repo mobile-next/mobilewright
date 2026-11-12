@@ -57,7 +57,7 @@ export function locatorForStrategy(strategy: LocatorStrategy): string {
     case 'type': return `screen.getByType(${q(strategy.value)})`;
     case 'role': return strategy.name === undefined
       ? `screen.getByRole(${q(strategy.value)})`
-      : `screen.getByRole(${q(strategy.value)}, { name: ${q(strategy.name)} })`;
+      : `screen.getByRole(${q(strategy.value)}, { name: ${q(strategy.name)}${strategy.exact ? ', exact: true' : ''} })`;
     case 'and': return `${locatorForStrategy(strategy.left)}.and(${locatorForStrategy(strategy.right)})`;
     case 'or': return `${locatorForStrategy(strategy.left)}.or(${locatorForStrategy(strategy.right)})`;
     case 'nth': {

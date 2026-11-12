@@ -75,8 +75,8 @@ export class Locator {
     return this.child({ kind: 'type', value: type });
   }
 
-  getByRole(role: Role, opts?: { name?: string | RegExp }): Locator {
-    return this.child({ kind: 'role', value: role, name: opts?.name });
+  getByRole(role: Role, opts?: { name?: string | RegExp; exact?: boolean }): Locator {
+    return this.child({ kind: 'role', value: role, name: opts?.name, exact: opts?.exact });
   }
 
   getByPlaceholder(placeholder: string, opts?: { exact?: boolean }): Locator {

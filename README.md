@@ -142,11 +142,12 @@ Entry point for finding and interacting with elements. Access via `device.screen
 ```typescript
 screen.getByLabel('Email')                          // accessibility label
 screen.getByTestId('login-button')                  // accessibility identifier
-screen.getByText('Welcome')                         // visible text (exact match)
+screen.getByText('welcome')                         // case-insensitive substring match (like Playwright)
+screen.getByText('Welcome', { exact: true })        // case-sensitive whole-string match
 screen.getByText(/welcome/i)                        // RegExp match
-screen.getByText('welcome', { exact: false })       // substring match
 screen.getByType('TextField')                       // element type
-screen.getByRole('button', { name: 'Sign In' })     // semantic role + name filter
+screen.getByRole('button', { name: 'sign in' })     // semantic role + name (substring, case-insensitive)
+screen.getByRole('button', { name: 'Sign In', exact: true })
 screen.getByPlaceholder('Search...')                // placeholder text
 ```
 
