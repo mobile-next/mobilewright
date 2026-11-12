@@ -33,6 +33,7 @@ const REQUIRED_SECTIONS = [
   '## 8. Verify locally',
   '## 9. CI',
   '## 10. Final message to the user',
+  '## 11. Common mistakes',
 ];
 
 type PackageJson = {
@@ -68,8 +69,8 @@ function pluginDirectoryOf(marketplaceFile: string): string {
 }
 
 function skillFrontmatter(): Record<string, string> {
-  const block = readFileSync(SKILL_PATH, 'utf8').split('---\n')[1];
-  const fields = block.split('\n').filter(Boolean).map((line) => {
+  const block = readFileSync(SKILL_PATH, 'utf8').split(/---\r?\n/)[1];
+  const fields = block.split(/\r?\n/).filter(Boolean).map((line) => {
     const separator = line.indexOf(': ');
     return [line.slice(0, separator), line.slice(separator + 2)];
   });
@@ -78,7 +79,7 @@ function skillFrontmatter(): Record<string, string> {
 
 function sectionHeadingsInSkill(): string[] {
   return readFileSync(SKILL_PATH, 'utf8')
-    .split('\n')
+    .split(/\r?\n/)
     .filter((line) => line.startsWith('## '));
 }
 

@@ -1,6 +1,6 @@
 ---
 name: mobilewright-write-tests
-description: Turns a mobile app flow into repeatable Mobilewright tests and runs them in GitHub Actions on Mobile Next Cloud devices. Use when asked to write smoke, acceptance or regression tests for an iOS or Android app, to turn a flow explored with Mobile MCP into tests, or to add Mobilewright tests to CI.
+description: Use when asked to write smoke, acceptance or regression tests for an iOS or Android app, to turn a flow explored with Mobile MCP into repeatable tests, or to run Mobilewright tests in GitHub Actions.
 ---
 
 # Write Mobilewright tests
@@ -128,6 +128,7 @@ Known limitation: Mobilewright reuses a device for several tests in a run and in
 
 - Read credentials from `process.env` in tests or in the config. Never hardcode them, and never write them into any file.
 - Log in through the UI, as the user would. There is no stored-session mechanism.
+- Use a dedicated test account, never a real person's. Text passed to `fill()` appears in the test report and in the results uploaded to Mobile Next, so anyone who can read the CI artifacts can read that password. Tell the user this in the final message.
 - Keep a list of every environment variable the tests read. The final message needs it.
 
 ## 8. Verify locally
@@ -142,13 +143,15 @@ npx mobilewright test login.test.ts
 
 All three runs must pass. A test that passes only sometimes isn't done.
 
+A first-launch test (section 6) needs a device without app data on every run, and you must not clear it yourself. Before each of its three runs, ask the user to delete the app from the device, and wait until they confirm. Run first-launch test files on their own, not together with other test files.
+
 If a test fails because the app behaves wrongly, don't change the assertion to match the app. Report it to the user as a probable bug, with the step, the expected result and the actual result.
 
 Never commit or push. Leave the changes in the working tree for the user.
 
 ## 9. CI
 
-**Only if `.github/` exists.** Otherwise give the user the run command, `npx mobilewright test`, and stop. Don't write GitLab, Bitrise or CircleCI config.
+**Only if `.github/workflows/` contains at least one workflow file.** If `.github/` exists without workflows, ask the user whether to add one. If there is no `.github/`, give the user the run command, `npx mobilewright test`, and stop. Don't write GitLab, Bitrise or CircleCI config.
 
 If a workflow already runs `mobilewright`, extend it. Otherwise create `.github/workflows/mobilewright.yml`.
 
@@ -239,6 +242,16 @@ jobs:
 
 Adjust it to the project:
 
+- Install with the package manager the lockfile names, as in section 3:
+
+  | Lockfile | Setup step | Install command |
+  | --- | --- | --- |
+  | `package-lock.json` | `actions/setup-node@v4` | `npm ci` |
+  | `pnpm-lock.yaml` | `pnpm/action-setup@v4`, then `actions/setup-node@v4` | `pnpm install --frozen-lockfile` |
+  | `yarn.lock` | `actions/setup-node@v4` | `yarn install --immutable` (Yarn 2+) or `yarn install --frozen-lockfile` (Yarn 1) |
+  | `bun.lock` or `bun.lockb` | `oven-sh/setup-bun@v2` | `bun install --frozen-lockfile` |
+
+  Run the tests with the same manager: `pnpm exec mobilewright test`, `yarn mobilewright test` or `bunx mobilewright test`.
 - Replace the build step with the repository's real build. If a workflow already builds the app, reuse its artifact instead of building again.
 - Tests in `mobile-tests/`: set `defaults.run.working-directory: mobile-tests` on the test job. Paths in the config resolve from the config's directory, so `installApps` becomes `'../build/app.ipa'`, and the report paths to upload become `mobile-tests/mobilewright-report/` and `mobile-tests/test-results/`.
 - Add every login variable from section 7 to the test job's `env`, from `secrets`.
@@ -256,5 +269,19 @@ End with this checklist:
 - how to run the tests locally (`npx mobilewright test`),
 - secrets to add to the repository: `MOBILENEXT_API_KEY` and every login variable,
 - the first-launch limitation from section 6, if the tests cover a first-launch flow,
+- that the test account's password appears in test reports and uploaded results (section 7),
 - probable app bugs you found, each with the step, the expected result and the actual result,
 - elements that need an accessibility identifier.
+
+## 11. Common mistakes
+
+| Mistake | Do instead |
+| --- | --- |
+| Tapping coordinates, or using a Mobile MCP `ref` | `getByTestId`, then `getByText` / `getByLabel`, then `getByRole` (section 5) |
+| Changing an assertion until the test passes | Report a probable app bug (section 8) |
+| Calling `clearAppData()`, uninstalling or reinstalling the app | Ask the user to delete the app (section 8) |
+| Hardcoding a password, or writing it to `.env` | Read it from `process.env` (section 7) |
+| `npx mobilewright test --reporter ...` in CI | Set `reporter` in the config; the flag drops the Mobile Next upload |
+| `npm ci` in a pnpm, Yarn or Bun repository | The lockfile's install command (section 9) |
+| Removing the `if:` from the CI jobs | Keep it; fork and Dependabot pull requests get no secrets |
+| Committing or pushing | Leave changes in the working tree |
