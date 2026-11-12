@@ -13,7 +13,8 @@ export type ElementJson = ReturnType<typeof toElementJson>;
 
 /** One captured moment of the device screen. */
 export interface InspectedScreen {
-  screenshot: Buffer;
+  /** Null when the device could not capture the screen, e.g. the app blocks screen capture. */
+  screenshot: Buffer | null;
   screen: { width: number; height: number; scale: number };
   elements: ElementJson[];
   /** SHA-1 over screenshot, screen and elements: equal etags mean an identical capture. */
@@ -29,7 +30,7 @@ const RETRY_DELAY_MS = 1500;
 const OP_TIMEOUT_MS = 10_000;
 
 type CaptureKey = 'screenshot' | 'tree' | 'size';
-type Capture = { screenshot: Buffer; tree: ViewNode[]; size: ScreenSize };
+type Capture = { screenshot: Buffer | null; tree: ViewNode[]; size: ScreenSize };
 
 /**
  * Capture the screen at `scale` (0 < scale <= 1). `screenSize` is injected so the caller can
@@ -71,9 +72,9 @@ function toElementJson({ node, locator, locators, depth }: ElementEntry, index: 
   };
 }
 
-function etagOf(screenshot: Buffer, screen: InspectedScreen['screen'], elements: ElementJson[]): string {
+function etagOf(screenshot: Buffer | null, screen: InspectedScreen['screen'], elements: ElementJson[]): string {
   return createHash('sha1')
-    .update(screenshot)
+    .update(screenshot ?? '')
     .update(JSON.stringify(screen))
     .update(JSON.stringify(elements))
     .digest('hex');
@@ -122,9 +123,14 @@ async function captureWithRetry(captures: { [K in CaptureKey]: () => Promise<Cap
     }
   }
 
-  const missing = keys.filter(key => !isDone(key));
+  // Some devices fail the screenshot of a screen the app protects from capture. The elements
+  // are still worth showing, so only the tree and size are required.
+  const missing = keys.filter(key => !isDone(key) && key !== 'screenshot');
   if (missing.length > 0) {
     throw new Error(`Inspect failed: ${missing.join(', ')} did not complete`);
   }
-  return results as Capture;
+  if (!isDone('screenshot')) {
+    logger.warn('Inspect screenshot did not complete; returning the elements without it');
+  }
+  return { screenshot: null, ...results } as Capture;
 }
