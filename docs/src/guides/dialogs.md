@@ -65,13 +65,15 @@ The dialog is left for you to answer. Pass a predicate, or `{ predicate, timeout
 
 ## Resetting permissions between runs
 
-Once a permission is granted, or denied twice, Android stops asking. On Android, clear the app's data before the test to get the prompt back:
+Once a permission is granted, the device stops asking. So does iOS after one denial, and Android after two. Clear the app's data before the test to get the prompt back:
 
 ```typescript
-test.beforeEach(async ({ device }) => {
-  await device.clearAppData('com.example.app');  // also resets runtime permissions
-  await device.launchApp('com.example.app');
+test.use({ bundleId: 'com.example.app' });
+
+test.beforeEach(async ({ app, device }) => {
+  await app.clearData();  // also resets permissions, and stops the app
+  await device.launchApp(app.bundleId);
 });
 ```
 
-On an iOS simulator, `clearAppData()` does not reset permissions. Run `xcrun simctl privacy <udid> reset all <bundle id>` to reset camera, location and the other privacy permissions; notifications only reset when you reinstall the app.
+`app.clearData()` resets permissions on Android and on iOS simulators. Notifications on an iOS simulator are the exception: they only reset when you reinstall the app. On a real iOS device `clearData()` throws, because clearing app data is not supported there.

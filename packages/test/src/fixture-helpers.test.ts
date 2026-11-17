@@ -7,6 +7,7 @@ import {
   isRemoteAppReference,
   mergeDeviceConfig,
   assertSupportedPlatform,
+  requireBundleIdForApp,
   annotationsForDevice,
   connectOptionsFor,
   allocationTimeoutFor,
@@ -92,6 +93,17 @@ test.describe('assertSupportedPlatform', () => {
   test('rejects anything else, including a missing platform', () => {
     expect(() => assertSupportedPlatform(undefined)).toThrow('Unsupported platform: "undefined"');
     expect(() => assertSupportedPlatform('web')).toThrow('Must be "ios" or "android"');
+  });
+});
+
+test.describe('requireBundleIdForApp', () => {
+  test('returns the bundle id when there is one', () => {
+    expect(requireBundleIdForApp('com.example.app')).toBe('com.example.app');
+  });
+
+  test('rejects a missing or empty bundle id and says how to set it', () => {
+    expect(() => requireBundleIdForApp(undefined)).toThrow('The "app" fixture needs a bundleId');
+    expect(() => requireBundleIdForApp('')).toThrow('test.use({ bundleId })');
   });
 });
 

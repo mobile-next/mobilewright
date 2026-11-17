@@ -15,12 +15,13 @@ import {
   terminateAppIfRunning,
 } from 'mobilewright';
 import { expect, setSoftFailureHandler, setDefaultStepFn } from '@mobilewright/core';
-import type { Device, Screen, StepFn } from '@mobilewright/core';
+import type { App, Device, Screen, StepFn } from '@mobilewright/core';
 import {
   assertValidZipFile,
   isRemoteAppReference,
   mergeDeviceConfig,
   assertSupportedPlatform,
+  requireBundleIdForApp,
   annotationsForDevice,
   connectOptionsFor,
   allocationTimeoutFor,
@@ -68,6 +69,7 @@ type MobilewrightTestFixtures = {
   installApps: string | string[] | undefined;
   viewTree: 'on-failure' | 'off';
   device: Device;
+  app: App;
   expectStepReporting: void;
 };
 
@@ -186,6 +188,14 @@ export const test = base.extend<MobilewrightTestFixtures>({
       await client.release(handle.allocationId);
     }
   }, { timeout: 0 }],
+
+  app: async ({ device, bundleId }, use) => {
+    // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests app
+    if (!device) {
+      throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
+    }
+    await use(device.app(requireBundleIdForApp(bundleId)));
+  },
 
   screen: async ({ device, video, viewTree }, use, testInfo) => {
     // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests screen
