@@ -65,9 +65,11 @@ The dialog is left for you to answer. Pass a predicate, or `{ predicate, timeout
 
 ## Resetting permissions between runs
 
-Once a permission is granted or denied, the device stops asking. Clear the app's data before the test to get the prompt back:
+Once a permission is granted, the device stops asking. So does iOS after one denial, and Android after two. Clear the app's data before the test to get the prompt back:
 
 ```typescript
+test.use({ bundleId: 'com.example.app' });
+
 test.beforeEach(async ({ app, device }) => {
   await app.clearData();  // also resets permissions, and stops the app
   await device.launchApp('com.example.app');

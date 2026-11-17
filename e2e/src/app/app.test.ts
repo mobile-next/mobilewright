@@ -1,5 +1,5 @@
 import { test, expect } from '@mobilewright/test';
-import type { Screen } from 'mobilewright';
+import type { App, Device, Dialog, Screen } from 'mobilewright';
 import type { TestInfo } from '@playwright/test';
 
 const PLAYGROUND_APP = 'com.mobilenext.playground';
@@ -26,24 +26,46 @@ async function openPermissionsAndAlerts(screen: Screen): Promise<void> {
   await requestCameraButton(screen).scrollIntoViewIfNeeded();
 }
 
-async function grantCamera(screen: Screen): Promise<void> {
-  // the prompt only shows when the camera was not answered before; either way the status ends up Granted
-  screen.on('dialog', (dialog) => dialog.accept());
+function acceptPermissionPrompts(screen: Screen): Dialog[] {
+  const prompts: Dialog[] = [];
+  screen.on('dialog', async (dialog) => {
+    prompts.push(dialog);
+    await dialog.accept();
+  });
+  return prompts;
+}
+
+async function requestCameraAndWaitUntilGranted(screen: Screen): Promise<void> {
   await requestCameraButton(screen).tap();
   await expect(cameraStatus(screen)).toHaveText('Granted');
 }
 
+async function clearDataAndRelaunch(app: App, device: Device): Promise<void> {
+  await app.clearData();
+  await device.launchApp(PLAYGROUND_APP);
+}
+
+async function foregroundBundleId(device: Device): Promise<string> {
+  return (await device.getForegroundApp()).bundleId;
+}
+
 // ─── app.clearData() ─────────────────────────────────────────────
 
-test('clearData resets a granted permission and stops the app', async ({ app, device, screen }, testInfo) => {
+test('clearData stops the app and resets a granted permission, so the prompt shows again', async ({ app, device, screen }, testInfo) => {
   test.skip(isRealIosDevice(testInfo), 'clearing app data is not supported on real iOS devices');
+  const prompts = acceptPermissionPrompts(screen);
+  // an earlier run may have left the camera granted or denied; start from a camera that was never asked
+  await clearDataAndRelaunch(app, device);
   await openPermissionsAndAlerts(screen);
-  await grantCamera(screen);
+  await requestCameraAndWaitUntilGranted(screen);
+  expect(prompts).toHaveLength(1);
 
   await app.clearData();
 
-  await expect.poll(async () => (await device.getForegroundApp()).bundleId).not.toBe(PLAYGROUND_APP);
+  await expect.poll(() => foregroundBundleId(device)).not.toBe(PLAYGROUND_APP);
   await device.launchApp(PLAYGROUND_APP);
   await openPermissionsAndAlerts(screen);
-  await expect(cameraStatus(screen)).not.toHaveText('Granted');
+  await requestCameraAndWaitUntilGranted(screen);
+  expect(prompts).toHaveLength(2);
+  expect(prompts[1].type()).toBe('permission');
 });

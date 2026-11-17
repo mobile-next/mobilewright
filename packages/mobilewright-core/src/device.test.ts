@@ -243,10 +243,14 @@ test.describe('Device.app', () => {
     return { driver, clearedBundleIds };
   }
 
-  test('returns an App', () => {
+  test('returns a new App on each call', () => {
     const device = new Device(createMockDriver({ width: 390, height: 844, scale: 3 }));
 
-    expect(device.app('com.test')).toBeInstanceOf(App);
+    const first = device.app('com.test');
+    const second = device.app('com.test');
+
+    expect(first).toBeInstanceOf(App);
+    expect(second).not.toBe(first);
   });
 
   test('clearData clears the data of that app', async () => {

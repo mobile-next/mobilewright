@@ -190,6 +190,10 @@ export const test = base.extend<MobilewrightTestFixtures>({
   }, { timeout: 0 }],
 
   app: async ({ device, bundleId }, use) => {
+    // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests app
+    if (!device) {
+      throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
+    }
     await use(device.app(requireBundleIdForApp(bundleId)));
   },
 
