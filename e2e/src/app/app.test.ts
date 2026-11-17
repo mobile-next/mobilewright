@@ -42,7 +42,7 @@ async function requestCameraAndWaitUntilGranted(screen: Screen): Promise<void> {
 
 async function clearDataAndRelaunch(app: App, device: Device): Promise<void> {
   await app.clearData();
-  await device.launchApp(PLAYGROUND_APP);
+  await device.launchApp(app.bundleId);
 }
 
 async function foregroundBundleId(device: Device): Promise<string> {
@@ -63,7 +63,7 @@ test('clearData stops the app and resets a granted permission, so the prompt sho
   await app.clearData();
 
   await expect.poll(() => foregroundBundleId(device)).not.toBe(PLAYGROUND_APP);
-  await device.launchApp(PLAYGROUND_APP);
+  await device.launchApp(app.bundleId);
   await openPermissionsAndAlerts(screen);
   await requestCameraAndWaitUntilGranted(screen);
   expect(prompts).toHaveLength(2);

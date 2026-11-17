@@ -5,7 +5,7 @@ type StepRunner = <T>(title: string, fn: () => Promise<T>) => Promise<T>;
 /** One app on a device, addressed by its bundle id. Get one from `device.app(bundleId)`. */
 export class App {
   private readonly driver: MobilewrightDriver;
-  private readonly bundleId: string;
+  readonly bundleId: string;
   private readonly step: StepRunner;
 
   constructor(driver: MobilewrightDriver, bundleId: string, step: StepRunner) {

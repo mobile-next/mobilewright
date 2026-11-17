@@ -72,7 +72,7 @@ test.use({ bundleId: 'com.example.app' });
 
 test.beforeEach(async ({ app, device }) => {
   await app.clearData();  // also resets permissions, and stops the app
-  await device.launchApp('com.example.app');
+  await device.launchApp(app.bundleId);
 });
 ```
 

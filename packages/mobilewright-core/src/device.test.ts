@@ -253,6 +253,12 @@ test.describe('Device.app', () => {
     expect(second).not.toBe(first);
   });
 
+  test('the App knows its bundle id', () => {
+    const device = new Device(createMockDriver({ width: 390, height: 844, scale: 3 }));
+
+    expect(device.app('com.test').bundleId).toBe('com.test');
+  });
+
   test('clearData clears the data of that app', async () => {
     const { driver, clearedBundleIds } = createClearRecordingDriver();
     const device = new Device(driver);
