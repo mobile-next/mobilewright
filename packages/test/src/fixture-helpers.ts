@@ -64,6 +64,13 @@ export function assertSupportedPlatform(platform: string | undefined): Platform 
   return platform;
 }
 
+export function requireBundleIdForApp(bundleId: string | undefined): string {
+  if (!bundleId) {
+    throw new Error('The "app" fixture needs a bundleId. Set it in the config or with test.use({ bundleId }).');
+  }
+  return bundleId;
+}
+
 export function annotationsForDevice(handle: AllocatedDevice): Annotation[] {
   const optional = (type: string, description: string | undefined): Annotation[] =>
     description ? [{ type, description }] : [];
