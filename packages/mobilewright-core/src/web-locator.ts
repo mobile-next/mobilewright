@@ -1,10 +1,10 @@
 import createDebug from 'debug';
 import type { Locator } from '@playwright/test';
 import type { Bounds, WebViewSession } from '@mobilewright/protocol';
-import type { StepFn } from './locator.js';
+import type { FillOptions, StepFn } from './locator.js';
 import { retryUntil } from './poll.js';
 import { sleep } from './sleep.js';
-import { runStep } from './stackTrace.js';
+import { runStep, typedTextInTitle } from './stackTrace.js';
 import {
   getByRoleSelector,
   getByTextSelector,
@@ -344,8 +344,8 @@ export class MobileWebViewLocator {
     });
   }
 
-  async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
+  async fill(text: string, opts?: FillOptions): Promise<void> {
+    return this._step(`locator.fill(${typedTextInTitle(text, opts?.mask)})`, async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
       await this.actOnFirst(
         `el.focus(); ${assignValueScript(JSON.stringify(text))} el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));`,
@@ -354,9 +354,9 @@ export class MobileWebViewLocator {
     });
   }
 
-  async type(text: string): Promise<void> {
-    return this._step(`locator.type(${JSON.stringify(text)})`, async () => {
-      await this.pollUntilVisible(DEFAULT_TIMEOUT);
+  async type(text: string, opts?: FillOptions): Promise<void> {
+    return this._step(`locator.type(${typedTextInTitle(text, opts?.mask)})`, async () => {
+      await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
       await this.actOnFirst(
         `el.focus(); ${assignValueScript(`(el.value || '') + ${JSON.stringify(text)}`)} el.dispatchEvent(new Event('input', { bubbles: true }));`,
         'locator.type()',

@@ -94,6 +94,8 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+`fill` and `type` put the typed text in the step title, which reports show. Pass `{ mask: true }` to keep a password or other secret out of it.
+
 ## Assertions
 
 Web views use Playwright's **web-first assertions**, which retry until the condition holds or the timeout elapses:
