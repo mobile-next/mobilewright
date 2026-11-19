@@ -110,17 +110,17 @@ import { test, expect } from '@mobilewright/test';
 
 test('signs in with email', async ({ screen }) => {
   await screen.getByTestId('email').fill(process.env.TEST_USER_EMAIL!);
-  await screen.getByTestId('password').fill(process.env.TEST_USER_PASSWORD!);
+  await screen.getByTestId('password').fill(process.env.TEST_USER_PASSWORD!, { mask: true });
   await screen.getByRole('button', { name: 'Sign in' }).tap();
   await expect(screen.getByText('Welcome back')).toBeVisible();
 });
 ```
 
-Locator actions: `tap()`, `doubleTap()`, `longPress()`, `fill(text)`, `clear()`, `check()`, `uncheck()`, `swipe({ direction })`, `scrollIntoViewIfNeeded()`. Assertions: `toBeVisible()`, `toBeHidden()`, `toBeEnabled()`, `toHaveText()`, `toContainText()`, `toHaveValue()`.
+Locator actions: `tap()`, `doubleTap()`, `longPress()`, `fill(text)`, `fill(secret, { mask: true })`, `clear()`, `check()`, `uncheck()`, `swipe({ direction })`, `scrollIntoViewIfNeeded()`. Assertions: `toBeVisible()`, `toBeHidden()`, `toBeEnabled()`, `toHaveText()`, `toContainText()`, `toHaveValue()`.
 
 ## 6. App state
 
-Tests assume the app starts with no data on the device. Don't call `device.clearAppData()`, and don't uninstall or reinstall the app.
+Tests assume the app starts with no data on the device. Don't call `app.clearData()` or `device.clearAppData()`, and don't uninstall or reinstall the app.
 
 Known limitation: Mobilewright reuses a device for several tests in a run and installs the app only once. Only the first test on each device starts with no app data. A first-launch flow (onboarding, permission prompts, a first-run tutorial) is reliable only as the first test a device runs. Decide how to structure the tests around this. If the tests cover a first-launch flow, tell the user about the limitation in your final message.
 
@@ -128,7 +128,8 @@ Known limitation: Mobilewright reuses a device for several tests in a run and in
 
 - Read credentials from `process.env` in tests or in the config. Never hardcode them, and never write them into any file.
 - Log in through the UI, as the user would. There is no stored-session mechanism.
-- Use a dedicated test account, never a real person's. Text passed to `fill()` appears in the test report and in the results uploaded to Mobile Next, so anyone who can read the CI artifacts can read that password. Tell the user this in the final message.
+- Fill every password, token or other secret with `fill(value, { mask: true })`. Without `mask`, the typed text appears in the test report and in the results uploaded to Mobile Next. `mask` needs a Mobilewright release after 0.0.70; if the project has an older one, tell the user to upgrade.
+- Use a dedicated test account, never a real person's. `mask` hides the text only in step titles: a screenshot or view tree saved on failure still shows whatever the field displays.
 - Keep a list of every environment variable the tests read. The final message needs it.
 
 ## 8. Verify locally
@@ -269,7 +270,6 @@ End with this checklist:
 - how to run the tests locally (`npx mobilewright test`),
 - secrets to add to the repository: `MOBILENEXT_API_KEY` and every login variable,
 - the first-launch limitation from section 6, if the tests cover a first-launch flow,
-- that the test account's password appears in test reports and uploaded results (section 7),
 - probable app bugs you found, each with the step, the expected result and the actual result,
 - elements that need an accessibility identifier.
 
@@ -279,8 +279,9 @@ End with this checklist:
 | --- | --- |
 | Tapping coordinates, or using a Mobile MCP `ref` | `getByTestId`, then `getByText` / `getByLabel`, then `getByRole` (section 5) |
 | Changing an assertion until the test passes | Report a probable app bug (section 8) |
-| Calling `clearAppData()`, uninstalling or reinstalling the app | Ask the user to delete the app (section 8) |
+| Calling `app.clearData()` or `clearAppData()`, uninstalling or reinstalling the app | Ask the user to delete the app (section 8) |
 | Hardcoding a password, or writing it to `.env` | Read it from `process.env` (section 7) |
+| `fill(password)` without `mask` | `fill(password, { mask: true })` (section 7) |
 | `npx mobilewright test --reporter ...` in CI | Set `reporter` in the config; the flag drops the Mobile Next upload |
 | `npm ci` in a pnpm, Yarn or Bun repository | The lockfile's install command (section 9) |
 | Removing the `if:` from the CI jobs | Keep it; fork and Dependabot pull requests get no secrets |
