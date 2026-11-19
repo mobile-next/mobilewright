@@ -8,7 +8,8 @@
     "node": ">=22.12.0"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "!packages/mcp"
   ],
   "scripts": {
     "sync:playwright": "node scripts/sync-playwright-injected-script.mjs",

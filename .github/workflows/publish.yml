@@ -34,6 +34,8 @@ jobs:
             npm publish --access public --dry-run --workspace "packages/$pkg"
             echo "::endgroup::"
           done
+          # mcp is outside the workspaces (its mobile-mcp dep pulls in a published mobilewright)
+          npm publish --access public --dry-run ./packages/mcp
       - name: Publish all packages
         run: |
           for pkg in $PACKAGES; do
@@ -41,6 +43,7 @@ jobs:
             npm publish --access public --provenance --workspace "packages/$pkg"
             echo "::endgroup::"
           done
+          npm publish --access public --provenance ./packages/mcp
       - name: Create or update GitHub release
         run: |
           VERSION=${GITHUB_REF_NAME#v}
