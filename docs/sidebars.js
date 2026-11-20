@@ -37,6 +37,7 @@ const sidebars = {
         'guides/assertions',
         'guides/auto-waiting',
         'guides/best-practices',
+        'guides/codegen',
         'guides/deep-links',
         'guides/dialogs',
         'guides/docker',
