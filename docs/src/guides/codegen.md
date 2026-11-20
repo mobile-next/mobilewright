@@ -141,9 +141,13 @@ The recorded steps are the same for both. Codegen remembers your choice for next
 
 ## Editing the code
 
-The code is editable. New steps are inserted before the end of the test, so changes you
-make by hand are kept while you keep recording. Switching **Target** rebuilds the code
-from the recorded steps, which discards hand edits.
+The code is editable. New steps are inserted just before the last `});` that closes the
+test (`await device.close();` in a Library script), so changes you make by hand are kept
+while you keep recording. Leave that closing line in place: if it is missing, new steps
+are added at the end of the file instead.
+
+Two things rebuild the code from the recorded steps and discard hand edits: switching
+**Target**, and, with **Library** selected, switching to a device on another platform.
 
 ## Stopping codegen
 
