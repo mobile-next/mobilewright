@@ -141,10 +141,14 @@ The recorded steps are the same for both. Codegen remembers your choice for next
 
 ## Editing the code
 
-The code is editable. New steps are inserted just before the last `});` that closes the
-test (`await device.close();` in a Library script), so changes you make by hand are kept
-while you keep recording. Leave that closing line in place: if it is missing, new steps
-are added at the end of the file instead.
+The code is editable, and changes you make by hand are kept while you keep recording.
+New steps are inserted just before the last `});` in the code (the last
+`await device.close();` in a Library script), which is normally the line that closes
+the test. Keep that line last while recording:
+
+- If you delete it, new steps are added at the end of the file instead.
+- If you add code after the test that also contains `});`, new steps are inserted
+  there instead of in the test.
 
 Two things rebuild the code from the recorded steps and discard hand edits: switching
 **Target**, and, with **Library** selected, switching to a device on another platform.
