@@ -12,6 +12,7 @@ import {
   connectOptionsFor,
   allocationTimeoutFor,
   videoPlan,
+  shouldAttachScreenshot,
   parseViewTreeOption,
   resolveInstallAppPaths,
 } from './fixture-helpers.js';
@@ -156,6 +157,43 @@ test.describe('timeout defaults', () => {
   test('allocationTimeout defaults to 15 min and honours use.allocationTimeout', () => {
     expect(allocationTimeoutFor({})).toBe(15 * 60_000);
     expect(allocationTimeoutFor({ use: { allocationTimeout: 1234 } })).toBe(1234);
+  });
+});
+
+test.describe('shouldAttachScreenshot', () => {
+  const passed = { failed: false, retry: 0 };
+  const failedFirstTry = { failed: true, retry: 0 };
+  const failedOnRetry = { failed: true, retry: 1 };
+
+  test('never attaches when screenshot is off', () => {
+    expect(shouldAttachScreenshot('off', passed)).toBe(false);
+    expect(shouldAttachScreenshot('off', failedFirstTry)).toBe(false);
+  });
+
+  test('always attaches when screenshot is on', () => {
+    expect(shouldAttachScreenshot('on', passed)).toBe(true);
+    expect(shouldAttachScreenshot('on', failedOnRetry)).toBe(true);
+  });
+
+  test('attaches every failure for only-on-failure', () => {
+    expect(shouldAttachScreenshot('only-on-failure', passed)).toBe(false);
+    expect(shouldAttachScreenshot('only-on-failure', failedFirstTry)).toBe(true);
+    expect(shouldAttachScreenshot('only-on-failure', failedOnRetry)).toBe(true);
+  });
+
+  test('attaches only the first try failure for on-first-failure', () => {
+    expect(shouldAttachScreenshot('on-first-failure', passed)).toBe(false);
+    expect(shouldAttachScreenshot('on-first-failure', failedFirstTry)).toBe(true);
+    expect(shouldAttachScreenshot('on-first-failure', failedOnRetry)).toBe(false);
+  });
+
+  test('reads the mode from the object form', () => {
+    expect(shouldAttachScreenshot({ mode: 'on', fullPage: true }, passed)).toBe(true);
+  });
+
+  test('attaches failures when screenshot is unset', () => {
+    expect(shouldAttachScreenshot(undefined, passed)).toBe(false);
+    expect(shouldAttachScreenshot(undefined, failedFirstTry)).toBe(true);
   });
 });
 

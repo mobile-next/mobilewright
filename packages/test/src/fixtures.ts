@@ -26,6 +26,7 @@ import {
   connectOptionsFor,
   allocationTimeoutFor,
   videoPlan,
+  shouldAttachScreenshot,
   parseViewTreeOption,
   resolveInstallAppPaths,
 } from './fixture-helpers.js';
@@ -73,6 +74,12 @@ type MobilewrightTestFixtures = {
   expectStepReporting: void;
 };
 
+// Playwright re-applies config and project `use` values only after a fixture declared with
+// { option: true }, so a plain default here would silently win over them. Its types don't allow
+// `option` when overriding a built-in option, hence the cast.
+type ScreenshotDefault = ['only-on-failure', { scope: 'worker' }];
+const SCREENSHOT_DEFAULT = ['only-on-failure', { scope: 'worker', option: true }] as unknown as ScreenshotDefault;
+
 async function allocateWithinTimeout(client: DevicePoolClient, criteria: AllocationCriteria, timeoutMs: number): Promise<AllocationHandle> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -113,6 +120,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
   deviceType: [undefined, { option: true }],
   osVersion: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
+  // Playwright's own option, defaulted to 'only-on-failure' so failures keep their screenshot
+  screenshot: SCREENSHOT_DEFAULT,
 
   viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
@@ -197,7 +206,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     await use(device.app(requireBundleIdForApp(bundleId)));
   },
 
-  screen: async ({ device, video, viewTree }, use, testInfo) => {
+  screen: async ({ device, video, screenshot, viewTree }, use, testInfo) => {
     // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests screen
     if (!device) {
       throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
@@ -232,13 +241,18 @@ export const test = base.extend<MobilewrightTestFixtures>({
       }
     }
 
-    if (testInfo.status !== testInfo.expectedStatus) {
+    const failed = testInfo.status !== testInfo.expectedStatus;
+
+    if (shouldAttachScreenshot(screenshot, { failed, retry: testInfo.retry })) {
       try {
-        const screenshot = await device.screen.screenshot();
-        await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
+        const image = await device.screen.screenshot();
+        await testInfo.attach(failed ? 'screenshot-on-failure' : 'screenshot', { body: image, contentType: 'image/png' });
       } catch {
         // device may be disconnected
       }
+    }
+
+    if (failed) {
       if (viewTree === 'on-failure') {
         try {
           const tree = await device.screen.viewTree();
