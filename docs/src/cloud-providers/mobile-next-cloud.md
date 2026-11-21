@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-mobilenext
 sidebar_position: 2
 title: Mobile Next Cloud
 ---
@@ -33,9 +34,7 @@ import { MobileNextDriver } from '@mobilewright/driver-mobilenext';
 export default defineConfig({
   testDir: './tests',
   bundleId: 'com.example.app',
-  driver: new MobileNextDriver({
-    apiKey: process.env.MOBILENEXT_API_KEY,
-  }),
+  driver: new MobileNextDriver(), // reads MOBILENEXT_API_KEY from the environment
   projects: [
     {
       name: 'ios',
@@ -47,6 +46,14 @@ export default defineConfig({
     },
   ],
 });
+```
+
+The API key is read from the `MOBILENEXT_API_KEY` environment variable. To supply it some
+other way, pass it explicitly — an explicit `apiKey` always takes precedence over the
+environment variable:
+
+```ts
+driver: new MobileNextDriver({ apiKey: loadKeyFromVault() }),
 ```
 
 Device selection uses the standard config fields — `platform`, `deviceType`, `deviceName`,
@@ -73,7 +80,7 @@ const config: MobilewrightConfig = {
 };
 
 if (process.env.MOBILENEXT_API_KEY) {
-  config.driver = new MobileNextDriver({ apiKey: process.env.MOBILENEXT_API_KEY });
+  config.driver = new MobileNextDriver();
 }
 
 export default defineConfig(config);
@@ -94,3 +101,9 @@ every run. Control this with the driver's `testResult` option — see
 
 Set `DEBUG=mw:driver-mobilenext` to log device allocation and connection details. See
 [Troubleshooting](../guides/troubleshooting.md).
+
+## Learn more
+
+The driver's source is in the
+[`@mobilewright/driver-mobilenext` package](https://github.com/mobile-next/mobilewright/tree/main/packages/driver-mobilenext)
+of the Mobilewright repository.

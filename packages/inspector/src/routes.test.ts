@@ -144,7 +144,7 @@ test.describe('POST requests', () => {
   test.afterAll(() => server.close());
 
   // A cross-site page can send these without a CORS preflight, so they must never reach a route.
-  for (const path of ['/api/devices/select?device=sim-1', '/api/tap', '/api/press-button', '/api/geolocation']) {
+  for (const path of ['/api/devices/select?device=sim-1', '/api/tap', '/api/press-button', '/api/geolocation', '/api/open-url', '/api/fill']) {
     test(`${path} rejects a non-JSON body with 415`, async () => {
       const { status } = await postAsForm(`${server.base}${path}`);
       expect(status).toBe(415);
@@ -391,6 +391,8 @@ test.describe('device actions — no device selected', () => {
     '/api/tap': { x: 10, y: 20 },
     '/api/press-button': { button: 'HOME' },
     '/api/geolocation': { geolocation: { latitude: -17.833, longitude: 177.947 } },
+    '/api/open-url': { url: 'https://example.com' },
+    '/api/fill': { x: 10, y: 20, text: 'hello' },
   };
   for (const [path, body] of Object.entries(validBodies)) {
     test(`${path} returns 409 when no device is connected`, async () => {
@@ -500,6 +502,76 @@ test.describe('POST /api/press-button', () => {
       expect(status).toBe(200);
     }
     expect(presses).toEqual(['HOME', 'BACK', 'APP_SWITCH']);
+  });
+});
+
+// ---- POST /api/open-url ----
+
+test.describe('POST /api/open-url', () => {
+  let server: TestServer;
+  const openedUrls: string[] = [];
+
+  test.beforeAll(async () => {
+    server = await serveWithDevice({ openUrl: async (url: string) => { openedUrls.push(url); } });
+  });
+  test.afterAll(() => server.close());
+  test.beforeEach(() => { openedUrls.length = 0; });
+
+  for (const [description, body] of [['missing url', {}], ['empty url', { url: '' }], ['url that is not a string', { url: 42 }], ['url without a scheme', { url: 'example.com' }]] as const) {
+    test(`returns 400 for ${description}`, async () => {
+      const { status } = await post(`${server.base}/api/open-url`, body);
+      expect(status).toBe(400);
+      expect(openedUrls).toEqual([]);
+    });
+  }
+
+  test('opens web urls and deep links on the device', async () => {
+    for (const url of ['https://example.com/path?q=1', 'myapp://settings']) {
+      const { status } = await post(`${server.base}/api/open-url`, { url });
+      expect(status).toBe(200);
+    }
+    expect(openedUrls).toEqual(['https://example.com/path?q=1', 'myapp://settings']);
+  });
+});
+
+// ---- POST /api/fill ----
+
+test.describe('POST /api/fill', () => {
+  let server: TestServer;
+  const calls: string[] = [];
+
+  test.beforeAll(async () => {
+    server = await serveWithDevice({
+      screen: { tap: async (x: number, y: number) => { calls.push(`tap(${x}, ${y})`); } },
+      driver: {
+        fill: async (text: string) => { calls.push(`fill(${text})`); },
+      },
+    });
+  });
+  test.afterAll(() => server.close());
+  test.beforeEach(() => { calls.length = 0; });
+
+  test('returns 400 when coordinates are missing', async () => {
+    const { status } = await post(`${server.base}/api/fill`, { x: 10, text: 'hi' });
+    expect(status).toBe(400);
+  });
+
+  test('returns 400 when text is not a string', async () => {
+    const { status } = await post(`${server.base}/api/fill`, { x: 10, y: 20, text: 5 });
+    expect(status).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
+  test('taps the element and fills it, like locator.fill()', async () => {
+    const { status } = await post(`${server.base}/api/fill`, { x: 10, y: 20, text: 'hello' });
+    expect(status).toBe(200);
+    expect(calls).toEqual(['tap(10, 20)', 'fill(hello)']);
+  });
+
+  test('fills with empty text, which just clears the element', async () => {
+    const { status } = await post(`${server.base}/api/fill`, { x: 1, y: 2, text: '' });
+    expect(status).toBe(200);
+    expect(calls).toEqual(['tap(1, 2)', 'fill()']);
   });
 });
 

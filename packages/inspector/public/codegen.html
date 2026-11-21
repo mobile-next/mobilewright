@@ -41,13 +41,45 @@
         <button id="geo-btn" class="tool-btn device-btn" popovertarget="geo-popover" title="Set location" aria-label="Set location" disabled>
           <span class="codicon codicon-location" aria-hidden="true"></span>
         </button>
+        <button id="url-btn" class="tool-btn device-btn" popovertarget="url-popover" title="Open URL" aria-label="Open URL" disabled>
+          <span class="codicon codicon-link" aria-hidden="true"></span>
+        </button>
       </div>
-      <form id="geo-popover" popover aria-label="Set location">
-        <label>Latitude <input name="latitude" type="number" step="any" min="-90" max="90" placeholder="-17.833" required /></label>
-        <label>Longitude <input name="longitude" type="number" step="any" min="-180" max="180" placeholder="177.947" required /></label>
-        <div class="geo-actions">
+      <form id="url-popover" class="action-popover wide-popover" popover aria-labelledby="url-popover-title">
+        <div class="popover-header">
+          <h2 id="url-popover-title">Open URL</h2>
+          <button type="button" class="popover-close" popovertarget="url-popover" popovertargetaction="hide" aria-label="Close">&times;</button>
+        </div>
+        <p class="popover-hint">Opens a web link or deep link on the device and records <code>device.openUrl()</code>.</p>
+        <input name="url" type="text" autofocus aria-label="URL" placeholder="https://example.com or myapp://path" required />
+        <div class="popover-actions">
+          <button type="submit" class="tool-btn popover-submit-btn">Open</button>
+        </div>
+      </form>
+      <form id="fill-popover" class="action-popover wide-popover" popover aria-labelledby="fill-popover-title">
+        <div class="popover-header">
+          <h2 id="fill-popover-title">Fill text</h2>
+          <button type="button" class="popover-close" popovertarget="fill-popover" popovertargetaction="hide" aria-label="Close">&times;</button>
+        </div>
+        <p class="popover-hint">Taps the selected element, clears it and types this text. Records <code>locator.fill()</code>.</p>
+        <input name="text" type="text" autofocus aria-label="Text" placeholder="Text to type" />
+        <div class="popover-actions">
+          <button type="submit" class="tool-btn popover-submit-btn">Fill</button>
+        </div>
+      </form>
+      <form id="geo-popover" class="action-popover wide-popover" popover aria-labelledby="geo-popover-title">
+        <div class="popover-header">
+          <h2 id="geo-popover-title">Set location</h2>
+          <button type="button" class="popover-close" popovertarget="geo-popover" popovertargetaction="hide" aria-label="Close">&times;</button>
+        </div>
+        <p class="popover-hint">Moves the device's GPS to these coordinates and records <code>device.setGeolocation()</code>.</p>
+        <div class="popover-fields">
+          <label>Latitude <input name="latitude" autofocus type="number" step="any" min="-90" max="90" placeholder="-17.833" required /></label>
+          <label>Longitude <input name="longitude" type="number" step="any" min="-180" max="180" placeholder="177.947" required /></label>
+        </div>
+        <div class="popover-actions">
           <button type="button" id="geo-reset-btn" class="tool-btn">Reset location</button>
-          <button type="submit" class="tool-btn geo-set-btn">Set</button>
+          <button type="submit" class="tool-btn popover-submit-btn">Set</button>
         </div>
       </form>
       <div id="screenshot-container">
@@ -88,6 +120,13 @@
         <button id="copy-btn" class="tool-btn" title="Copy test" aria-label="Copy test">
           <span class="codicon codicon-files" aria-hidden="true"></span>
         </button>
+        <span class="tool-separator"></span>
+        <label id="target-picker">Target:
+          <select id="target-select">
+            <option value="test">Test Runner</option>
+            <option value="library">Library</option>
+          </select>
+        </label>
       </div>
       <textarea id="code-editor" spellcheck="false" aria-label="Generated test code"></textarea>
     </section>
@@ -105,6 +144,7 @@
             <button class="tool-btn gesture-btn" data-gesture="tap">Tap</button>
             <button class="tool-btn gesture-btn" data-gesture="doubleTap">Double tap</button>
             <button class="tool-btn gesture-btn" data-gesture="longPress">Long press</button>
+            <button id="fill-btn" class="tool-btn gesture-btn" popovertarget="fill-popover">Fill</button>
           </div>
           <div id="detail-locators"></div>
           <div id="detail-properties"></div>
@@ -113,6 +153,8 @@
       </section>
     </section>
   </main>
+
+  <div id="error-toast" role="alert" hidden></div>
 
   <script src="/js/codegen.js" type="module"></script>
 </body>

@@ -37,7 +37,8 @@ function nameOf(node: ViewNode): string | undefined {
 
 function attrsOf(node: ViewNode): string[] {
   const attrs: string[] = [];
-  if (node.identifier) { attrs.push(`testid=${JSON.stringify(node.identifier)}`); }
+  const testId = node.key || node.identifier;
+  if (testId) { attrs.push(`testid=${JSON.stringify(testId)}`); }
   if (node.placeholder) { attrs.push(`placeholder=${JSON.stringify(node.placeholder)}`); }
   if (node.value && node.value !== nameOf(node)) { attrs.push(`value=${JSON.stringify(node.value)}`); }
   if (!node.isVisible) { attrs.push('hidden'); }
@@ -50,7 +51,7 @@ function attrsOf(node: ViewNode): string[] {
 
 /** A node earns a line when it carries text or is something the user can act on. */
 function isInteresting(node: ViewNode, role: string): boolean {
-  return Boolean(nameOf(node) || node.identifier || node.placeholder) || INTERACTIVE_ROLES.has(role);
+  return Boolean(nameOf(node) || node.key || node.identifier || node.placeholder) || INTERACTIVE_ROLES.has(role);
 }
 
 /**

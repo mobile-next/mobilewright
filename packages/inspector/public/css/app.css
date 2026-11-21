@@ -181,7 +181,8 @@ header h1 {
 
 #device-picker select,
 #auto-refresh-interval,
-#theme-select {
+#theme-select,
+#target-select {
   background: var(--c-bg);
   color: var(--c-text);
   border: 1px solid var(--c-border);
@@ -194,7 +195,8 @@ header h1 {
 
 #device-picker select:focus,
 #auto-refresh-interval:focus,
-#theme-select:focus {
+#theme-select:focus,
+#target-select:focus {
   border-color: var(--c-accent);
 }
 
@@ -736,6 +738,7 @@ main {
 .codicon-files::before               { content: '\eaf0'; }
 .codicon-check::before               { content: '\eab2'; }
 .codicon-location::before            { content: '\eb1a'; }
+.codicon-link::before                { content: '\eb15'; }
 .codicon-chevron-down::before        { content: '\eab4'; }
 .codicon-chevron-right::before       { content: '\eab6'; }
 
@@ -810,6 +813,14 @@ main {
 }
 #record-btn[aria-pressed="true"] .codicon { color: var(--c-status-error); }
 
+#target-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--c-text-muted);
+}
+
 .tool-separator {
   width: 1px;
   height: 16px;
@@ -875,7 +886,8 @@ main {
 
 /* ---- Set location popover ---- */
 
-#geo-popover {
+/* Forms the codegen toolbar and element actions open to ask for input. */
+.action-popover {
   padding: 16px;
   border: 1px solid var(--c-border);
   border-radius: 8px;
@@ -884,15 +896,15 @@ main {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
-#geo-popover[popover]:popover-open {
+.action-popover[popover]:popover-open {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-#geo-popover::backdrop { background: rgba(0, 0, 0, 0.3); }
+.action-popover::backdrop { background: rgba(0, 0, 0, 0.3); }
 
-#geo-popover label {
+.action-popover label {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -901,7 +913,7 @@ main {
   color: var(--c-text-muted);
 }
 
-#geo-popover input {
+.action-popover input {
   width: 140px;
   background: var(--c-bg);
   color: var(--c-text);
@@ -911,17 +923,90 @@ main {
   font: 12px 'SF Mono', Menlo, Monaco, monospace;
 }
 
-#geo-popover input:focus { outline: none; border-color: var(--c-accent); }
+.action-popover input:focus { outline: none; border-color: var(--c-accent); }
 
-.geo-actions {
+/* URL and fill: a titled dialog with a full-width input. */
+.wide-popover {
+  width: min(480px, calc(100vw - 32px));
+  padding: 20px;
+}
+
+.wide-popover input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popover-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text-strong);
+}
+
+.popover-close {
+  background: none;
+  border: none;
+  color: var(--c-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.popover-close:hover { color: var(--c-text); }
+
+.popover-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.popover-hint code { font-family: 'SF Mono', Menlo, Monaco, monospace; }
+
+/* Side-by-side labeled inputs, each label stacked above its input. */
+.popover-fields {
+  display: flex;
+  gap: 12px;
+}
+
+.popover-fields label {
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.popover-actions {
   display: flex;
   justify-content: space-between;
   gap: 8px;
 }
 
-.geo-set-btn { border-color: var(--c-accent); color: var(--c-accent); }
+.popover-submit-btn { margin-left: auto; border-color: var(--c-accent); color: var(--c-accent); }
 
 .tree-row.selected { background: var(--c-selected-bg); }
+
+/* Failed device actions (codegen); the status bar is overwritten by the next refresh. */
+#error-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  max-width: 420px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--c-status-error);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+}
 
 /* ---- Element details under the view tree (codegen) ---- */
 

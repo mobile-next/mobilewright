@@ -11,6 +11,8 @@ export interface ViewNode {
   type: string;
   label?: string;
   identifier?: string;
+  /** Flutter widget Key('...') (debug builds only) */
+  key?: string;
   /** Full Android resource-id (e.g. "com.example:id/login_button") */
   resourceId?: string;
   value?: string;
@@ -137,6 +139,9 @@ export type HardwareButton =
   | 'LOCK';
 
 export type Orientation = 'portrait' | 'landscape';
+
+/** Hinge of a foldable device: 'folded' (0°), 'half-open' (90°), 'open' (180°), or an angle between 0 and 180. */
+export type FoldState = 'folded' | 'half-open' | 'open' | number;
 
 export interface GesturePoint {
   x: number;

@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-checkly
 sidebar_position: 2
 title: Checkly
 ---

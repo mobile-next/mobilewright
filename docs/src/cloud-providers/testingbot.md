@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-testingbot
 sidebar_position: 4
 title: TestingBot
 ---
@@ -133,4 +134,6 @@ TESTINGBOT_KEY=... TESTINGBOT_SECRET=... \
 ## Learn more
 
 Tunnels, device catalog and the rest of the driver options are documented in the
-[TestingBot Mobilewright guide](https://testingbot.com/support/app-automate/mobilewright).
+[TestingBot Mobilewright guide](https://testingbot.com/support/app-automate/mobilewright). The
+driver's source is in the
+[`@testingbot/mobilewright-driver` repository](https://github.com/testingbot/mobilewright-testingbot).

@@ -40,21 +40,23 @@ docker run --rm \
 
 #### Expected output
 
-All Android checks pass as long as your host ADB server is running and an emulator is connected.
+Because the container points ADB at your host (`ANDROID_ADB_SERVER_HOST`), `doctor` skips the local Android SDK checks (Java, `ANDROID_HOME`, emulator, SDK platforms, build tools) — they are not needed to run tests against the host's devices. Git is not installed in the image, which shows up as a warning, not an error. All remaining checks pass as long as your host ADB server is running and an emulator is connected.
 
 ```
 mobilewright doctor  v0.0.x
 ────────────────────────────────────────────────────────────
 
   System
+    ⚠  Git
     ✓  Node.js  v24.x.x
     ✓  npm  x.x.x
     ✓  mobilecli  mobilecli version x.x.x
     ✓  mobilecli devices  1 online device
-       emulator-5554
+       emulator-5554 — agent: not needed on Android
 
   Android
     ✓  ADB (Android Debug Bridge)  1.0.41
+    ✓  ADB Devices  1 device connected
 ```
 
 ### Run tests

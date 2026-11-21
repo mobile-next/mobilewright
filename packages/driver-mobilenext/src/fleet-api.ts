@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { basename } from 'node:path';
 import createDebug from 'debug';
 import { createRequire } from 'node:module';
 import { NoDeviceAvailableError } from '@mobilewright/protocol';
@@ -11,9 +15,18 @@ const USER_AGENT = `mobilewright/${_pkg.version}`;
 export const DEFAULT_API_URL = 'https://api.mobilenext.ai';
 
 const HTTP_TOO_MANY_REQUESTS = 429;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+// A 503 is an instance draining for deploy, refusing before doing anything; a retry reaches a healthy one.
+const MAX_ATTEMPTS = 10;
+const DEFAULT_RETRY_DELAY = 3_000;
 const DEFAULT_ALLOCATION_TIMEOUT = 15 * 60_000;
 const DEFAULT_REQUEST_TIMEOUT = 30_000;
+// Installing an app is synchronous server-side and a large app can take minutes; this also bounds
+// an allocate-with-app, which installs before it responds when a booted device is available.
+const DEFAULT_INSTALL_TIMEOUT = 10 * 60_000;
 const POLL_INTERVAL = 5_000;
+// Newest-first page searched for the session holding a device; the run's session is near the top.
+const SESSION_SEARCH_LIMIT = 50;
 
 export type DeviceStatus = 'provisioning' | 'in_use' | 'released';
 
@@ -50,26 +63,38 @@ interface Session {
   id: string;
 }
 
-interface DeviceList {
-  object: 'list';
-  data: SessionDevice[];
+interface SessionWithDevices extends Session {
+  devices: SessionDevice[];
 }
 
-// The POST .../devices response. Despite the OpenAPI doc, the server returns the legacy
-// fleet.allocate shape, not a SessionDevice: a pre-booted device lands inline under `device`
-// (whose `id` is the physical serial), while an on-demand one returns only `allocationId` with
-// `state: "allocating"` and provisions minutes later.
-interface AllocatePostResponse {
+interface List<T> {
+  object: 'list';
+  data: T[];
+}
+
+// The POST .../devices response, in the legacy fleet.allocate shape. An already booted device also
+// comes back inline under `device`, but every allocation is treated as asynchronous: the device
+// list is polled by allocation id.
+interface AllocateResponse {
   allocationId: string;
   state?: string;
-  device?: {
-    id: string;
-    name: string;
-    model?: string;
-    platform: string;
-    type?: string;
-    version?: string;
-    state?: string;
+}
+
+// An installApps entry referencing a stored file.
+function fileRef(fileId: string): string {
+  return `file:${fileId}`;
+}
+
+type FileStatus = 'pendingUpload' | 'processing' | 'ready' | 'failed';
+
+interface StoredFile {
+  id: string;
+  status: FileStatus;
+  failureReason?: string | null;
+  upload?: {
+    method: 'PUT';
+    url: string;
+    headers: Record<string, string>;
   };
 }
 
@@ -80,9 +105,15 @@ export interface FleetApiClientOptions {
   allocationTimeout?: number;
   /** Timeout for a single HTTP request, in ms. Bounds a stalled fetch. Default: 30000. */
   requestTimeout?: number;
+  /** Timeout for a request that installs an app, in ms. Default: 600000 (10 min). */
+  installTimeout?: number;
+  /** Delay between retries of a 503 response, in ms. Default: 3000. */
+  retryDelay?: number;
   /** Injected for testing. Defaults to the global fetch. */
   fetchFn?: typeof fetch;
 }
+
+class ServiceUnavailableError extends Error {}
 
 // A setTimeout that rejects when the signal aborts, so a mid-poll shutdown/timeout is not held up
 // for the full interval.
@@ -113,6 +144,8 @@ export class FleetApiClient {
   private readonly apiUrl: string;
   private readonly allocationTimeout: number;
   private readonly requestTimeout: number;
+  private readonly installTimeout: number;
+  private readonly retryDelay: number;
   private readonly fetchFn: typeof fetch;
 
   constructor(options: FleetApiClientOptions) {
@@ -120,6 +153,8 @@ export class FleetApiClient {
     this.apiUrl = options.apiUrl ?? DEFAULT_API_URL;
     this.allocationTimeout = options.allocationTimeout ?? DEFAULT_ALLOCATION_TIMEOUT;
     this.requestTimeout = options.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
+    this.installTimeout = options.installTimeout ?? DEFAULT_INSTALL_TIMEOUT;
+    this.retryDelay = options.retryDelay ?? DEFAULT_RETRY_DELAY;
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
@@ -130,35 +165,63 @@ export class FleetApiClient {
   }
 
   /**
-   * Allocates a device into the session and waits until it is in_use (has a serial). A pre-booted
-   * device is ready immediately; an on-demand one provisions for minutes before landing.
+   * Allocates a device into the session and waits until it is in_use (has a serial). The stored
+   * files are installed on the device before it is reported in_use.
    */
-  async allocateDevice(sessionId: string, filters: DeviceFilter[], signal?: AbortSignal): Promise<SessionDevice> {
+  async allocateDevice(sessionId: string, filters: DeviceFilter[], fileIds: string[] = [], signal?: AbortSignal): Promise<SessionDevice> {
     const path = `/api/v1/sessions/${encodeURIComponent(sessionId)}/devices`;
-    const res = await this.request<AllocatePostResponse>('POST', path, { filters }, signal);
-    debug('allocate accepted (allocationId=%s, state=%s)', res.allocationId, res.state ?? (res.device ? 'ready' : 'unknown'));
-
-    // Pre-booted device: it is ready inline and its `id` is the physical serial.
-    if (res.device?.id) {
-      return {
-        id: res.allocationId,
-        status: 'in_use',
-        info: {
-          platform: res.device.platform,
-          type: res.device.type,
-          name: res.device.name,
-          osVersion: res.device.version ?? '',
-          serial: res.device.id,
-        },
-        createdAt: '',
-      };
-    }
-
+    const hasApps = fileIds.length > 0;
+    const body = { filters, ...(hasApps && { installApps: fileIds.map(fileRef) }) };
+    const timeout = hasApps ? this.installTimeout : this.requestTimeout;
+    const res = await this.request<AllocateResponse>('POST', path, body, signal, timeout);
     if (!res.allocationId) {
       throw new Error(`Allocate response missing allocationId: ${JSON.stringify(res)}`);
     }
-    // On-demand device: poll the session's device list until this allocation lands with a serial.
+    debug('allocate accepted (allocationId=%s, state=%s)', res.allocationId, res.state ?? 'ready');
     return this.waitForDevice(sessionId, res.allocationId, signal);
+  }
+
+  /**
+   * Stores an app binary and returns its file id. Files are deduplicated by SHA-256, so an app the
+   * organization already stores is not uploaded again.
+   */
+  async uploadFile(filePath: string, signal?: AbortSignal): Promise<string> {
+    const { size } = await stat(filePath);
+    const sha256 = await sha256Of(filePath);
+    const filename = sanitizeFilename(basename(filePath));
+    const file = await this.request<StoredFile>('POST', '/api/v1/files', { filename, filesize: size, sha256 }, signal);
+    debug('file %s declared (id=%s, status=%s, upload=%s)', filename, file.id, file.status, Boolean(file.upload));
+
+    if (file.upload) {
+      await this.putBytes(filePath, file.upload, signal);
+    }
+    if (file.status === 'ready') {
+      return file.id;
+    }
+    const completed = await this.request<StoredFile>('POST', `/api/v1/files/${encodeURIComponent(file.id)}/complete`, undefined, signal);
+    if (completed.status !== 'ready') {
+      throw new Error(`Upload of ${filename} failed: ${completed.failureReason ?? completed.status}`);
+    }
+    debug('file %s ready (id=%s)', filename, completed.id);
+    return completed.id;
+  }
+
+  /** Installs a stored file on a device of the session. Synchronous server-side. */
+  async installFile(sessionId: string, serial: string, fileId: string): Promise<void> {
+    const path = `/api/v1/sessions/${encodeURIComponent(sessionId)}/devices/${encodeURIComponent(serial)}/install`;
+    await this.request('POST', path, { file: fileId }, undefined, this.installTimeout);
+    debug('installed file %s on device %s', fileId, serial);
+  }
+
+  /** Finds the session a live device belongs to, for a process that did not allocate it. */
+  async findSessionOfDevice(serial: string): Promise<string> {
+    const sessions = await this.request<List<SessionWithDevices>>('GET', `/api/v1/sessions?limit=${SESSION_SEARCH_LIMIT}`);
+    // ponytail: first page only; paginate if a device's session can be older than SESSION_SEARCH_LIMIT sessions
+    const session = sessions.data.find((s) => s.devices.some((d) => d.status === 'in_use' && d.info.serial === serial));
+    if (!session) {
+      throw new Error(`Device ${serial} is not in_use in any of the ${SESSION_SEARCH_LIMIT} newest sessions`);
+    }
+    return session.id;
   }
 
   /** Releases a device back to the pool. Addressed by serial, the same id device tools accept. */
@@ -168,14 +231,14 @@ export class FleetApiClient {
     debug('released device %s', serial);
   }
 
-  // A provisioning device has no serial, and GET .../devices/{id} matches on serial — so the only
+  // An allocating device has no serial, and GET .../devices/{id} matches on serial — so the only
   // way to watch a still-provisioning allocation is to list the session's devices and match by
   // allocation id until it transitions to in_use.
   private async waitForDevice(sessionId: string, allocationId: string, signal?: AbortSignal): Promise<SessionDevice> {
     const deadline = Date.now() + this.allocationTimeout;
     while (Date.now() < deadline) {
       await delay(POLL_INTERVAL, signal);
-      const list = await this.request<DeviceList>('GET', `/api/v1/sessions/${encodeURIComponent(sessionId)}/devices`, undefined, signal);
+      const list = await this.request<List<SessionDevice>>('GET', `/api/v1/sessions/${encodeURIComponent(sessionId)}/devices`, undefined, signal);
       const device = list.data.find((d) => d.id === allocationId);
       if (!device) {
         continue;
@@ -193,7 +256,47 @@ export class FleetApiClient {
     );
   }
 
-  private async request<T = void>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  // The URL is presigned for the declared size and SHA-256; send exactly the headers it was signed with.
+  // Bounded by installTimeout so a stalled upload settles, while caller cancellation still applies.
+  private async putBytes(filePath: string, upload: NonNullable<StoredFile['upload']>, signal?: AbortSignal): Promise<void> {
+    debug('uploading %s', filePath);
+    const timeoutSignal = AbortSignal.timeout(this.installTimeout);
+    const progressTimer = setInterval(() => debug('still uploading %s', filePath), 10_000);
+    try {
+      const res = await this.fetchFn(upload.url, {
+        method: upload.method,
+        headers: upload.headers,
+        body: createReadStream(filePath),
+        duplex: 'half',
+        signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
+      } as RequestInit);
+      if (!res.ok) {
+        throw new Error(`Upload of ${filePath} failed with status ${res.status}`);
+      }
+    } finally {
+      clearInterval(progressTimer);
+    }
+  }
+
+  // One deadline covers every attempt, so 503 retries never stretch a call past its timeout.
+  private async request<T = void>(method: string, path: string, body?: unknown, signal?: AbortSignal, timeout = this.requestTimeout): Promise<T> {
+    const deadline = Date.now() + timeout;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.requestOnce<T>(method, path, body, signal, Math.max(deadline - Date.now(), 0));
+      } catch (err) {
+        const remaining = deadline - Date.now();
+        if (!(err instanceof ServiceUnavailableError) || attempt === MAX_ATTEMPTS || remaining <= 0) {
+          throw err;
+        }
+        const wait = Math.min(this.retryDelay, remaining);
+        debug('%s %s unavailable, retrying in %dms (attempt %d/%d)', method, path, wait, attempt, MAX_ATTEMPTS);
+        await delay(wait, signal);
+      }
+    }
+  }
+
+  private async requestOnce<T>(method: string, path: string, body: unknown, signal: AbortSignal | undefined, timeout: number): Promise<T> {
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${this.apiKey}`,
       'User-Agent': USER_AGENT,
@@ -206,7 +309,7 @@ export class FleetApiClient {
     // shutdown/allocation timeout) is forwarded into it so a stalled fetch aborts either way. The
     // controller covers body reading too, so a response whose body stalls is bounded as well.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.requestTimeout);
+    const timer = setTimeout(() => controller.abort(), timeout);
     const onExternalAbort = () => controller.abort();
     if (signal) {
       if (signal.aborted) {
@@ -217,6 +320,7 @@ export class FleetApiClient {
     }
 
     try {
+      debug('%s %s %o', method, path, body ?? '');
       const res = await this.fetchFn(`${this.apiUrl}${path}`, {
         method,
         headers,
@@ -227,11 +331,15 @@ export class FleetApiClient {
       if (!res.ok) {
         const detail = await this.errorDetail(res);
         const message = `${method} ${path} failed with ${res.status}${detail ? `: ${detail}` : ''}`;
+        debug('%s %s -> %d %s', method, path, res.status, detail);
         // 429 means the account's concurrency limit is reached, not that the request was bad. The
         // device pool re-queues NoDeviceAvailableError until a held device is released, instead of
         // failing every test a worker picks up while another worker holds the only slot.
         if (res.status === HTTP_TOO_MANY_REQUESTS) {
           throw new NoDeviceAvailableError(message);
+        }
+        if (res.status === HTTP_SERVICE_UNAVAILABLE) {
+          throw new ServiceUnavailableError(message);
         }
         throw new Error(message);
       }
@@ -247,7 +355,7 @@ export class FleetApiClient {
         throw new Error(`${method} ${path} aborted`);
       }
       if (controller.signal.aborted) {
-        throw new Error(`${method} ${path} timed out after ${this.requestTimeout}ms`);
+        throw new Error(`${method} ${path} timed out after ${timeout}ms`);
       }
       throw err;
     } finally {
@@ -268,4 +376,17 @@ export class FleetApiClient {
     }
     return '';
   }
+}
+
+async function sha256Of(filePath: string): Promise<string> {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest('hex');
+}
+
+// The files API accepts only [0-9a-zA-Z_.-] in a filename.
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^0-9a-zA-Z_.-]/g, '_');
 }

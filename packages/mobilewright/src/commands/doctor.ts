@@ -87,6 +87,28 @@ const ICON: Record<CheckStatus, string> = {
 function isMac(): boolean   { return process.platform === 'darwin'; }
 function isWin(): boolean   { return process.platform === 'win32'; }
 
+/** Fix commands per OS. Anything that is neither macOS nor Windows gets the Linux commands. */
+export type FixCommandsByOs = { darwin: string[]; win32: string[]; linux: string[] };
+
+export function fixCommandsFor(platform: NodeJS.Platform | string, byOs: FixCommandsByOs): string[] {
+  if (platform === 'darwin') return byOs.darwin;
+  if (platform === 'win32') return byOs.win32;
+  return byOs.linux;
+}
+
+function fixFor(byOs: FixCommandsByOs): string[] {
+  return fixCommandsFor(process.platform, byOs);
+}
+
+/**
+ * True when ADB is pointed at another machine's server (the Docker image sets
+ * ANDROID_ADB_SERVER_HOST; device labs use ADB_SERVER_SOCKET). The local
+ * Android SDK, Java and emulator are then not needed to run tests.
+ */
+export function usesRemoteAdbServer(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env['ANDROID_ADB_SERVER_HOST'] || env['ADB_SERVER_SOCKET']);
+}
+
 // ─── Low-level utilities ──────────────────────────────────────────────────────
 
 function run(cmd: string, args: string[] = [], opts: SpawnSyncOptions = {}): string | null {
@@ -203,11 +225,13 @@ function checkWingetOrChoco(): CheckResult | null {
 function checkGit(): CheckResult {
   const gitPath = which('git');
   if (!gitPath) {
-    return check('git', 'Git', 'system', 'error', {
-      details: 'Git is required for cloning repos and most toolchains.',
-      fix: isMac()
-        ? ['xcode-select --install']
-        : ['winget install --id Git.Git', '# Or: choco install git'],
+    return check('git', 'Git', 'system', 'warning', {
+      details: 'Git is not required to run tests, but reports can include commit info and most toolchains expect it.',
+      fix: fixFor({
+        darwin: ['xcode-select --install'],
+        win32: ['winget install --id Git.Git', '# Or: choco install git'],
+        linux: ['sudo apt-get install -y git', '# Or: sudo dnf install git'],
+      }),
     });
   }
   return check('git', 'Git', 'system', 'ok', {
@@ -226,16 +250,21 @@ function checkNode(): CheckResult {
   if (!nodePath) {
     return check('node', 'Node.js', 'system', 'error', {
       details: 'Node.js 22.12+ is required.',
-      fix: isMac()
-        ? [
+      fix: fixFor({
+        darwin: [
           'brew install node',
           '# Or use nvm: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash && nvm install --lts',
-        ]
-        : [
+        ],
+        win32: [
           'winget install OpenJS.NodeJS.LTS',
           '# Or: choco install nodejs-lts',
           '# Or use nvm-windows: winget install CoreyButler.NVMforWindows',
         ],
+        linux: [
+          '# Use nvm: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash && nvm install --lts',
+          '# Or your distribution packages (Node.js 22.12+ is required)',
+        ],
+      }),
     });
   }
   const version = run('node', ['--version']);
@@ -245,9 +274,11 @@ function checkNode(): CheckResult {
     path: nodePath,
     details: !ok ? 'Node.js 22.12 or newer is required.' : null,
     fix:     !ok
-      ? isMac()
-        ? ['brew upgrade node']
-        : ['winget upgrade OpenJS.NodeJS.LTS']
+      ? fixFor({
+        darwin: ['brew upgrade node'],
+        win32: ['winget upgrade OpenJS.NodeJS.LTS'],
+        linux: ['# Install Node.js 22 LTS, e.g. via https://github.com/nvm-sh/nvm or your distribution packages'],
+      })
       : null,
   });
 }
@@ -257,7 +288,11 @@ function checkNpm(): CheckResult {
   if (!p) {
     return check('npm', 'npm', 'system', 'error', {
       details: 'npm ships with Node.js — reinstall Node.js.',
-      fix: isMac() ? ['brew install node'] : ['winget install OpenJS.NodeJS.LTS'],
+      fix: fixFor({
+        darwin: ['brew install node'],
+        win32: ['winget install OpenJS.NodeJS.LTS'],
+        linux: ['# Install Node.js 22 LTS, e.g. via https://github.com/nvm-sh/nvm or your distribution packages'],
+      }),
     });
   }
   return check('npm', 'npm', 'system', 'ok', { version: run('npm', ['--version']), path: p });
@@ -288,9 +323,21 @@ function checkMobilecli(): CheckResult {
   });
 }
 
-type MobilecliDeviceEntry = { id: string; name: string; state: string };
+type MobilecliDeviceEntry = { id: string; name: string; state: string; platform?: string };
 type MobilecliDevicesResponse = { status: string; data: { devices: MobilecliDeviceEntry[] } };
 type AgentStatusResponse = { status: string; data: { message: string; agent?: { version: string; bundleId: string } } };
+
+/**
+ * One line per online device for the "mobilecli devices" check. Android has
+ * no agent to install, so it is reported as such without asking mobilecli.
+ */
+export function formatDeviceLine(
+  device: { id: string; name: string; platform?: string },
+  lookupAgentStatus: (deviceId: string) => string,
+): string {
+  const agentStatus = device.platform === 'android' ? 'agent: not needed on Android' : lookupAgentStatus(device.id);
+  return `${device.name} (${device.id}) — ${agentStatus}`;
+}
 
 function getAgentStatus(binary: string, deviceId: string): string {
   const output = run(binary, ['agent', 'status', '--device', deviceId]);
@@ -342,10 +389,7 @@ function checkMobilecliDevices(): CheckResult {
       });
     }
 
-    const deviceLines = online.map(d => {
-      const agentStatus = getAgentStatus(binary, d.id);
-      return `${d.name} (${d.id}) — ${agentStatus}`;
-    });
+    const deviceLines = online.map(d => formatDeviceLine(d, (id) => getAgentStatus(binary, id)));
 
     return check('mobilecli_devices', 'mobilecli devices', 'system', 'ok', {
       version: `${online.length} online device${online.length !== 1 ? 's' : ''}`,
@@ -466,18 +510,24 @@ function checkJava(): CheckResult {
   if (!javaPath) {
     return check('java', 'Java (JDK)', 'android', 'error', {
       details: 'JDK 17 is recommended for Android development.',
-      fix: isMac()
-        ? [
+      fix: fixFor({
+        darwin: [
           'brew install --cask zulu@17',
           '# Add to your shell profile (~/.zshrc):',
           'export JAVA_HOME=$(/usr/libexec/java_home -v 17)',
-        ]
-        : [
+        ],
+        win32: [
           '# Find and install Microsoft OpenJDK 17:',
           'winget search Microsoft.OpenJDK',
           'winget install Microsoft.OpenJDK.17',
           '# The installer sets JAVA_HOME — open a new terminal and re-run: npx mobilewright doctor',
         ],
+        linux: [
+          'sudo apt-get install -y openjdk-17-jdk',
+          '# Then add to your shell profile (~/.bashrc):',
+          'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))',
+        ],
+      }),
     });
   }
 
@@ -493,9 +543,11 @@ function checkJava(): CheckResult {
     path: javaPath,
     details: !ok ? 'Java 17 is recommended for Android.' : null,
     fix:     !ok
-      ? isMac()
-        ? ['brew install --cask zulu@17']
-        : ['winget search Microsoft.OpenJDK', 'winget install Microsoft.OpenJDK.17']
+      ? fixFor({
+        darwin: ['brew install --cask zulu@17'],
+        win32: ['winget search Microsoft.OpenJDK', 'winget install Microsoft.OpenJDK.17'],
+        linux: ['sudo apt-get install -y openjdk-17-jdk'],
+      })
       : null,
   });
 }
@@ -505,27 +557,34 @@ function checkJavaHome(): CheckResult {
   if (!javaHome) {
     return check('java_home', 'JAVA_HOME', 'android', 'warning', {
       details: 'JAVA_HOME is not set. Some Android build tools require it explicitly.',
-      fix: isMac()
-        ? [
+      fix: fixFor({
+        darwin: [
           '# Add to your shell profile (~/.zshrc or ~/.bashrc):',
           'export JAVA_HOME=$(/usr/libexec/java_home)',
           '# Or for a specific version:',
           'export JAVA_HOME=$(/usr/libexec/java_home -v 17)',
-        ]
-        : [
+        ],
+        win32: [
           '# Set JAVA_HOME to the installed JDK (run in admin PowerShell).',
           '# The folder name includes the full version, e.g. jdk-17.0.13.11-hotspot:',
           '$jdk = (Get-ChildItem "C:\\Program Files\\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1).FullName',
           '[System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk, "Machine")',
         ],
+        linux: [
+          '# Add to your shell profile (~/.bashrc):',
+          'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))',
+        ],
+      }),
     });
   }
   if (!pathExists(javaHome)) {
     return check('java_home', 'JAVA_HOME', 'android', 'error', {
       details: `JAVA_HOME="${javaHome}" does not exist.`,
-      fix: isMac()
-        ? ['export JAVA_HOME=$(/usr/libexec/java_home)']
-        : ['# Update JAVA_HOME in System Environment Variables to a valid JDK path'],
+      fix: fixFor({
+        darwin: ['export JAVA_HOME=$(/usr/libexec/java_home)'],
+        win32: ['# Update JAVA_HOME in System Environment Variables to a valid JDK path'],
+        linux: ['export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))'],
+      }),
     });
   }
   return check('java_home', 'JAVA_HOME', 'android', 'ok', { path: javaHome });
@@ -537,15 +596,21 @@ function checkAndroidHome(): CheckResult {
   if (!androidHome) {
     return check('android_home', 'ANDROID_HOME', 'android', 'error', {
       details: 'ANDROID_HOME is not set. Install Android Studio and configure it.',
-      fix: isMac()
-        ? [
+      fix: fixFor({
+        darwin: [
           'brew install --cask android-studio',
           '# Open Android Studio and complete the setup wizard (downloads the SDK)',
           '# Then add to your shell profile (~/.zshrc or ~/.bashrc):',
           'export ANDROID_HOME=$HOME/Library/Android/sdk',
           'export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator',
-        ]
-        : [
+        ],
+        linux: [
+          '# Install the Android command-line tools (or Android Studio) and the SDK, then add to ~/.bashrc:',
+          'export ANDROID_HOME=$HOME/Android/Sdk',
+          'export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator',
+          '# With only the command-line tools: sdkmanager "platform-tools" "platforms;android-34" "emulator"',
+        ],
+        win32: [
           'winget install Google.AndroidStudio',
           '# Or: choco install androidstudio',
           '# Open Android Studio and complete the setup wizard (downloads the SDK)',
@@ -554,14 +619,17 @@ function checkAndroidHome(): CheckResult {
           '$path = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")',
           '[System.Environment]::SetEnvironmentVariable("PATH", "$path;$env:LOCALAPPDATA\\Android\\Sdk\\platform-tools;$env:LOCALAPPDATA\\Android\\Sdk\\emulator", "Machine")',
         ],
+      }),
     });
   }
   if (!pathExists(androidHome)) {
     return check('android_home', 'ANDROID_HOME', 'android', 'error', {
       details: `ANDROID_HOME="${androidHome}" does not exist. Run Android Studio setup.`,
-      fix: isMac()
-        ? ['open -a "Android Studio"']
-        : ['# Open Android Studio to download the SDK, or run: winget install Google.AndroidStudio'],
+      fix: fixFor({
+        darwin: ['open -a "Android Studio"'],
+        win32: ['# Open Android Studio to download the SDK, or run: winget install Google.AndroidStudio'],
+        linux: ['# Point ANDROID_HOME at an existing SDK (e.g. $HOME/Android/Sdk) or install one with sdkmanager'],
+      }),
     });
   }
 
@@ -585,13 +653,15 @@ function checkADB(): CheckResult {
   if (!adbPath) {
     return check('adb', 'ADB (Android Debug Bridge)', 'android', 'error', {
       details: 'ADB is required to communicate with Android devices and emulators.',
-      fix: isMac()
-        ? ['brew install android-platform-tools']
-        : [
+      fix: fixFor({
+        darwin: ['brew install android-platform-tools'],
+        win32: [
           'winget install Google.PlatformTools',
           '# Or: choco install adb',
           '# Ensure platform-tools is on your PATH',
         ],
+        linux: ['sudo apt-get install -y android-tools-adb', '# Or: sdkmanager "platform-tools" and add it to your PATH'],
+      }),
     });
   }
 
@@ -657,17 +727,22 @@ function checkAndroidEmulator(): CheckResult {
   if (!emulatorPath) {
     return check('android_emulator', 'Android Emulator', 'android', 'warning', {
       details: 'Required to run Android virtual devices locally.',
-      fix: isMac()
-        ? [
+      fix: fixFor({
+        darwin: [
           '# Open Android Studio → SDK Manager → SDK Tools',
           '# Check "Android Emulator" → Apply',
           'export PATH=$PATH:$ANDROID_HOME/emulator',
-        ]
-        : [
+        ],
+        win32: [
           '# Open Android Studio → SDK Manager → SDK Tools',
           '# Check "Android Emulator" → Apply',
           '# Ensure emulator directory is on your PATH',
         ],
+        linux: [
+          'sdkmanager "emulator"',
+          'export PATH=$PATH:$ANDROID_HOME/emulator',
+        ],
+      }),
     });
   }
 
@@ -754,36 +829,57 @@ function checkAndroidBuildTools(): CheckResult | null {
  * On Windows, Android Emulator requires Hardware Acceleration (HAXM or
  * Windows Hypervisor Platform).  Check that Hyper-V / WHPX is enabled.
  */
+/**
+ * The Android Emulator is accelerated by any one of: Windows Hypervisor
+ * Platform, Hyper-V, or the Android Emulator Hypervisor Driver (AEHD, AMD and
+ * Intel). Only when every one of them is known to be off is there something to
+ * fix — and even then the emulator still runs, slowly, so it is a warning.
+ */
+export function hypervisorVerdict(state: { whp: string | null; hyperV: string | null; aehd: boolean }): {
+  status: CheckStatus; details: string | null; fix: string[];
+} {
+  const enabled = (s: string | null): boolean => s?.trim().toLowerCase() === 'enabled';
+  const enableFix = [
+    '# Enable one accelerator via admin PowerShell (restart required):',
+    'Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All',
+    '# Or: Settings → System → Optional Features → Windows Hypervisor Platform',
+    '# Or install the Android Emulator Hypervisor Driver from Android Studio → SDK Manager → SDK Tools',
+  ];
+  if (enabled(state.whp) || enabled(state.hyperV) || state.aehd) {
+    return { status: 'ok', details: null, fix: [] };
+  }
+  if (state.whp === null && state.hyperV === null) {
+    return {
+      status: 'warning',
+      details: 'Could not determine the hypervisor status (the query needs an elevated PowerShell). The Android Emulator needs hardware acceleration to run at full speed.',
+      fix: enableFix,
+    };
+  }
+  return {
+    status: 'warning',
+    details: 'No hardware accelerator is enabled; the Android Emulator will run very slowly.',
+    fix: enableFix,
+  };
+}
+
 function checkWindowsHypervisor(): CheckResult | null {
   if (!isWin()) return null;
 
-  // `systeminfo` is slow; use a quicker PowerShell query
-  const raw = run('powershell', [
+  // `systeminfo` is slow; use quicker PowerShell queries (they need elevation and may return nothing)
+  const feature = (name: string): string | null => run('powershell', [
     '-NoProfile', '-Command',
-    '(Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform).State',
+    `(Get-WindowsOptionalFeature -Online -FeatureName ${name}).State`,
   ]);
+  const aehd = run('powershell', ['-NoProfile', '-Command', '(Get-Service -Name aehd -ErrorAction SilentlyContinue).Status']);
 
-  if (!raw) {
-    return check('windows_hypervisor', 'Windows Hypervisor Platform', 'android', 'warning', {
-      details: 'Could not determine Hypervisor Platform status. Android Emulator requires hardware acceleration.',
-      fix: [
-        '# Enable via admin PowerShell:',
-        'Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart',
-        '# Or: Settings → System → Optional Features → Windows Hypervisor Platform',
-      ],
-    });
-  }
-
-  const enabled = raw.trim().toLowerCase() === 'enabled';
-  return check('windows_hypervisor', 'Windows Hypervisor Platform', 'android', enabled ? 'ok' : 'error', {
-    details: !enabled ? 'Required for Android Emulator hardware acceleration.' : null,
-    fix: !enabled
-      ? [
-        '# Enable via admin PowerShell:',
-        'Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All',
-        '# Restart required after enabling',
-      ]
-      : null,
+  const verdict = hypervisorVerdict({
+    whp: feature('HypervisorPlatform'),
+    hyperV: feature('Microsoft-Hyper-V-All'),
+    aehd: aehd?.trim().toLowerCase() === 'running',
+  });
+  return check('windows_hypervisor', 'Windows Hypervisor Platform', 'android', verdict.status, {
+    details: verdict.details,
+    fix: verdict.fix.length > 0 ? verdict.fix : null,
   });
 }
 
@@ -849,15 +945,11 @@ export function gatherChecks(categoryFilter?: CheckCategory): CheckResult[] {
     checkXcode(),
     checkXcodeCLT(),
     checkIOSSimulators(),
-    // Android
-    checkJava(),
-    checkJavaHome(),
-    checkAndroidHome(),
+    // Android — a remote ADB server (Docker image, device lab) needs no local SDK
+    ...(usesRemoteAdbServer() ? [] : [checkJava(), checkJavaHome(), checkAndroidHome()]),
     checkADB(),
     checkADBDevices(),
-    checkAndroidEmulator(),
-    checkAndroidSDKPlatforms(),
-    checkAndroidBuildTools(),
+    ...(usesRemoteAdbServer() ? [] : [checkAndroidEmulator(), checkAndroidSDKPlatforms(), checkAndroidBuildTools()]),
     // Windows-specific Android
     checkWindowsHypervisor(),
     checkWindowsDefenderExclusion(),

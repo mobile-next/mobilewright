@@ -21,13 +21,29 @@ function node(
   };
 }
 
+// Runs an action on a locator for the given test id and returns the titles of the steps it emitted.
+async function stepTitlesOf(
+  driver: MobilewrightDriver,
+  testId: string,
+  action: (locator: Locator) => Promise<void>,
+): Promise<string[]> {
+  const titles: string[] = [];
+  const locator = new Locator(driver, { kind: 'testId', value: testId });
+  locator._stepFn = (title, body) => {
+    titles.push(title);
+    return body();
+  };
+  await action(locator);
+  return titles;
+}
+
 type CallTracker = {
   tapCalls: any[][];
   doubleTapCalls: any[][];
   longPressCalls: any[][];
   typeTextCalls: any[][];
   pressKeysCalls: any[][];
-  clearTextCalls: any[][];
+  fillCalls: any[][];
   swipeCalls: any[][];
   gestureCalls: any[][];
   pressButtonCalls: any[][];
@@ -47,7 +63,7 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     longPressCalls: [],
     typeTextCalls: [],
     pressKeysCalls: [],
-    clearTextCalls: [],
+    fillCalls: [],
     swipeCalls: [],
     gestureCalls: [],
     pressButtonCalls: [],
@@ -70,17 +86,21 @@ function createMockDriver(hierarchy: ViewNode[]): MobilewrightDriver & { _tracke
     longPress: async (...args: any[]) => { tracker.longPressCalls.push(args); },
     typeText: async (...args: any[]) => { tracker.typeTextCalls.push(args); },
     pressKeys: async (...args: any[]) => { tracker.pressKeysCalls.push(args); },
-    clearText: async (...args: any[]) => { tracker.clearTextCalls.push(args); },
+    fill: async (...args: any[]) => { tracker.fillCalls.push(args); },
     swipe: async (...args: any[]) => { tracker.swipeCalls.push(args); },
     gesture: async (...args: any[]) => { tracker.gestureCalls.push(args); },
     pressButton: async (...args: any[]) => { tracker.pressButtonCalls.push(args); },
+    isKeyboardVisible: async () => false,
+    hideKeyboard: async () => {},
     screenshot: async () => Buffer.from(''),
     getScreenSize: async () => ({ width: 390, height: 844, scale: 3 }),
     getOrientation: async () => 'portrait' as Orientation,
     setOrientation: async (...args: any[]) => { tracker.setOrientationCalls.push(args); },
     setGeolocation: async () => {},
+    setFoldState: async () => {},
     launchApp: async (...args: any[]) => { tracker.launchAppCalls.push(args); },
     terminateApp: async (...args: any[]) => { tracker.terminateAppCalls.push(args); },
+    clearAppData: async () => {},
     listApps: async () => [] as AppInfo[],
     getForegroundApp: async () => ({ bundleId: 'com.test' }),
     installApp: async (...args: any[]) => { tracker.installAppCalls.push(args); },
@@ -165,7 +185,7 @@ test.describe('Locator', () => {
   });
 
   test.describe('clear', () => {
-    test('taps to focus then asks the driver to clear the field', async () => {
+    test('taps to focus then asks the driver to fill the field with nothing', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
         kind: 'testId',
@@ -175,7 +195,7 @@ test.describe('Locator', () => {
       await locator.clear();
 
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
-      expect(driver._tracker.clearTextCalls).toHaveLength(1);
+      expect(driver._tracker.fillCalls).toEqual([['']]);
     });
 
     test('throws LocatorError when element not found', async () => {
@@ -186,7 +206,7 @@ test.describe('Locator', () => {
     });
 
     test('throws when the field still has text after clearing', async () => {
-      // The mock clearText is a no-op, so a field that starts non-empty stays
+      // The mock fill is a no-op, so a field that starts non-empty stays
       // non-empty — emulating a select-all that never took effect on the device.
       const fieldWithResidualText: ViewNode[] = [
         node({
@@ -204,7 +224,7 @@ test.describe('Locator', () => {
   });
 
   test.describe('fill', () => {
-    test('clears the field then types text', async () => {
+    test('taps to focus then asks the driver to fill the field', async () => {
       const driver = createMockDriver(hierarchy);
       const locator = new Locator(driver, {
         kind: 'testId',
@@ -213,10 +233,27 @@ test.describe('Locator', () => {
 
       await locator.fill('test@example.com');
 
-      // Field is focused once by the tap, cleared, then typed into.
+      // Field is focused once by the tap, then filled in one step, without typing.
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
-      expect(driver._tracker.clearTextCalls).toHaveLength(1);
-      expect(driver._tracker.typeTextCalls).toEqual([['test@example.com']]);
+      expect(driver._tracker.fillCalls).toEqual([['test@example.com']]);
+      expect(driver._tracker.typeTextCalls).toEqual([]);
+    });
+
+    test('shows the typed text in the step title', async () => {
+      const driver = createMockDriver(hierarchy);
+
+      const titles = await stepTitlesOf(driver, 'emailField', locator => locator.fill('test@example.com'));
+
+      expect(titles).toEqual(['locator.fill("test@example.com")']);
+    });
+
+    test('keeps a masked value out of the step title, and still fills the field with it', async () => {
+      const driver = createMockDriver(hierarchy);
+
+      const titles = await stepTitlesOf(driver, 'emailField', locator => locator.fill('s3cret-sentinel', { mask: true }));
+
+      expect(titles).toEqual(['locator.fill(***)']);
+      expect(driver._tracker.fillCalls).toEqual([['s3cret-sentinel']]);
     });
   });
 
@@ -642,6 +679,84 @@ test.describe('Locator', () => {
       const locator = new Locator(driver, { kind: 'label', value: 'Cancel' });
 
       await locator.waitFor({ state: 'disabled' });
+    });
+  });
+
+  // Playwright's check()/uncheck()/setChecked(): find the checkable control,
+  // skip the tap when the state is already right, tap otherwise, and fail if
+  // the state did not change. An iOS SwiftUI Toggle is reported as a Switch
+  // row (label + inner Switch) whose centre is the label, so the inner control
+  // is what must be tapped.
+  test.describe('check / uncheck / setChecked', () => {
+    function toggleRow(checked: boolean): ViewNode {
+      return node({
+        type: 'Switch', label: 'Toggle switch', identifier: 'toggle', isChecked: checked, value: checked ? '1' : '0',
+        bounds: { x: 16, y: 428, width: 370, height: 52 },
+        children: [
+          node({ type: 'StaticText', label: 'Toggle switch', bounds: { x: 32, y: 443, width: 104, height: 20 } }),
+          node({ type: 'Switch', isChecked: checked, value: checked ? '1' : '0', bounds: { x: 309, y: 440, width: 63, height: 28 } }),
+        ],
+      });
+    }
+    const INNER_SWITCH_CENTER = [341, 454];
+
+    // A driver whose switch flips state when its inner control is tapped.
+    function driverWithToggle(initiallyChecked: boolean) {
+      const driver = createMockDriver([toggleRow(initiallyChecked)]);
+      let checked = initiallyChecked;
+      const originalTap = driver.tap;
+      driver.tap = async (x: number, y: number) => {
+        await originalTap(x, y);
+        if (x === INNER_SWITCH_CENTER[0] && y === INNER_SWITCH_CENTER[1]) {
+          checked = !checked;
+          driver._setHierarchy([toggleRow(checked)]);
+        }
+      };
+      return driver;
+    }
+
+    test('check() taps the inner switch of a toggle row and waits for it to become checked', async () => {
+      const driver = driverWithToggle(false);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).check();
+      expect(driver._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+    });
+
+    test('check() does not tap an already checked control', async () => {
+      const driver = driverWithToggle(true);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).check();
+      expect(driver._tracker.tapCalls).toEqual([]);
+    });
+
+    test('uncheck() taps a checked control and setChecked(false) is the same', async () => {
+      const driver = driverWithToggle(true);
+      await new Locator(driver, { kind: 'testId', value: 'toggle' }).uncheck();
+      expect(driver._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+
+      const second = driverWithToggle(true);
+      await new Locator(second, { kind: 'testId', value: 'toggle' }).setChecked(false);
+      expect(second._tracker.tapCalls).toEqual([INNER_SWITCH_CENTER]);
+    });
+
+    test('check() taps the centre of a plain Android checkbox', async () => {
+      const checkbox = (checked: boolean) => node({ type: 'android.widget.CheckBox', identifier: 'com.app:id/agree', isChecked: checked, bounds: { x: 100, y: 200, width: 60, height: 60 } });
+      const driver = createMockDriver([checkbox(false)]);
+      const originalTap = driver.tap;
+      driver.tap = async (x: number, y: number) => { await originalTap(x, y); driver._setHierarchy([checkbox(true)]); };
+      await new Locator(driver, { kind: 'testId', value: 'agree' }).check();
+      expect(driver._tracker.tapCalls).toEqual([[130, 230]]);
+    });
+
+    test('check() rejects an element that is not a checkbox, radio button or switch', async () => {
+      const driver = createMockDriver(hierarchy);
+      const locator = new Locator(driver, { kind: 'testId', value: 'submitBtn' });
+      await expect(locator.check()).rejects.toThrow('Not a checkbox, radio button or switch');
+      expect(driver._tracker.tapCalls).toEqual([]);
+    });
+
+    test('check() fails when tapping did not change the state', async () => {
+      const driver = createMockDriver([toggleRow(false)]);
+      const locator = new Locator(driver, { kind: 'testId', value: 'toggle' });
+      await expect(locator.check({ timeout: 300 })).rejects.toThrow('Clicking the checkbox did not change its state');
     });
   });
 

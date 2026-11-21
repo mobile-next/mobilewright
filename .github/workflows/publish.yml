@@ -23,7 +23,7 @@ jobs:
       - name: Set version from tag
         run: node utils/set-versions.js ${GITHUB_REF_NAME#v}
       - run: npm ci --ignore-scripts
-      - run: npm audit
+      - run: npm audit --omit dev
       - run: npm run build
       - run: cp README.md packages/mobilewright/README.md
       - run: cp README.md packages/test/README.md

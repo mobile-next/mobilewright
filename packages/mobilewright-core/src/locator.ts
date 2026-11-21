@@ -1,7 +1,7 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
-import { queryAll, type LocatorStrategy, type Role } from './query-engine.js';
+import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
-import { runStep, type StepLocation } from './stackTrace.js';
+import { runStep, typedTextInTitle, type StepLocation } from './stackTrace.js';
 
 export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
 
@@ -11,6 +11,12 @@ export interface LocatorOptions {
   stabilityDelay?: number;
   /** Default timeout for expect() assertions on this locator, in ms. */
   expectTimeout?: number;
+}
+
+export interface FillOptions {
+  timeout?: number;
+  /** Show `***` instead of the typed text in the step title. Use for passwords and other secrets. */
+  mask?: boolean;
 }
 
 export interface FilterOptions {
@@ -175,15 +181,65 @@ export class Locator {
     });
   }
 
-  async clear(opts?: { timeout?: number }): Promise<void> {
-    return this._step('locator.clear()', () => this._tapAndClear(opts?.timeout));
+  /** Ensure a checkbox, radio button or switch is checked (Playwright's locator.check()). */
+  async check(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.check()', () => this._setChecked(true, opts?.timeout));
   }
 
-  async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
-      await this._tapAndClear(opts?.timeout);
-      await this.driver.typeText(text);
-    });
+  /** Ensure a checkbox, radio button or switch is unchecked (Playwright's locator.uncheck()). */
+  async uncheck(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.uncheck()', () => this._setChecked(false, opts?.timeout));
+  }
+
+  /** Check or uncheck depending on `checked` (Playwright's locator.setChecked()). */
+  async setChecked(checked: boolean, opts?: { timeout?: number }): Promise<void> {
+    return this._step(`locator.setChecked(${checked})`, () => this._setChecked(checked, opts?.timeout));
+  }
+
+  // Playwright semantics: no-op when already in the wanted state, otherwise
+  // tap the control and fail if the state did not change. A SwiftUI Toggle is
+  // reported as a Switch row whose centre is its label, so the tap goes to the
+  // innermost checkable control inside the matched element.
+  private async _setChecked(checked: boolean, timeout?: number): Promise<void> {
+    const effectiveTimeout = timeout ?? this.options.timeout ?? DEFAULT_TIMEOUT;
+    const pollInterval = this.options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    const started = Date.now();
+
+    const node = await this.resolveActionable(effectiveTimeout);
+    const control = checkableControlOf(node);
+    if (!control) {
+      throw new LocatorError('Not a checkbox, radio button or switch', this.strategy);
+    }
+    if (isCheckedState(node, control) === checked) {
+      return;
+    }
+
+    const { x, y } = centerOf(control.bounds);
+    await this.driver.tap(x, y);
+
+    const deadline = started + effectiveTimeout;
+    while (true) {
+      const roots = await this.driver.getViewHierarchy();
+      const current = queryAll(roots, this.strategy)[0];
+      if (current) {
+        const currentControl = checkableControlOf(current) ?? current;
+        if (isCheckedState(current, currentControl) === checked) {
+          return;
+        }
+      }
+      if (Date.now() >= deadline) {
+        throw new LocatorError('Clicking the checkbox did not change its state', this.strategy);
+      }
+      await sleep(pollInterval);
+    }
+  }
+
+  async clear(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.clear()', () => this._tapAndFill('', opts?.timeout));
+  }
+
+  async fill(text: string, opts?: FillOptions): Promise<void> {
+    return this._step(`locator.fill(${typedTextInTitle(text, opts?.mask)})`, () => this._tapAndFill(text, opts?.timeout));
   }
 
   /** Resolve the element, tap its center to focus/activate it, and return the node. */
@@ -194,15 +250,13 @@ export class Locator {
     return node;
   }
 
-  /** Focus the element by tapping it, then clear its contents. */
-  private async _tapAndClear(timeout?: number): Promise<void> {
+  /** Focus the element by tapping it, then replace its text; '' clears it. */
+  private async _tapAndFill(text: string, timeout?: number): Promise<void> {
     await this._resolveAndTap(timeout);
-    await this.driver.clearText();
+    await this.driver.fill(text);
 
-    // Verify the clear actually emptied the field; if the driver's select-all
-    // didn't take, only a single character is removed and we'd otherwise
-    // silently leave residual text for fill() to append to.
-    if ((await this._currentValue()) !== '') {
+    // Verify a clear actually emptied the field, rather than leaving residual text behind
+    if (text === '' && (await this._currentValue()) !== '') {
       throw new LocatorError('Failed to clear element', this.strategy);
     }
   }
@@ -255,13 +309,21 @@ export class Locator {
     });
   }
 
-  // ─── Queries (with auto-wait for visibility) ─────────────────
+  // ─── Queries: read the state right now, without waiting ──────
 
+  /**
+   * Whether a matching element is on screen right now. Doesn't wait.
+   * To assert, prefer `expect(locator).toHaveCount()`, which retries.
+   */
   async exists(): Promise<boolean> {
     const node = await this.resolve(0);
     return node !== null;
   }
 
+  /**
+   * Whether the element is visible right now; waits only up to `timeout`, 0 by default.
+   * To assert, prefer `expect(locator).toBeVisible()`, which retries.
+   */
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
@@ -274,21 +336,38 @@ export class Locator {
     }
   }
 
+  /**
+   * Whether the element is enabled right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeEnabled()`, which retries until it passes.
+   */
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isEnabled;
   }
 
+  /**
+   * Whether the element is selected right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeSelected()`, which retries until it passes.
+   */
   async isSelected(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isSelected === true;
   }
 
+  /**
+   * Whether the element has focus right now. Doesn't wait for the state to change: a tapped
+   * text field takes focus a moment after the tap returns, so read right away it may be false.
+   * To assert, prefer `expect(locator).toBeFocused()`, which retries until it passes.
+   */
   async isFocused(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isFocused === true;
   }
 
+  /**
+   * Whether the element is checked right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeChecked()`, which retries until it passes.
+   */
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isChecked === true;
@@ -420,6 +499,32 @@ export class Locator {
 
     return null;
   }
+}
+
+const CHECKABLE_ROLES = ['checkbox', 'radio', 'switch'] as const;
+
+function isCheckable(node: ViewNode): boolean {
+  return CHECKABLE_ROLES.some((role) => matchesRole(node, role));
+}
+
+/**
+ * The control a check()/uncheck() tap should land on: the innermost checkable
+ * descendant (a Toggle row wraps its real Switch), else the node itself when
+ * it is checkable, else null.
+ */
+function checkableControlOf(node: ViewNode): ViewNode | null {
+  for (const child of node.children) {
+    const inner = checkableControlOf(child);
+    if (inner) {
+      return inner;
+    }
+  }
+  return isCheckable(node) ? node : null;
+}
+
+/** Checked state as reported on the matched element or its control (iOS Switch rows report it on both). */
+function isCheckedState(node: ViewNode, control: ViewNode): boolean {
+  return node.isChecked === true || control.isChecked === true;
 }
 
 function centerOf(bounds: Bounds): { x: number; y: number } {

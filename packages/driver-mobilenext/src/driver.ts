@@ -1,7 +1,4 @@
-import { createReadStream, openSync, readSync, closeSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import { basename } from 'node:path';
-import { Transform } from 'node:stream';
+import { openSync, readSync, closeSync } from 'node:fs';
 import createDebug from 'debug';
 import type {
   AllocatedDevice,
@@ -19,6 +16,7 @@ import type {
   MobilewrightSession,
   DeviceAllocator,
   Orientation,
+  FoldState,
   Platform,
   RecordingOptions,
   RecordingResult,
@@ -46,11 +44,20 @@ interface MobileNextElement {
   name?: string;
   value?: string;
   identifier?: string;
+  key?: string;
   placeholder?: string;
   rect?: { x: number; y: number; width: number; height: number };
   children?: MobileNextElement[];
   visible?: boolean;
   enabled?: boolean;
+}
+
+// The first hide in an app injects an agent, which can be slow. This matches
+// the write deadline mobilecli gives the method.
+const HIDE_KEYBOARD_TIMEOUT_MS = 60_000;
+
+interface MobileNextKeyboardStatusResponse {
+  visible: boolean;
 }
 
 interface MobileNextAppEntry {
@@ -99,6 +106,7 @@ interface MobileNextDevicesResponse {
 }
 
 export interface MobileNextDriverOptions {
+  /** API key for mobilenext. Defaults to the MOBILENEXT_API_KEY environment variable; an explicit value always wins. */
   apiKey?: string;
   /** Fleet API base URL override. Mainly for testing. */
   apiUrl?: string;
@@ -167,6 +175,7 @@ function elementToViewNode(el: MobileNextElement): ViewNode {
     type: el.type ?? 'Unknown',
     label: el.label || undefined,
     identifier: el.identifier || undefined,
+    key: el.key || undefined,
     value: el.value || undefined,
     text: el.text || undefined,
     placeholder: el.placeholder || undefined,
@@ -184,6 +193,8 @@ function appendQueryParam(url: string, key: string, value: string): string {
 }
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+// An installApps entry naming a file already in Mobile Next storage, rather than a path on disk.
+const STORED_FILE_PREFIX = 'file:';
 
 function assertValidZipFile(path: string): void {
   const buf = Buffer.alloc(4);
@@ -196,15 +207,6 @@ function assertValidZipFile(path: string): void {
   if (!buf.equals(ZIP_MAGIC)) {
     throw new Error(`"${path}" is not a valid ZIP file`);
   }
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^0-9a-zA-Z_.]/g, '_');
-}
-
-interface UploadCreateResponse {
-  uploadId: string;
-  uploadUrl: string;
 }
 
 interface ActiveSession {
@@ -222,10 +224,13 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   private fleetSessionPromise: Promise<string> | null = null;
   // serial -> the fleet session it was allocated in, needed to release it later.
   private readonly fleetSessionBySerial = new Map<string, string>();
+  // app path -> its stored file id, so each app is uploaded once per run, on its first allocation.
+  private readonly fileIdByPath = new Map<string, Promise<string>>();
   /** Test-lifecycle observer that uploads results to mobilenext; undefined when uploading is disabled. */
   readonly observer: TestObserver | undefined;
 
-  constructor(options: MobileNextDriverOptions = {}) {
+  constructor(driverOptions: MobileNextDriverOptions = {}) {
+    const options = { ...driverOptions, apiKey: driverOptions.apiKey ?? process.env.MOBILENEXT_API_KEY };
     if (options.apiKey && options.apiUrl && !options.apiUrl.startsWith('https://')) {
       throw new Error(`MobileNextDriver apiUrl must use https when apiKey is set, got: ${options.apiUrl}`);
     }
@@ -255,6 +260,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     }
 
     const baseUrl = config.url ?? DEFAULT_URL;
+    if (this.options.apiKey && !baseUrl.startsWith('wss://')) {
+      throw new Error(`MobileNextDriver url must use wss when apiKey is set, got: ${baseUrl}`);
+    }
     const url = this.options.apiKey
       ? appendQueryParam(baseUrl, 'token', this.options.apiKey)
       : baseUrl;
@@ -288,12 +296,17 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   }
 
   async doubleTap(x: number, y: number): Promise<void> {
-    await this.call('device.io.tap', { x, y });
-    await this.call('device.io.tap', { x, y });
+    const point = { x: Math.round(x), y: Math.round(y) };
+    await this.call('device.io.tap', point);
+    await this.call('device.io.tap', point);
   }
 
   async longPress(x: number, y: number, duration?: number): Promise<void> {
-    await this.call('device.io.longpress', { x, y, ...(duration !== undefined && { duration }) });
+    await this.call('device.io.longpress', {
+      x: Math.round(x),
+      y: Math.round(y),
+      ...(duration !== undefined && { duration }),
+    });
   }
 
   async typeText(text: string): Promise<void> {
@@ -304,9 +317,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.pressKeys([selectAll, 'backspace']);
+  async fill(text: string): Promise<void> {
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
@@ -345,6 +357,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobileNextKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide', undefined, HIDE_KEYBOARD_TIMEOUT_MS);
   }
 
   // ─── Screen ─────────────────────────────────────────────────
@@ -387,6 +408,10 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.location.set', { latitude: geolocation.latitude, longitude: geolocation.longitude });
   }
 
+  async setFoldState(state: FoldState): Promise<void> {
+    await this.call('device.fold.set', { state: String(state) });
+  }
+
   // ─── Recording ──────────────────────────────────────────────
 
   async startRecording(opts: RecordingOptions): Promise<void> {
@@ -418,6 +443,10 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.apps.terminate', { bundleId });
   }
 
+  async clearAppData(bundleId: string): Promise<void> {
+    await this.call('device.apps.clear', { bundleId });
+  }
+
   async listApps(): Promise<AppInfo[]> {
     // iOS returns a flat array, Android returns { apps: [...] }.
     const result = await this.call<MobileNextAppEntry[] | { apps: MobileNextAppEntry[] }>('device.apps.list');
@@ -438,66 +467,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     };
   }
 
+  // Installs on an already allocated device. Prefer installApps in the config, which installs while
+  // the device is allocated: iOS cloud devices cannot take an app once running, and the server
+  // rejects this there.
   async installApp(filePath: string): Promise<void> {
-    assertValidZipFile(filePath);
-    const fileInfo = await stat(filePath);
-    const filename = sanitizeFilename(basename(filePath));
-
-    debug('creating upload for %s (%d bytes)', filename, fileInfo.size);
-    const upload = await this.call<UploadCreateResponse>('uploads.create', {
-      filename,
-      filesize: fileInfo.size,
-    });
-
-    debug('uploading %s to S3 (uploadId=%s)', filename, upload.uploadId);
-    let uploadedBytes = 0;
-    const counter = new Transform({
-      transform(chunk, _encoding, callback) {
-        uploadedBytes += chunk.length;
-        callback(null, chunk);
-      },
-    });
-    const body = createReadStream(filePath).pipe(counter);
-
-    const totalMB = (fileInfo.size / 1024 / 1024).toFixed(1);
-    const progressTimer = setInterval(() => {
-      const uploadedMB = (uploadedBytes / 1024 / 1024).toFixed(1);
-      const percent = Math.round((uploadedBytes / fileInfo.size) * 100);
-      debug('still uploading %s: %s / %s MB (%d%%)', filename, uploadedMB, totalMB, percent);
-    }, 10_000);
-
-    // slow uploads can exceed the fleet's device idle timeout; any device.* call resets it
-    // async so a synchronous throw from call() (e.g. no session after disconnect) is caught too
-    const keepAliveTimer = setInterval(async () => {
-      try {
-        await this.call('device.info');
-      } catch {
-        // best effort, the upload decides success
-      }
-    }, 30_000);
-
-    let response: Response;
-    try {
-      response = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': String(fileInfo.size),
-        },
-        body,
-        duplex: 'half',
-      } as RequestInit);
-    } finally {
-      clearInterval(progressTimer);
-      clearInterval(keepAliveTimer);
-    }
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`);
-    }
-    debug('upload complete, installing app (uploadId=%s)', upload.uploadId);
-
-    await this.call('device.apps.install', { uploadId: upload.uploadId });
-    debug('app installed successfully: %s', filename);
+    const { deviceId } = this.requireSession();
+    const fileId = await this.uploadApp(filePath);
+    const sessionId = this.fleetSessionBySerial.get(deviceId) ?? await this.fleetClient.findSessionOfDevice(deviceId);
+    debug('installing %s on %s (file=%s, session=%s)', filePath, deviceId, fileId, sessionId);
+    await this.fleetClient.installFile(sessionId, deviceId, fileId);
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
@@ -546,10 +524,13 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     signal?: AbortSignal,
   ): Promise<AllocatedDevice> {
     const filters = buildFilters(criteria);
+    // Installed while allocating: an iOS cloud device cannot take an app once it is running.
+    const apps = criteria.installApps ?? [];
+    const fileIds = await Promise.all(apps.map((path) => this.uploadApp(path)));
     const sessionId = await this.getFleetSession();
-    debug('allocating device (session=%s, filters=%o)', sessionId, filters);
+    debug('allocating device (session=%s, filters=%o, files=%o)', sessionId, filters, fileIds);
 
-    const device = await this.fleetClient.allocateDevice(sessionId, filters, signal);
+    const device = await this.fleetClient.allocateDevice(sessionId, filters, fileIds, signal);
     const serial = device.info.serial;
     if (!serial) {
       throw new Error(`Device allocation ${device.id} became in_use without a serial`);
@@ -564,6 +545,7 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
       model: device.info.name,
       osVersion: device.info.osVersion,
       type: toDeviceType(device.info.type ?? ''),
+      installedApps: apps,
     };
   }
 
@@ -592,9 +574,27 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   // ─── Helpers ────────────────────────────────────────────────
 
-  private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  // Caches the promise so concurrent allocations share one upload; a failure is evicted so a later
+  // call can retry.
+  private uploadApp(path: string): Promise<string> {
+    if (path.startsWith(STORED_FILE_PREFIX)) {
+      return Promise.resolve(path.slice(STORED_FILE_PREFIX.length));
+    }
+    let fileId = this.fileIdByPath.get(path);
+    if (!fileId) {
+      assertValidZipFile(path);
+      fileId = this.fleetClient.uploadFile(path).catch((err: unknown) => {
+        this.fileIdByPath.delete(path);
+        throw err;
+      });
+      this.fileIdByPath.set(path, fileId);
+    }
+    return fileId;
+  }
+
+  private call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const session = this.requireSession();
-    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params });
+    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params }, timeoutMs);
   }
 
   private requireSession() {

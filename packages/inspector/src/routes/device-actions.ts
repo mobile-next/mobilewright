@@ -18,7 +18,7 @@ type ParsedAction = { run: (device: Device) => Promise<unknown> } | { error: str
 
 /**
  * Express router for actions codegen performs on the device.
- * POST /api/tap, POST /api/press-button, POST /api/geolocation
+ * POST /api/tap, POST /api/press-button, POST /api/geolocation, POST /api/open-url, POST /api/fill
  */
 export function createDeviceActionsRouter(deviceManager: DeviceManager) {
   const router = Router();
@@ -52,6 +52,10 @@ export function createDeviceActionsRouter(deviceManager: DeviceManager) {
   router.post('/press-button', deviceAction('Press button', parsePressButton));
   // body: { geolocation: { latitude, longitude } } to set, { geolocation: null } to reset
   router.post('/geolocation', deviceAction('Set geolocation', parseGeolocation));
+  // body: { url: string }, a web url or deep link with a scheme
+  router.post('/open-url', deviceAction('Open URL', parseOpenUrl));
+  // body: { x: number, y: number, text: string }, the center of the element to fill
+  router.post('/fill', deviceAction('Fill', parseFill));
 
   return router;
 }
@@ -81,6 +85,29 @@ function parsePressButton({ button }: RequestBody): ParsedAction {
     return { error: `button must be one of ${RECORDER_BUTTONS.join(', ')}` };
   }
   return { run: device => device.screen.pressButton(button as HardwareButton) };
+}
+
+function parseOpenUrl({ url }: RequestBody): ParsedAction {
+  if (typeof url !== 'string' || !URL.canParse(url)) {
+    return { error: 'url must be a url with a scheme, e.g. https://example.com or myapp://path' };
+  }
+  return { run: device => device.openUrl(url) };
+}
+
+// Same steps as locator.fill() in core, performed at the element's center.
+function parseFill({ x, y, text }: RequestBody): ParsedAction {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return { error: 'x and y must be numbers' };
+  }
+  if (typeof text !== 'string') {
+    return { error: 'text must be a string' };
+  }
+  return {
+    run: async device => {
+      await device.screen.tap(x as number, y as number);
+      await device.driver.fill(text);
+    },
+  };
 }
 
 function parseGeolocation({ geolocation }: RequestBody): ParsedAction {

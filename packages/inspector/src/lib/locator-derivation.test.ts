@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { ViewNode } from '@mobilewright/protocol';
-import { deriveLocator, deriveElementList, locatorMatchPosition } from './locator-derivation.js';
+import { deriveLocator, deriveElementList, locatorMatchPosition, isEditable } from './locator-derivation.js';
 
 function node(overrides: Partial<ViewNode> = {}): ViewNode {
   return {
@@ -361,4 +361,22 @@ test.describe('deriveElementList — depth', () => {
     const depths = deriveElementList(tree).map(entry => [entry.node.type, entry.depth]);
     expect(depths).toEqual([['window', 0], ['other', 1], ['statictext', 2], ['button', 1]]);
   });
+});
+
+// ---- Editable elements (codegen Fill) ----
+
+test.describe('isEditable', () => {
+  const editableTypes = ['TextField', 'SecureTextField', 'SearchField', 'XCUIElementTypeTextField', 'android.widget.EditText', 'com.google.android.material.textfield.TextInputEditText'];
+  for (const type of editableTypes) {
+    test(`${type} is editable`, () => {
+      expect(isEditable(node({ type }))).toBe(true);
+    });
+  }
+
+  const nonEditableTypes = ['Button', 'StaticText', 'android.widget.TextView', 'Cell', 'Other'];
+  for (const type of nonEditableTypes) {
+    test(`${type} is not editable`, () => {
+      expect(isEditable(node({ type }))).toBe(false);
+    });
+  }
 });

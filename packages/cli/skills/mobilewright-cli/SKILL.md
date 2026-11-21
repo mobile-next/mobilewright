@@ -55,6 +55,7 @@ mobilewright-cli app-install ./app.ipa
 mobilewright-cli launch com.example.app
 mobilewright-cli terminate com.example.app
 mobilewright-cli url myapp://checkout/42
+mobilewright-cli fold half-open        # foldables: folded, half-open, open, or 0-180 degrees
 ```
 
 ### Reading the screen

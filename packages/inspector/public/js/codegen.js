@@ -1,17 +1,43 @@
 import { DetailPane, Inspector, ScreenshotPane, applyTheme, escQ, locatorCode, makeResizable } from './app.js'
 import { ViewTreePane } from './view-tree.js'
+import { insertBeforeBodyEnd } from './codegen-source.js'
 
-const INITIAL_SOURCE = `import { test, expect } from '@mobilewright/test';
+// What the generated code runs under: the @mobilewright/test runner, or a plain script using the library.
+// Recorded lines are the same for both, since each exposes `device` and `screen`; only the wrapper differs.
+const TARGETS = {
+  test: {
+    render: (platform, body) => `import { test, expect } from '@mobilewright/test';
 
 test('test', async ({ device, screen }) => {
-});
-`
+${body}});
+`,
+    bodyEnd: '});',
+    indent: '  ',
+  },
+  library: {
+    render: (platform, body) => `import { ${platform}, expect } from 'mobilewright';
 
-const TEST_BODY_END = '});'
+const device = await ${platform}.launch();
+const { screen } = device;
+
+${body}await device.close();
+`,
+    bodyEnd: 'await device.close();',
+    indent: '',
+  },
+}
+
+const DEFAULT_TARGET = 'test'
+
+const DEFAULT_PLATFORM = 'ios'
 
 const TREE_OPEN_STORAGE_KEY = 'mobilewright-codegen-tree-open'
 
+const TARGET_STORAGE_KEY = 'mobilewright-codegen-target'
+
 const COPIED_FEEDBACK_MS = 1500
+
+const ERROR_TOAST_MS = 5000
 
 const GESTURE_NAMES = { tap: 'Tap', doubleTap: 'Double tap', longPress: 'Long press' }
 
@@ -44,8 +70,26 @@ function textOf(el) {
   return String(el.text ?? el.label ?? el.value ?? '')
 }
 
+function canFill(el) {
+  return el.isEditable && hasArea(el) && hasRecordableLocator(el)
+}
+
 function hasArea(el) {
   return Boolean(el.bounds && el.bounds.width > 0 && el.bounds.height > 0)
+}
+
+function readTarget() {
+  try {
+    const target = localStorage.getItem(TARGET_STORAGE_KEY)
+    return target in TARGETS ? target : DEFAULT_TARGET
+  } catch {
+    return DEFAULT_TARGET
+  }
+}
+
+function renderSource(target, platform, lines) {
+  const { render, indent } = TARGETS[target]
+  return render(platform, lines.map(line => `${indent}${line}\n`).join(''))
 }
 
 function readTreeOpen() {
@@ -60,18 +104,11 @@ function centerOf({ x, y, width, height }) {
   return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) }
 }
 
-function insertBeforeTestBodyEnd(source, line) {
-  const end = source.lastIndexOf(TEST_BODY_END)
-  if (end === -1) {
-    return source + line + '\n'
-  }
-  return source.slice(0, end) + line + '\n' + source.slice(end)
-}
-
 class Recorder {
   #editor = document.getElementById('code-editor')
   #recordBtn = document.getElementById('record-btn')
-  #statusBar = document.getElementById('status-bar')
+  #errorToast = document.getElementById('error-toast')
+  #errorToastTimer = null
   // Every control above the device screen, and the subset that are hardware buttons.
   #deviceControls = [...document.querySelectorAll('.device-btn')]
   #hardwareButtons = [...document.querySelectorAll('.device-btn[data-button]')]
@@ -80,13 +117,23 @@ class Recorder {
   #copyBtn = document.getElementById('copy-btn')
   #treePane = document.getElementById('tree-pane')
   #geoForm = document.getElementById('geo-popover')
+  #urlForm = document.getElementById('url-popover')
+  #fillForm = document.getElementById('fill-popover')
+  #fillBtn = document.getElementById('fill-btn')
   #detailPane = new DetailPane()
-  #gestureButtons = [...document.querySelectorAll('.gesture-btn')]
+  #gestureButtons = [...document.querySelectorAll('.gesture-btn[data-gesture]')]
   #detailElement = null
+  // The element Fill was clicked for; kept apart since a refresh can change the detail element meanwhile.
+  #fillElement = null
   #viewTree
   #isRecording = true
   #clickMode = 'tap'
   #inspector
+  #targetSelect = document.getElementById('target-select')
+  #target = readTarget()
+  #platform = DEFAULT_PLATFORM
+  // Every recorded line, so switching target can rebuild the source around them.
+  #lines = []
 
   constructor() {
     const screenshotPane = new ScreenshotPane({ showAllHighlights: false })
@@ -96,10 +143,15 @@ class Recorder {
       screenshotPane,
       elementsPane: viewTree,
       detailPane: noDetailPane,
-      onActiveDeviceChange: device => this.#enableDeviceControlsFor(device),
+      onActiveDeviceChange: device => {
+        this.#enableDeviceControlsFor(device)
+        this.#setPlatform(device?.platform ?? this.#platform)
+      },
       continuousRefresh: true,
     })
-    this.#editor.value = INITIAL_SOURCE
+    this.#targetSelect.value = this.#target
+    this.#renderSource()
+    this.#targetSelect.addEventListener('change', () => this.#setTarget(this.#targetSelect.value))
     this.#recordBtn.addEventListener('click', () => this.#setRecording(!this.#isRecording))
     for (const btn of this.#assertButtons) {
       btn.addEventListener('click', () => this.#setClickMode(this.#clickMode === btn.dataset.mode ? 'tap' : btn.dataset.mode))
@@ -157,6 +209,17 @@ class Recorder {
     document.getElementById('geo-reset-btn').addEventListener('click', () => {
       this.#setGeolocation(null, 'await device.setGeolocation(null);')
     })
+    this.#urlForm.addEventListener('submit', e => {
+      e.preventDefault()
+      this.#openUrl(this.#urlForm.elements.url.value.trim())
+    })
+    this.#fillForm.addEventListener('submit', e => {
+      e.preventDefault()
+      this.#fill(this.#fillElement, this.#fillForm.elements.text.value)
+    })
+    this.#fillBtn.addEventListener('click', () => {
+      this.#fillElement = this.#detailElement
+    })
   }
 
   // Same outcome whether the element was clicked on the screenshot or in the view tree.
@@ -208,6 +271,24 @@ class Recorder {
     for (const btn of this.#gestureButtons) {
       btn.disabled = !hasArea(el)
     }
+    // Only text fields can be filled, and the screen has no typing API, so fill is recorded by locator.
+    this.#fillBtn.disabled = !canFill(el)
+  }
+
+  async #openUrl(url) {
+    this.#urlForm.hidePopover()
+    await this.#perform('Open URL', '/api/open-url', { url }, `await device.openUrl('${escQ(url)}');`)
+  }
+
+  // Taps, clears and types at the element's center, the same steps locator.fill() takes.
+  async #fill(el, text) {
+    this.#fillForm.hidePopover()
+    this.#fillForm.reset()
+    if (!el || !canFill(el)) {
+      return
+    }
+    const code = `await screen.${locatorCode(el)}.fill('${escQ(text)}');`
+    await this.#perform('Fill', '/api/fill', { ...centerOf(el.bounds), text }, code)
   }
 
   async #setGeolocation(geolocation, codeLine) {
@@ -220,8 +301,7 @@ class Recorder {
     try {
       await navigator.clipboard.writeText(this.#editor.value)
     } catch (err) {
-      this.#statusBar.textContent = `Copy failed: ${err.message}`
-      this.#statusBar.className = 'error'
+      this.#showError(`Copy failed: ${err.message}`)
       return
     }
     icon.classList.replace('codicon-files', 'codicon-check')
@@ -251,8 +331,46 @@ class Recorder {
     document.body.dataset.clickMode = clickMode
   }
 
+  #showError(message) {
+    this.#errorToast.textContent = message
+    this.#errorToast.hidden = false
+    clearTimeout(this.#errorToastTimer)
+    this.#errorToastTimer = setTimeout(() => {
+      this.#errorToast.hidden = true
+    }, ERROR_TOAST_MS)
+  }
+
+  // Inserted into the editor rather than re-rendered, so edits made by hand are kept.
   #appendLine(codeLine) {
-    this.#editor.value = insertBeforeTestBodyEnd(this.#editor.value, `  ${codeLine}`)
+    const { bodyEnd, indent } = TARGETS[this.#target]
+    this.#lines.push(codeLine)
+    this.#editor.value = insertBeforeBodyEnd(this.#editor.value, bodyEnd, `${indent}${codeLine}`)
+  }
+
+  // Rebuilds the whole source from the recorded lines; edits made by hand are lost.
+  #renderSource() {
+    this.#editor.value = renderSource(this.#target, this.#platform, this.#lines)
+  }
+
+  #setTarget(target) {
+    this.#target = target
+    try {
+      localStorage.setItem(TARGET_STORAGE_KEY, target)
+    } catch {
+      // storage unavailable (private mode); the choice still applies to this page
+    }
+    this.#renderSource()
+  }
+
+  // The library script launches by platform, so its source follows the selected device.
+  #setPlatform(platform) {
+    if (platform === this.#platform) {
+      return
+    }
+    this.#platform = platform
+    if (this.#target === 'library') {
+      this.#renderSource()
+    }
   }
 
   #setRecording(isRecording) {
@@ -282,8 +400,7 @@ class Recorder {
         throw new Error(err.error ?? res.statusText)
       }
     } catch (err) {
-      this.#statusBar.textContent = `${actionName} failed: ${err.message}`
-      this.#statusBar.className = 'error'
+      this.#showError(`${actionName} failed: ${err.message}`)
       return
     }
     if (this.#isRecording) {

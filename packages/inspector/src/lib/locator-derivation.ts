@@ -30,6 +30,11 @@ export interface ElementEntry {
   depth: number;
 }
 
+/** Whether text can be typed into the node: the same types getByRole('textfield') matches. */
+export function isEditable(node: ViewNode): boolean {
+  return (ROLE_TYPE_MAP.textfield as readonly string[]).includes(bareTypeName(node.type ?? ''));
+}
+
 /** Map node.type to a mobilewright role string. Returns null for unmapped types. */
 function deriveRole(node: ViewNode): string | null {
   // Same normalization core applies before matching: strips the Android package
@@ -61,7 +66,7 @@ function deriveRole(node: ViewNode): string | null {
 export function deriveLocators(node: ViewNode): Locator[] {
   const locators: Locator[] = [];
 
-  const testId = node.identifier || node.resourceId;
+  const testId = node.key || node.identifier || node.resourceId;
   if (testId) locators.push({ kind: 'testId', value: testId });
 
   const role = deriveRole(node);

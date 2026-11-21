@@ -320,3 +320,36 @@ test('defineConfig preserves the user explicit captureGitInfo values when inject
   });
   expect(config.captureGitInfo).toEqual({ commit: false, diff: true });
 });
+
+// `mobilewright show-report`, the report branding step and the CI docs all
+// expect the HTML report under mobilewright-report/. The CLI's --reporter html
+// flag sets that folder, but a `reporter: 'html'` in the config file fell
+// through to Playwright's default playwright-report/.
+test.describe('defineConfig points the html reporter at mobilewright-report', () => {
+  const MOBILEWRIGHT_REPORT_DIR = 'mobilewright-report';
+
+  test('a bare "html" string becomes an html entry with the mobilewright output folder', () => {
+    const config = defineConfig({ platform: 'ios', reporter: 'html' });
+    expect(config.reporter).toEqual([['html', { outputFolder: MOBILEWRIGHT_REPORT_DIR }]]);
+  });
+
+  test('an html tuple without options gets the output folder, other reporters are left alone', () => {
+    const config = defineConfig({ platform: 'ios', reporter: [['list'], ['html']] });
+    expect(config.reporter).toEqual([['list'], ['html', { outputFolder: MOBILEWRIGHT_REPORT_DIR }]]);
+  });
+
+  test('existing html options are kept and only outputFolder is added', () => {
+    const config = defineConfig({ platform: 'ios', reporter: [['html', { open: 'never' }]] });
+    expect(config.reporter).toEqual([['html', { open: 'never', outputFolder: MOBILEWRIGHT_REPORT_DIR }]]);
+  });
+
+  test('a user-chosen outputFolder wins', () => {
+    const config = defineConfig({ platform: 'ios', reporter: [['html', { outputFolder: 'my-report' }]] });
+    expect(config.reporter).toEqual([['html', { outputFolder: 'my-report' }]]);
+  });
+
+  test('a config without an html reporter is unchanged', () => {
+    expect(defineConfig({ platform: 'ios', reporter: 'list' }).reporter).toBe('list');
+    expect(defineConfig({ platform: 'ios' }).reporter).toBeUndefined();
+  });
+});

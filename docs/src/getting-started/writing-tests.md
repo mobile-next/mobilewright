@@ -32,7 +32,7 @@ screen.getByText('Sign In');
 // By accessibility label
 screen.getByLabel('Username');
 
-// By test ID (accessibilityIdentifier on iOS, resourceId on Android)
+// By test ID (Flutter widget Key in debug builds, else accessibilityIdentifier on iOS, resourceId on Android)
 screen.getByTestId('submit-button');
 
 // By semantic role

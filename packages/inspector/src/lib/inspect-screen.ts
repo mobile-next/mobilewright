@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import type { Device } from '@mobilewright/core';
 import type { ViewNode, ScreenSize } from '@mobilewright/protocol';
-import { deriveElementList, locatorMatchPosition, type ElementEntry } from './locator-derivation.js';
+import { deriveElementList, isEditable, locatorMatchPosition, type ElementEntry } from './locator-derivation.js';
 import { logger } from './logger.js';
 import { timeoutAfter } from './timeout.js';
 
@@ -63,6 +63,7 @@ function toElementJson({ node, locator, locators, depth }: ElementEntry, index: 
     isSelected: node.isSelected ?? null,
     isFocused: node.isFocused ?? null,
     isChecked: node.isChecked ?? null,
+    isEditable: isEditable(node),
     raw: node.raw ?? null,
     locator,
     locators,

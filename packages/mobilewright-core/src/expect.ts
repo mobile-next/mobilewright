@@ -3,13 +3,51 @@ import { LocatorError } from './locator.js';
 import { Page } from './page.js';
 import { WebLocator } from './web-locator.js';
 import { retryUntil } from './poll.js';
+import { sleep } from './sleep.js';
 import { filterStack, runStep } from './stackTrace.js';
 import { textValue, type FrameExpectParams } from './web-expect-matcher.js';
 
 const DEFAULT_TIMEOUT = 5_000;
+// Playwright's expect.poll default backoff; the last interval repeats.
+const DEFAULT_POLL_INTERVALS = [100, 250, 500, 1000];
 
 export interface ExpectOptions {
   timeout?: number;
+}
+
+/** Options for the text matchers (toHaveText / toContainText). */
+export interface ExpectTextOptions extends ExpectOptions {
+  /** Compare case-insensitively (Playwright's `ignoreCase`). */
+  ignoreCase?: boolean;
+}
+
+// Playwright's whitespace normalization for text matchers: trim, drop
+// zero-width spaces, collapse any whitespace run into a single space.
+function normalizeWhiteSpace(text: string): string {
+  return text.trim().replace(/\u200b/g, '').replace(/\s+/g, ' ');
+}
+
+// Build the "does the received text match?" predicate for toHaveText /
+// toContainText with Playwright's semantics: whitespace-normalized on both
+// sides, RegExp or string, optional ignoreCase, substring for toContainText.
+function textMatcher(
+  expected: string | RegExp,
+  opts: { ignoreCase?: boolean; substring: boolean },
+): (received: string) => boolean {
+  if (expected instanceof RegExp) {
+    const flags = opts.ignoreCase && !expected.flags.includes('i') ? `${expected.flags}i` : expected.flags;
+    const pattern = new RegExp(expected.source, flags);
+    return (received) => {
+      pattern.lastIndex = 0;
+      return pattern.test(normalizeWhiteSpace(received));
+    };
+  }
+  const fold = (text: string): string => (opts.ignoreCase ? text.toLowerCase() : text);
+  const wanted = fold(normalizeWhiteSpace(expected));
+  return (received) => {
+    const got = fold(normalizeWhiteSpace(received));
+    return opts.substring ? got.includes(wanted) : got === wanted;
+  };
 }
 
 // Playwright accepts either a bare string or `{ message }` as expect()'s second
@@ -55,6 +93,8 @@ export function setDefaultStepFn(fn: StepFn | null): void {
  *   expect(42).toBe(42)
  *   expect(locator, 'checkout button should appear').toBeVisible()
  *   expect.soft(locator).toBeVisible()   // records the failure, test keeps running
+ *   await expect(promise).rejects.toThrow('timed out')
+ *   await expect.poll(() => device.getOrientation()).toBe('landscape')
  */
 export function expect(actual: Page, message?: ExpectMessage): PageAssertions;
 export function expect(actual: WebLocator, message?: ExpectMessage): WebLocatorAssertions;
@@ -90,7 +130,146 @@ function swallowSoftFailure(error: unknown): unknown {
   return error;
 }
 
-expect.soft = soft;
+
+export interface PollOptions {
+  /** How long to keep polling, in ms; 0 polls with no time limit. Default: 5000. */
+  timeout?: number;
+  /** Wait between attempts, in ms; the last value repeats. Default: [100, 250, 500, 1000]. */
+  intervals?: number[];
+  /** Custom message, used as the step title and as a prefix of the failure. */
+  message?: string;
+}
+
+/**
+ * Call `fn` until the matcher passes, like Playwright's expect.poll().
+ *   await expect.poll(async () => (await device.getForegroundApp()).bundleId).not.toBe(bundleId)
+ */
+function poll<T>(fn: () => T | Promise<T>, messageOrOptions?: string | PollOptions): AsyncValueAssertions<Awaited<T>> {
+  return pollAssertions(fn, pollOptions(messageOrOptions), false, false) as AsyncValueAssertions<Awaited<T>>;
+}
+
+function softPoll<T>(fn: () => T | Promise<T>, messageOrOptions?: string | PollOptions): AsyncValueAssertions<Awaited<T>> {
+  return withSoft(pollAssertions(fn, pollOptions(messageOrOptions), false, true)) as AsyncValueAssertions<Awaited<T>>;
+}
+
+function pollOptions(messageOrOptions: string | PollOptions | undefined): PollOptions {
+  return typeof messageOrOptions === 'string' ? { message: messageOrOptions } : messageOrOptions ?? {};
+}
+
+expect.poll = poll;
+// Object.assign, not soft.poll = ..., so expect.soft's type doesn't name the private soft (TS4033).
+expect.soft = Object.assign(soft, { poll: softPoll });
+
+// Value matchers, each turned async: what .rejects, .resolves and expect.poll() return.
+type ValueMatchers<T> = Omit<ValueAssertions<T>, 'not' | 'rejects' | 'resolves' | '_message' | '_soft'>;
+// Promise.reject() is Promise<never>; never would make every matcher argument never.
+type Settled<T> = [T] extends [never] ? unknown : T;
+export type AsyncValueAssertions<T> = {
+  [K in keyof ValueMatchers<Settled<T>>]: ValueMatchers<Settled<T>>[K] extends (...args: infer A) => unknown ? (...args: A) => Promise<void> : never;
+} & { readonly not: AsyncValueAssertions<T> };
+
+type MatcherCall = (matcher: string, args: unknown[], negated: boolean) => Promise<void>;
+
+// A stand-in for ValueAssertions whose every matcher (and .not) is routed to `call`.
+function asyncAssertions(call: MatcherCall, negated: boolean): object {
+  return new Proxy({}, {
+    get(_target, prop): unknown {
+      if (prop === 'not') {
+        return asyncAssertions(call, !negated);
+      }
+      // only real matchers: no `then` (an accidental `await expect.poll(fn)`) and no `toJSON` (serializers),
+      // or touching one would start a poll that fails later with "Unknown matcher"
+      if (typeof prop !== 'string' || !isValueMatcher(prop)) {
+        return undefined;
+      }
+      return (...args: unknown[]) => call(prop, args, negated);
+    },
+  });
+}
+
+function isValueMatcher(name: string): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(ValueAssertions.prototype, name);
+  return name !== 'constructor' && typeof descriptor?.value === 'function';
+}
+
+// Run one value matcher without reporting a step of its own; the caller reports one step for the whole call.
+function runMatcherQuietly(actual: unknown, negated: boolean, matcher: string, args: unknown[]): void {
+  const assertions = new ValueAssertions(actual, negated) as unknown as Record<string, unknown>;
+  const method = assertions[matcher];
+  if (typeof method !== 'function') {
+    throw new Error(`Unknown matcher: ${matcher}`);
+  }
+  const saved = defaultStepFn;
+  defaultStepFn = null;
+  try {
+    method.apply(assertions, args);
+  } finally {
+    defaultStepFn = saved;
+  }
+}
+
+function pollAssertions(fn: () => unknown, opts: PollOptions, negated: boolean, isSoft: boolean): object {
+  return asyncAssertions((matcher, args, isNegated) => {
+    const prefix = ['expect', isSoft && 'soft', 'poll', isNegated && 'not'].filter(Boolean).join('.');
+    const title = opts.message ?? `${prefix}.${matcher}()`;
+    return runStep(defaultStepFn, title, () => pollUntilMatch(fn, opts, isNegated, matcher, args));
+  }, negated);
+}
+
+async function pollUntilMatch(fn: () => unknown, opts: PollOptions, negated: boolean, matcher: string, args: unknown[]): Promise<void> {
+  const timeout = opts.timeout ?? DEFAULT_TIMEOUT;
+  const intervals = opts.intervals ?? DEFAULT_POLL_INTERVALS;
+  const deadline = timeout === 0 ? Infinity : Date.now() + timeout;
+  for (let attempt = 0; ; attempt++) {
+    let lastError: unknown;
+    try {
+      runMatcherQuietly(await fn(), negated, matcher, args);
+      return;
+    } catch (e) {
+      lastError = e;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      const lastMessage = lastError instanceof Error ? lastError.message : String(lastError);
+      const prefix = opts.message ? `${opts.message}\n\n` : '';
+      throw new ExpectError(`${prefix}Timeout ${timeout}ms exceeded while waiting on the predicate\n\n${lastMessage}`);
+    }
+    // the last wait is cut short so one more attempt lands right before the deadline
+    await sleep(Math.min(intervals[Math.min(attempt, intervals.length - 1)], remaining));
+  }
+}
+
+type Settlement = { kind: 'resolves' | 'rejects'; value: unknown };
+
+async function settle(promise: unknown): Promise<Settlement> {
+  if (!(promise instanceof Promise)) {
+    throw new ExpectError(`Expected a promise, but received ${fmt(promise)}`);
+  }
+  try {
+    return { kind: 'resolves', value: await promise };
+  } catch (e) {
+    return { kind: 'rejects', value: e };
+  }
+}
+
+// .rejects / .resolves: wait for the promise, then run the matcher on the rejection reason or the value.
+function settledAssertions(promise: unknown, expected: Settlement['kind'], negated: boolean, carrier: StepCarrier): object {
+  return asyncAssertions((matcher, args, isNegated) => {
+    return wrapAssertion(defaultStepFn, isNegated, `${expected}.${matcher}`, async () => {
+      const settled = await settle(promise);
+      if (settled.kind !== expected) {
+        const verb = expected === 'rejects' ? 'reject' : 'resolve';
+        const actual = settled.kind === 'rejects' ? 'rejected' : 'resolved';
+        throw new ExpectError(`Expected promise to ${verb}, but it ${actual} with ${fmt(settled.value)}`);
+      }
+      // toThrow on a rejection checks the error itself, as in Jest and Playwright
+      const subject = expected === 'rejects' && matcher === 'toThrow'
+        ? () => { throw settled.value; }
+        : settled.value;
+      runMatcherQuietly(subject, isNegated, matcher, args);
+    }, carrier);
+  }, negated);
+}
 
 function createAssertions(actual: unknown): object {
   if (actual instanceof Page) { return new PageAssertions(actual, false); }
@@ -281,19 +460,19 @@ class LocatorAssertions {
     });
   }
 
-  async toHaveText(expected: string | RegExp, opts?: ExpectOptions): Promise<void> {
+  async toHaveText(expected: string | RegExp, opts?: ExpectTextOptions): Promise<void> {
     return this._wrapAssertion('toHaveText', async () => {
       await this.assertText(
-        (text) => expected instanceof RegExp ? expected.test(text) : text === expected,
+        textMatcher(expected, { ignoreCase: opts?.ignoreCase, substring: false }),
         expected, opts,
       );
     });
   }
 
-  async toContainText(expected: string, opts?: ExpectOptions): Promise<void> {
+  async toContainText(expected: string | RegExp, opts?: ExpectTextOptions): Promise<void> {
     return this._wrapAssertion('toContainText', async () => {
       await this.assertText(
-        (text) => text.includes(expected),
+        textMatcher(expected, { ignoreCase: opts?.ignoreCase, substring: true }),
         expected, opts,
       );
     });
@@ -433,6 +612,16 @@ class ValueAssertions<T> {
 
   get not(): ValueAssertions<T> {
     return new ValueAssertions(this.actual, !this.negated);
+  }
+
+  /** Wait for a promise to reject, then match the rejection reason: `await expect(p).rejects.toThrow('timed out')`. */
+  get rejects(): AsyncValueAssertions<unknown> {
+    return settledAssertions(this.actual, 'rejects', this.negated, this) as AsyncValueAssertions<unknown>;
+  }
+
+  /** Wait for a promise to resolve, then match the value: `await expect(p).resolves.toBe(42)`. */
+  get resolves(): AsyncValueAssertions<Awaited<T>> {
+    return settledAssertions(this.actual, 'resolves', this.negated, this) as AsyncValueAssertions<Awaited<T>>;
   }
 
   toBe(expected: T): void {
@@ -629,26 +818,61 @@ class PageAssertions {
 
   async toHaveURL(url: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveURL', async () => {
-      let last = '';
-      await retryAssertion(
-        async () => { try { last = await this.page.url(); } catch { last = ''; } return last; },
-        (current) => this.matches(url instanceof RegExp ? url.test(current) : current === url),
-        opts?.timeout ?? DEFAULT_TIMEOUT,
-        () => `Expected page URL to ${this.negated ? 'not ' : ''}match "${url}", but got "${last}"`,
+      await this.assertPageValue(
+        'URL',
+        () => this.page._liveUrl(),
+        (current) => url instanceof RegExp ? url.test(current) : current === url,
+        url, opts,
       );
     });
   }
 
   async toHaveTitle(title: string | RegExp, opts?: ExpectOptions): Promise<void> {
     return this._wrapAssertion('toHaveTitle', async () => {
-      let last = '';
-      await retryAssertion(
-        async () => { try { last = await this.page.title(); } catch { last = ''; } return last; },
-        (current) => this.matches(title instanceof RegExp ? title.test(current) : current === title),
-        opts?.timeout ?? DEFAULT_TIMEOUT,
-        () => `Expected page title to ${this.negated ? 'not ' : ''}match "${title}", but got "${last}"`,
+      await this.assertPageValue(
+        'title',
+        () => this.page.title(),
+        (current) => title instanceof RegExp ? title.test(current) : current === title,
+        title, opts,
       );
     });
+  }
+
+  // Poll a page-level value until it matches (honoring negation). A read that
+  // fails is not a value: it keeps the poll unsuccessful, so a negated assertion
+  // cannot pass merely because the page could not be observed.
+  private async assertPageValue(
+    what: string,
+    read: () => Promise<string>,
+    matches: (value: string) => boolean,
+    expected: string | RegExp,
+    opts?: ExpectOptions,
+  ): Promise<void> {
+    let last: string | null = null;
+    let lastError: unknown;
+    await retryAssertion(
+      async (): Promise<string | null> => {
+        try {
+          last = await read();
+          lastError = undefined;
+          return last;
+        } catch (e) {
+          last = null;
+          lastError = e;
+          return null;
+        }
+      },
+      (current) => current !== null && this.matches(matches(current)),
+      opts?.timeout ?? DEFAULT_TIMEOUT,
+      () => {
+        const expectation = `Expected page ${what} to ${this.negated ? 'not ' : ''}match "${expected}"`;
+        if (last === null) {
+          const reason = lastError instanceof Error ? lastError.message : String(lastError);
+          return `${expectation}, but the page ${what} could not be read: ${reason}`;
+        }
+        return `${expectation}, but got "${last}"`;
+      },
+    );
   }
 }
 

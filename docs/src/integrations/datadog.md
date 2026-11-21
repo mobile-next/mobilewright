@@ -1,4 +1,5 @@
 ---
+sidebar_class_name: sidebar-icon-datadog
 sidebar_position: 1
 title: Datadog
 ---

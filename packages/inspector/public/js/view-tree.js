@@ -140,11 +140,11 @@ export class ViewTreePane {
     if (name) {
       const nameEl = document.createElement('span')
       nameEl.className = 'tree-name'
-      nameEl.textContent = ` - ${name}`
+      nameEl.textContent = `: ${name}`
       row.appendChild(nameEl)
     }
 
-    row.title = name ? `${el.type} - ${name}` : el.type
+    row.title = name ? `${el.type}: ${name}` : el.type
     row.addEventListener('mouseenter', () => this.#onHoverCb?.(el))
     row.addEventListener('mouseleave', () => this.#onHoverCb?.(null))
     row.addEventListener('click', () => this.#onClickCb?.(el))

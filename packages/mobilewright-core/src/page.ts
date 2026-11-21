@@ -1,4 +1,4 @@
-import type { Page as PlaywrightPage, Locator, Frame, Response, BrowserContext } from '@playwright/test';
+import type { Page as PlaywrightPage, Locator, FrameLocator, Frame, Response, BrowserContext } from '@playwright/test';
 import type { WebViewSession } from '@mobilewright/protocol';
 import type { StepFn } from './locator.js';
 import { sleep } from './sleep.js';
@@ -123,6 +123,10 @@ class MobileWebViewMainFrame {
 }
 
 export class MobileWebViewPage {
+  // Playwright's page-level matchers (expect(page).toHaveURL/toHaveTitle from
+  // @playwright/test) gate on this marker before calling mainFrame(); without
+  // it they refuse the page with "can be only used with Page object".
+  _apiName = 'Page';
   _stepFn: StepFn | null = null;
   private _url = 'about:blank';
   private readonly _frame: MobileWebViewMainFrame;
@@ -172,6 +176,15 @@ export class MobileWebViewPage {
     return this.locatorFor(selector);
   }
 
+  // Locate elements inside a same-origin <iframe> of the page. Playwright's
+  // selector-less form (search every frame) is not supported.
+  frameLocator(selector?: string): FrameLocator {
+    if (selector === undefined) {
+      throw new Error('page.frameLocator(): pass a selector for the <iframe>; searching every frame is not supported');
+    }
+    return this.locatorFor(selector).contentFrame();
+  }
+
   getByRole(role: string, opts?: { name?: string | RegExp; exact?: boolean }): Locator {
     return this.locatorFor(getByRoleSelector(role, { name: opts?.name, exact: opts?.exact }));
   }
@@ -205,6 +218,16 @@ export class MobileWebViewPage {
   // Synchronous, matching Playwright's Page.url(); returns the last-known URL,
   // refreshed after each navigation we drive.
   url(): string {
+    return this._url;
+  }
+
+  /**
+   * Read the webview's current URL and refresh the cache behind url(). Used by
+   * expect(page).toHaveURL(), which must observe navigations the page did not
+   * drive (link clicks, scripts). Internal.
+   */
+  async _liveUrl(): Promise<string> {
+    this._url = await this.session.url();
     return this._url;
   }
 

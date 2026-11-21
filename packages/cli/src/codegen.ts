@@ -32,6 +32,7 @@ function roleOf(node: ViewNode): string | undefined {
  * ponytail: uniqueness is not checked; the agent sees the snapshot and can refine.
  */
 export function locatorForNode(node: ViewNode): string {
+  if (node.key) { return `screen.getByTestId(${q(node.key)})`; }
   if (node.identifier) { return `screen.getByTestId(${q(node.identifier)})`; }
   const role = roleOf(node);
   if (role && ROLES_WITH_NAME.has(role) && node.label) { return `screen.getByRole(${q(role)}, { name: ${q(node.label)} })`; }
