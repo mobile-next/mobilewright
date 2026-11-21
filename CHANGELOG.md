@@ -1,3 +1,11 @@
+## [0.0.71] (2026-11-21)
+* Feat: `frameLocator()` and `contentFrame()` reach same-origin iframes inside a webview ([#395](https://github.com/mobile-next/mobilewright/pull/395)), thanks to [@MoemenMostafa](https://github.com/MoemenMostafa)
+* Feat: Playwright's `screenshot` option (`'on'`, `'only-on-failure'`, `'on-first-failure'`, `'off'`) controls when device screenshots are attached. It was silently ignored before ([#465](https://github.com/mobile-next/mobilewright/pull/465))
+* Feat: `fill(text, { mask: true })` keeps the typed text out of the step title, so secrets stay out of reports ([#458](https://github.com/mobile-next/mobilewright/pull/458))
+* Fix: `toBeEnabled`, `toBeDisabled`, `toBeChecked`, `toBeFocused` and `toBeSelected` fail on a missing element even when negated, like Playwright ([#367](https://github.com/mobile-next/mobilewright/pull/367))
+* Fix(inspector): codegen records into the test when later code contains `});` ([#463](https://github.com/mobile-next/mobilewright/pull/463))
+* Docs: explain which native attribute each locator reads ([#352](https://github.com/mobile-next/mobilewright/pull/352))
+
 ## [0.0.70] (2026-11-17)
 * Feat: add the `app` test fixture and `device.app(bundleId)`, with `app.clearData()` to reset an app's data and permissions between tests ([#452](https://github.com/mobile-next/mobilewright/pull/452))
 * Fix(iOS): screen size, screenshots and the UI tree follow the foreground app's orientation ([devicekit-ios#107](https://github.com/mobile-next/devicekit-ios/pull/107)), thanks to [@edusperoni](https://github.com/edusperoni)
