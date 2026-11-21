@@ -9,6 +9,7 @@ interface FakeMobilecliOptions {
   agentInstalled: boolean;
   installPutsAgentOnDevice?: boolean;
   deviceExists?: boolean;
+  statusCrashes?: boolean;
 }
 
 interface FakeMobilecli {
@@ -19,8 +20,12 @@ interface FakeMobilecli {
 // The fake mobilecli is a script with a shebang, which Windows cannot execute.
 test.skip(process.platform === 'win32', 'fake mobilecli needs a POSIX shebang');
 
-const tmpDir = mkdtempSync(join(tmpdir(), 'mw-agent-test-'));
+let tmpDir: string;
 let deviceCounter = 0;
+
+test.beforeAll(() => {
+  tmpDir = mkdtempSync(join(tmpdir(), 'mw-agent-test-'));
+});
 
 test.afterAll(() => {
   rmSync(tmpDir, { recursive: true });
@@ -30,7 +35,8 @@ test.afterAll(() => {
  * A stand-in for the mobilecli binary that answers `agent status` and
  * `agent install` the way mobilecli 1.0.24 does: a "fail" response with exit
  * code 1 when the agent is missing, and an "error" response with exit code 1
- * when the device cannot be found.
+ * when the device cannot be found. With statusCrashes it dies without printing
+ * a response, like a panic.
  */
 function createFakeMobilecli(options: FakeMobilecliOptions): FakeMobilecli {
   const dir = mkdtempSync(join(tmpDir, 'mobilecli-'));
@@ -50,6 +56,10 @@ function reply(response, exitCode) {
     process.stderr.write((response.error ?? response.data.message) + '\\n');
   }
   process.exit(exitCode);
+}
+if (${JSON.stringify(options.statusCrashes === true)}) {
+  process.stderr.write('panic: runtime error\\n');
+  process.exit(2);
 }
 if (${JSON.stringify(options.deviceExists === false)}) {
   reply({ status: 'error', error: 'device not found: ' + deviceId }, 1);
@@ -84,6 +94,14 @@ test('installs the agent on a fresh simulator whose agent status exits non-zero'
   const mobilecli = createFakeMobilecli({ agentInstalled: false });
 
   ensureAgentInstalled(mobilecli.path, newDevice('simulator'));
+
+  expect(mobilecli.commandsRun()).toEqual(['agent status', 'agent install', 'agent status']);
+});
+
+test('installs the agent on a fresh emulator whose agent status exits non-zero', () => {
+  const mobilecli = createFakeMobilecli({ agentInstalled: false });
+
+  ensureAgentInstalled(mobilecli.path, newDevice('emulator'));
 
   expect(mobilecli.commandsRun()).toEqual(['agent status', 'agent install', 'agent status']);
 });
@@ -123,6 +141,7 @@ test('reports a failed install when the agent is still missing afterwards', () =
   expect(() => ensureAgentInstalled(mobilecli.path, device)).toThrow(
     `agent install failed on simulator ${device.id}: Agent is not installed on the device`,
   );
+  expect(mobilecli.commandsRun()).toEqual(['agent status', 'agent install', 'agent status']);
 });
 
 test('reports mobilecli errors instead of installing', () => {
@@ -132,5 +151,12 @@ test('reports mobilecli errors instead of installing', () => {
   expect(() => ensureAgentInstalled(mobilecli.path, device)).toThrow(
     `mobilecli agent status failed on ${device.id}: device not found: ${device.id}`,
   );
+  expect(mobilecli.commandsRun()).toEqual(['agent status']);
+});
+
+test('passes on the original error when mobilecli crashes without a response', () => {
+  const mobilecli = createFakeMobilecli({ agentInstalled: false, statusCrashes: true });
+
+  expect(() => ensureAgentInstalled(mobilecli.path, newDevice('simulator'))).toThrow('panic: runtime error');
   expect(mobilecli.commandsRun()).toEqual(['agent status']);
 });
