@@ -380,3 +380,35 @@ test.describe('isEditable', () => {
     });
   }
 });
+
+// With Playwright-style substring matching, a derived getByText('Email') would
+// also match "Email address". When the exact form is unique, the derivation must
+// say so, as Playwright's codegen does, so the suggested locator resolves to
+// the one element the user clicked.
+test.describe('exact promotion for ambiguous substring matches', () => {
+  // 'view' maps to no role, so these derive plain text locators.
+  const roots = [
+    node({ type: 'view', text: 'Email' }),
+    node({ type: 'view', text: 'Email address' }),
+    node({ type: 'button', label: 'Save' }),
+    node({ type: 'button', label: 'Save as draft' }),
+    node({ type: 'view', text: 'Unique line' }),
+  ];
+
+  test('a text locator that is only unique with exact: true carries the flag', () => {
+    const entries = deriveElementList(roots);
+    expect(entries[0].locator).toEqual({ kind: 'text', value: 'Email', exact: true });
+    expect(entries[1].locator).toEqual({ kind: 'text', value: 'Email address' });
+  });
+
+  test('role names and labels are promoted the same way', () => {
+    const entries = deriveElementList(roots);
+    expect(entries[2].locator).toEqual({ kind: 'role', value: 'button', name: 'Save', exact: true });
+    expect(entries[2].locators).toContainEqual({ kind: 'label', value: 'Save', exact: true });
+  });
+
+  test('a locator that is already unique is left alone', () => {
+    const entries = deriveElementList(roots);
+    expect(entries[4].locator).toEqual({ kind: 'text', value: 'Unique line' });
+  });
+});

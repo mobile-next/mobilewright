@@ -34,7 +34,7 @@ export function buildStrategy(opts: FindOptions): LocatorStrategy {
     if (!(opts.role in ROLE_TYPE_MAP)) {
       throw new Error(`unknown role "${opts.role}", expected one of: ${Object.keys(ROLE_TYPE_MAP).join(', ')}`);
     }
-    bases.push({ kind: 'role', value: opts.role as Role, name: opts.name === undefined ? undefined : textMatcher(opts.name) });
+    bases.push({ kind: 'role', value: opts.role as Role, name: opts.name === undefined ? undefined : textMatcher(opts.name), exact: opts.exact });
   }
   if (bases.length === 0) {
     throw new Error('specify at least one of --text, --role, --test-id, --label, --placeholder, --type');

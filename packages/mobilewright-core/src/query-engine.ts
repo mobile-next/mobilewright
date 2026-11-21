@@ -1,4 +1,5 @@
 import type { Bounds, ViewNode } from '@mobilewright/protocol';
+import { textMatches } from './text-match.js';
 
 export type LocatorStrategy =
   | { kind: 'root' }
@@ -6,7 +7,7 @@ export type LocatorStrategy =
   | { kind: 'testId'; value: string }
   | { kind: 'text'; value: string | RegExp; exact?: boolean }
   | { kind: 'type'; value: string }
-  | { kind: 'role'; value: string; name?: string | RegExp }
+  | { kind: 'role'; value: string; name?: string | RegExp; exact?: boolean }
   | { kind: 'placeholder'; value: string; exact?: boolean }
   | { kind: 'webview'; testId?: string }
   | { kind: 'chain'; parent: LocatorStrategy; child: LocatorStrategy }
@@ -118,9 +119,7 @@ function matchesStrategy(
     case 'label': {
       const label = labelOf(node);
       if (!label) return false;
-      return strategy.exact === false
-        ? label.toLowerCase().includes(strategy.value.toLowerCase())
-        : label === strategy.value;
+      return textMatches(label, strategy.value, strategy.exact);
     }
 
     case 'testId':
@@ -141,12 +140,7 @@ function matchesStrategy(
 
     case 'text': {
       const nodeText = node.text ?? node.label ?? node.value ?? '';
-      if (strategy.value instanceof RegExp) {
-        return strategy.value.test(nodeText);
-      }
-      return strategy.exact === false
-        ? nodeText.toLowerCase().includes(strategy.value.toLowerCase())
-        : nodeText === strategy.value;
+      return textMatches(nodeText, strategy.value, strategy.exact);
     }
 
     case 'type':
@@ -163,18 +157,13 @@ function matchesStrategy(
         const nodeLabel = NAME_FROM_CONTENT_ROLES.has(strategy.value.toLowerCase())
           ? accessibleName(node)
           : labelOf(node) ?? node.text ?? '';
-        if (strategy.name instanceof RegExp) {
-          return strategy.name.test(nodeLabel);
-        }
-        return nodeLabel === strategy.name;
+        return textMatches(nodeLabel, strategy.name, strategy.exact);
       }
       return true;
 
     case 'placeholder':
       if (!node.placeholder) return false;
-      return strategy.exact === false
-        ? node.placeholder.toLowerCase().includes(strategy.value.toLowerCase())
-        : node.placeholder === strategy.value;
+      return textMatches(node.placeholder, strategy.value, strategy.exact);
 
     case 'webview':
       if (!WEBVIEW_TYPES.has(node.type)) {

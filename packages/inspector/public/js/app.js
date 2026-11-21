@@ -23,11 +23,11 @@ function locatorLabel(locator) {
   if (locator.kind === 'testId') return `getByTestId('${escQ(locator.value)}')`
   if (locator.kind === 'role') {
     return locator.name
-      ? `getByRole('${escQ(locator.value)}', { name: '${escQ(locator.name)}' })`
+      ? `getByRole('${escQ(locator.value)}', { name: '${escQ(locator.name)}'${locator.exact ? ', exact: true' : ''} })`
       : `getByRole('${escQ(locator.value)}')`
   }
-  if (locator.kind === 'label') return `getByLabel('${escQ(locator.value)}')`
-  if (locator.kind === 'text') return `getByText('${escQ(locator.value)}')`
+  if (locator.kind === 'label') return `getByLabel('${escQ(locator.value)}'${locator.exact ? ', { exact: true }' : ''})`
+  if (locator.kind === 'text') return `getByText('${escQ(locator.value)}'${locator.exact ? ', { exact: true }' : ''})`
   return ''
 }
 
