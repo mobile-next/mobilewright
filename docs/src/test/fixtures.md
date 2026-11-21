@@ -21,7 +21,7 @@ test('shows welcome message', async ({ screen }) => {
 });
 ```
 
-The `screen` fixture is scoped to each test. It also handles video recording and captures a screenshot on test failure, attaching both to the test report.
+The `screen` fixture is scoped to each test. It also handles video recording and captures a device screenshot based on Playwright's `screenshot` option (on failure by default), attaching both to the test report.
 
 ### `device`
 
@@ -73,6 +73,19 @@ You can override the following settings per-test or per-project, in addition to 
 | `autoAppLaunch` | `boolean` | Automatically launch the app after connecting. Default: `true` |
 | `animations` | `'on' \| 'off'` | Toggle system animations on the device for stable screenshots (set under `use`). If omitted, then no change — the device is left as-is. |
 | `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility view tree as JSON to the report when a test fails. Default: `'off'` |
+| `screenshot` | `'on' \| 'only-on-failure' \| 'on-first-failure' \| 'off'` | Attach a device screenshot to the report: after every test, after every failure, only after a failure on the first try (not on retries), or never. Default: `'only-on-failure'` |
+
+`screenshot` is Playwright's own option, so it is a worker option: set it in `mobilewright.config.ts`, per project, or with `test.use()` at the top of a file, not inside a `test.describe` block.
+
+```typescript
+import { defineConfig } from 'mobilewright';
+
+export default defineConfig({
+  use: {
+    screenshot: 'on',
+  },
+});
+```
 
 ```typescript
 import { test } from '@mobilewright/test';

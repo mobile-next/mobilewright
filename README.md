@@ -460,7 +460,7 @@ test('can sign in', async ({ device, screen, bundleId }) => {
 });
 ```
 
-The `device` fixture connects once per worker (reading from `mobilewright.config.ts`) and calls `device.close()` after all tests complete. The `screen` fixture provides `device.screen` to each test, with automatic screenshot-on-failure and optional video recording.
+The `device` fixture connects once per worker (reading from `mobilewright.config.ts`) and calls `device.close()` after all tests complete. The `screen` fixture provides `device.screen` to each test, with screenshots (on failure by default) and optional video recording.
 
 **`test.use()` options** — override config per file (or per `test.describe` block):
 
@@ -474,11 +474,13 @@ The `device` fixture connects once per worker (reading from `mobilewright.config
 | `autoAppLaunch` | `boolean` | Terminate and launch the app (`bundleId`) before each test. Default: `true` |
 | `viewTree` | `'on-failure' \| 'off'` | Attach the accessibility tree as JSON when a test fails. Default: `'off'` |
 | `video` | `'on' \| 'retain-on-failure' \| 'off'` | Record video — always, only on failure, or never. Default: `'off'` |
+| `screenshot` | `'on' \| 'only-on-failure' \| 'on-first-failure' \| 'off'` | Attach a device screenshot after each test, after failures, after a failure on the first try only, or never. Default: `'only-on-failure'`. Set it at the top of a file or in the config, not inside a `describe` block |
 
 ```typescript
 test.use({
   bundleId: 'com.example.myapp',
   video: 'retain-on-failure',
+  screenshot: 'on',
   viewTree: 'on-failure',
 });
 ```
