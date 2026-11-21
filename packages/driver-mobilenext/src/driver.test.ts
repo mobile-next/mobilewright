@@ -136,3 +136,34 @@ test.describe('keyboard RPC calls', () => {
     expect(calls).toEqual([{ method: 'device.io.keyboard.hide', params: { deviceId: 'device-1' }, timeoutMs: 60_000 }]);
   });
 });
+
+test.describe('view hierarchy checked state', () => {
+  function driverReturningUIDump(elements: unknown[]): MobileNextDriver {
+    const driver = new MobileNextDriver({ apiKey: 'test-key' } as any);
+    (driver as any).session = {
+      deviceId: 'device-1',
+      rpc: { call: async () => ({ elements }) },
+    };
+    return driver;
+  }
+
+  function switchElement(checked?: boolean): object {
+    return { type: 'Switch', rect: { x: 0, y: 0, width: 50, height: 30 }, checked };
+  }
+
+  test('a checked switch in the UI dump is reported as checked', async () => {
+    const driver = driverReturningUIDump([switchElement(true)]);
+
+    const [node] = await driver.getViewHierarchy();
+
+    expect(node?.isChecked).toBe(true);
+  });
+
+  test('an unchecked or stateless switch is reported as not checked', async () => {
+    const driver = driverReturningUIDump([switchElement(false), switchElement()]);
+
+    const nodes = await driver.getViewHierarchy();
+
+    expect(nodes.map((node) => node.isChecked)).toEqual([false, false]);
+  });
+});

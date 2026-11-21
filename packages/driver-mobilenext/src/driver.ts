@@ -50,6 +50,7 @@ interface MobileNextElement {
   children?: MobileNextElement[];
   visible?: boolean;
   enabled?: boolean;
+  checked?: boolean;
 }
 
 // The first hide in an app injects an agent, which can be slow. This matches
@@ -181,6 +182,7 @@ function elementToViewNode(el: MobileNextElement): ViewNode {
     placeholder: el.placeholder || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
+    isChecked: typeof el.checked === 'boolean' ? el.checked : false,
     bounds,
     children: el.children?.map(elementToViewNode) ?? [],
     raw: { ...el },
