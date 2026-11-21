@@ -137,7 +137,7 @@ test.describe('keyboard RPC calls', () => {
   });
 });
 
-test.describe('view hierarchy checked state', () => {
+test.describe('view hierarchy element state', () => {
   function driverReturningUIDump(elements: unknown[]): MobileNextDriver {
     const driver = new MobileNextDriver({ apiKey: 'test-key' } as any);
     (driver as any).session = {
@@ -147,23 +147,29 @@ test.describe('view hierarchy checked state', () => {
     return driver;
   }
 
-  function switchElement(checked?: boolean): object {
-    return { type: 'Switch', rect: { x: 0, y: 0, width: 50, height: 30 }, checked };
+  function elementWithState(state: object): object {
+    return { type: 'Switch', rect: { x: 0, y: 0, width: 50, height: 30 }, ...state };
   }
 
-  test('a checked switch in the UI dump is reported as checked', async () => {
-    const driver = driverReturningUIDump([switchElement(true)]);
+  test('checked, selected and focused in the UI dump are reported on the node', async () => {
+    const driver = driverReturningUIDump([elementWithState({ checked: true, selected: true, focused: true })]);
 
     const [node] = await driver.getViewHierarchy();
 
-    expect(node?.isChecked).toBe(true);
+    expect([node?.isChecked, node?.isSelected, node?.isFocused]).toEqual([true, true, true]);
   });
 
-  test('an unchecked or stateless switch is reported as not checked', async () => {
-    const driver = driverReturningUIDump([switchElement(false), switchElement()]);
+  test('a state that is false or missing in the UI dump is reported as false', async () => {
+    const driver = driverReturningUIDump([
+      elementWithState({ checked: false, selected: false, focused: false }),
+      elementWithState({}),
+    ]);
 
     const nodes = await driver.getViewHierarchy();
 
-    expect(nodes.map((node) => node.isChecked)).toEqual([false, false]);
+    expect(nodes.map((node) => [node.isChecked, node.isSelected, node.isFocused])).toEqual([
+      [false, false, false],
+      [false, false, false],
+    ]);
   });
 });
