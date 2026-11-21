@@ -56,7 +56,7 @@ platform's accessibility layer reports it. The user has typed into it.
 | type | `class` | `elementType` | `getByRole()` (normalized), `getByType()` (raw) |
 | label | `content-desc` (`contentDescription`) | `label` (`accessibilityLabel`) | `getByLabel()`, `getByRole(…, { name })` |
 | testId | `resource-id` (`android:id`) | `identifier` (`accessibilityIdentifier`) | `getByTestId()` |
-| text | `text` | — never reported | `getByText()`, `toHaveText()` |
+| text | `text` | never reported | `getByText()`, `toHaveText()` |
 | value | slider position (`RangeInfo`), text field content | `value` (`accessibilityValue`) | `toHaveValue()`, `getValue()` |
 | placeholder | `hint` (`hintText`) | `placeholderValue` | `getByPlaceholder()` |
 | checked | `checked` | switch `value` of `"1"` | `toBeChecked()` |
@@ -66,9 +66,11 @@ A few rules that follow from this table:
 - **`getByText()` falls back.** It matches the first non-empty of text, label, then
   value. iOS never reports text, so on iOS `getByText()` matches the label, or for a
   text field without a label, what the user typed.
-- **`getByRole(…, { name })` reads the label first**, then text. An iOS text field
-  without an `accessibilityLabel` has no name, so match it by role alone or by another
-  locator.
+- **`getByRole(…, { name })` reads the label first**, then text, and for some roles the
+  children's text (see [Accessible names](#accessible-names)). A text field without a
+  label of its own is labelled by its children, as a
+  [Jetpack Compose](#jetpack-compose-android) `TextField` is. The iOS text field above
+  has neither, so it has no name: match it by role alone or by another locator.
 - **`getByTestId()` accepts the short Android id.** `getByTestId('text_field')`
   matches `com.mobilenext.playground:id/text_field`, so one test id works on both
   platforms.
@@ -78,13 +80,6 @@ A few rules that follow from this table:
   `accessibilityHint` or `accessibilityTraits`, and Android's `tooltipText` and
   `stateDescription` are not reported, so no locator can match them.
 
-:::note
-Android reports `value` for text fields and sliders, and iOS reports `checked` for
-switches, starting with the mobilecli release that includes
-[mobilecli#455](https://github.com/mobile-next/mobilecli/pull/455). With older mobilecli
-versions, `toHaveValue()` on Android and `toBeChecked()` on iOS do not match.
-:::
-
 ### Finding the text field
 
 Each of these finds the field above (Basic UI has three text fields on Android and two on iOS):
@@ -93,7 +88,7 @@ Each of these finds the field above (Basic UI has three text fields on Android a
 // test id: identical on both platforms
 screen.getByTestId('text_field');
 
-// role: the native class, normalized; without a name it matches every text field
+// role: the native class, normalized. Without a name it matches every text field
 screen.getByRole('textfield').first();
 screen.getByRole('textfield', { name: 'text_field' }); // Android only: iOS has no label here
 
