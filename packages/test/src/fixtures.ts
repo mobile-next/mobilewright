@@ -74,6 +74,12 @@ type MobilewrightTestFixtures = {
   expectStepReporting: void;
 };
 
+// Playwright re-applies config and project `use` values only after a fixture declared with
+// { option: true }, so a plain default here would silently win over them. Its types don't allow
+// `option` when overriding a built-in option, hence the cast.
+type ScreenshotDefault = ['only-on-failure', { scope: 'worker' }];
+const SCREENSHOT_DEFAULT = ['only-on-failure', { scope: 'worker', option: true }] as unknown as ScreenshotDefault;
+
 async function allocateWithinTimeout(client: DevicePoolClient, criteria: AllocationCriteria, timeoutMs: number): Promise<AllocationHandle> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -115,7 +121,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
   osVersion: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
   // Playwright's own option, defaulted to 'only-on-failure' so failures keep their screenshot
-  screenshot: 'only-on-failure',
+  screenshot: SCREENSHOT_DEFAULT,
 
   viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
