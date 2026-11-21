@@ -2,6 +2,7 @@ import { test, expect as playwrightExpect } from '@playwright/test';
 import type { MobilewrightDriver, ViewNode, WebViewInfo, WebViewSession } from '@mobilewright/protocol';
 import type { LocatorStrategy } from './query-engine.js';
 import { WebViewLocator } from './webview-locator.js';
+import { WebViewError, WebViewNotFoundError, WebViewStrictModeViolationError } from './webview-errors.js';
 import { Locator } from './locator.js';
 import { Page } from './page.js';
 import { fakeWebViewSession } from './fake-webview-session.js';
@@ -108,6 +109,7 @@ test.describe('WebViewLocator.page() resolution', () => {
   test('throws when the locator resolves to more than one webview', async () => {
     const { driver } = driverWith({ nativeWebViews: 2, bridgeIds: ['a', 'b'] });
     await playwrightExpect(getByWebView(driver).page()).rejects.toThrow(/did not resolve to a single webview/);
+    await playwrightExpect(getByWebView(driver).page()).rejects.toBeInstanceOf(WebViewStrictModeViolationError);
   });
 
   test('throws when the resolved index is out of range of the bridge webviews', async () => {
@@ -115,6 +117,7 @@ test.describe('WebViewLocator.page() resolution', () => {
     // which must throw rather than clamp to the first/last bridge webview.
     const { driver } = driverWith({ nativeWebViews: 2, bridgeIds: ['only-one'] });
     await playwrightExpect(getByWebView(driver).last().page()).rejects.toThrow(/out of range/);
+    await playwrightExpect(getByWebView(driver).last().page()).rejects.toBeInstanceOf(WebViewNotFoundError);
   });
 
   test('first() attaches the first webview', async () => {
@@ -137,11 +140,13 @@ test.describe('WebViewLocator.page() resolution', () => {
       webViewBridge: undefined,
     } as unknown as MobilewrightDriver;
     await playwrightExpect(getByWebView(driver).page()).rejects.toThrow(/does not have a webViewBridge/);
+    await playwrightExpect(getByWebView(driver).page()).rejects.toBeInstanceOf(WebViewError);
   });
 
   test('throws when the bridge reports no webviews', async () => {
     const { driver } = driverWith({ nativeWebViews: 1, bridgeIds: [] });
     await playwrightExpect(getByWebView(driver).page()).rejects.toThrow(/no webviews available/);
+    await playwrightExpect(getByWebView(driver).page()).rejects.toBeInstanceOf(WebViewNotFoundError);
   });
 
   test('caches the page so a second page() call does not re-attach', async () => {
@@ -163,6 +168,7 @@ test.describe('WebViewLocator.page() resolution', () => {
       {},
     );
     await playwrightExpect(locator.page()).rejects.toThrow(/not among the native webviews/);
+    await playwrightExpect(locator.page()).rejects.toBeInstanceOf(WebViewError);
   });
 });
 
@@ -204,6 +210,7 @@ test.describe('getByWebView({ testId })', () => {
     const { driver } = driverWithNodes([webViewNode(), webViewNode()], ['wv-0', 'wv-1']);
     await playwrightExpect(getByWebViewWithTestId(driver, 'missing').page())
       .rejects.toThrow(/did not resolve to a single webview/);
+    await playwrightExpect(getByWebViewWithTestId(driver, 'missing').page()).rejects.toBeInstanceOf(WebViewNotFoundError);
   });
 });
 
@@ -218,6 +225,7 @@ test.describe('getByWebView() with no native webview nodes', () => {
   test('throws rather than silently attaching index 0 when several exist', async () => {
     const { driver } = driverWith({ nativeWebViews: 0, bridgeIds: ['a', 'b'] });
     await playwrightExpect(getByWebView(driver).page()).rejects.toThrow(/cannot disambiguate/);
+    await playwrightExpect(getByWebView(driver).page()).rejects.toBeInstanceOf(WebViewStrictModeViolationError);
   });
 });
 

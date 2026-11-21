@@ -1,6 +1,7 @@
 import { queryAll, type LocatorStrategy } from './query-engine.js';
 import { Locator } from './locator.js';
 import { Page } from './page.js';
+import { WebViewError, WebViewNotFoundError, WebViewStrictModeViolationError } from './webview-errors.js';
 
 export class WebViewLocator extends Locator {
   private _page: Page | null = null;
@@ -48,14 +49,17 @@ export class WebViewLocator extends Locator {
 
     const bridge = this.driver.webViewBridge;
     if (!bridge) {
-      throw new Error(
+      throw new WebViewError(
         'getByWebView().page(): this driver does not have a webViewBridge',
       );
     }
 
     const bridgeWebviews = await bridge.listWebViews();
     if (bridgeWebviews.length === 0) {
-      throw new Error('getByWebView().page(): no webviews available on the device');
+      throw new WebViewNotFoundError(
+        'getByWebView().page(): no webviews available on the device; ' +
+          'if the app shows one, make sure its webviews are debuggable',
+      );
     }
 
     // Map this locator to a specific webview by its position among native
@@ -68,16 +72,19 @@ export class WebViewLocator extends Locator {
     if (allNativeWebviews.length > 0) {
       const selected = queryAll(roots, this.strategy);
       if (selected.length !== 1) {
-        throw new Error(
+        const message =
           'getByWebView().page(): locator did not resolve to a single webview ' +
             `(matched ${selected.length} of ${allNativeWebviews.length}); ` +
             'use .first(), .last(), or .nth(i) to choose one. ' +
-            `Strategy: ${JSON.stringify(this.strategy)}`,
-        );
+            `Strategy: ${JSON.stringify(this.strategy)}`;
+        if (selected.length === 0) {
+          throw new WebViewNotFoundError(message);
+        }
+        throw new WebViewStrictModeViolationError(message, selected.length);
       }
       const matched = allNativeWebviews.indexOf(selected[0]);
       if (matched === -1) {
-        throw new Error(
+        throw new WebViewError(
           'getByWebView().page(): resolved node is not among the native webviews. ' +
             `Strategy: ${JSON.stringify(this.strategy)}`,
         );
@@ -86,16 +93,17 @@ export class WebViewLocator extends Locator {
     } else if (bridgeWebviews.length > 1) {
       // No native webview nodes to position-match against, yet several webviews
       // exist — attaching index 0 would silently ignore .last()/.nth(i), so fail.
-      throw new Error(
+      throw new WebViewStrictModeViolationError(
         'getByWebView().page(): the platform exposes no native webview nodes to ' +
           `select by position, but ${bridgeWebviews.length} webviews are available — ` +
           'cannot disambiguate which to attach. ' +
           `Strategy: ${JSON.stringify(this.strategy)}`,
+        bridgeWebviews.length,
       );
     }
 
     if (index < 0 || index >= bridgeWebviews.length) {
-      throw new Error(
+      throw new WebViewNotFoundError(
         `getByWebView().page(): webview index ${index} is out of range ` +
           `(${bridgeWebviews.length} webview(s) available from the bridge). ` +
           `Strategy: ${JSON.stringify(this.strategy)}`,

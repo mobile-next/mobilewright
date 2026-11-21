@@ -45,6 +45,7 @@ npx mobilewright test
 - **Retry assertions** — `expect(locator).toBeVisible()` polls until satisfied or timeout
 - **Remote support** — connect to mobilecli on another machine for device lab setups
 - **Test fixtures** — `@mobilewright/test` extends Playwright Test with `screen` and `device` fixtures
+- **WebView support** — Inspect and control web content inside apps using Playwright's locator API
 
 ## Why Mobilewright?
 

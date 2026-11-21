@@ -1,5 +1,6 @@
 export { Locator, LocatorError, type FillOptions, type LocatorOptions, type ScrollIntoViewOptions, type StepFn } from './locator.js';
 export { WebViewLocator } from './webview-locator.js';
+export { WebViewError, WebViewNotFoundError, WebViewStrictModeViolationError } from './webview-errors.js';
 export { Screen, type GetByWebViewOptions, type DialogPredicate, type WaitForDialogOptions } from './screen.js';
 export { Keyboard } from './keyboard.js';
 export { Dialog, type DialogType, type DialogHandler } from './dialog.js';
