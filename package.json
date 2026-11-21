@@ -24,11 +24,14 @@
     "@playwright/test": "1.63.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^22.20.1",
-    "@typescript-eslint/eslint-plugin": "^8.68.0",
-    "@typescript-eslint/parser": "^8.68.0",
-    "eslint": "^10.9.1",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
     "mobilewright": "*",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "minimatch": "^11.0.3"
   }
 }

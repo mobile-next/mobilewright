@@ -94,6 +94,8 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+`fill` and `type` put the typed text in the step title, which reports show. Pass `{ mask: true }` to keep a password or other secret out of it.
+
 ## Frames
 
 Hybrid apps (Ionic, Cordova, Capacitor and similar) often render part of their UI in an `<iframe>` inside the web view. Reach into a same-origin iframe the same way as in Playwright, with `page.frameLocator()` or `locator.contentFrame()`:

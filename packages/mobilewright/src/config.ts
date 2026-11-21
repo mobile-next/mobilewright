@@ -70,6 +70,8 @@ export interface MobilewrightProjectConfig {
   outputDir?: string;
   /** Maximum retries (overrides top-level). */
   retries?: number;
+  /** Run each test this many times (overrides top-level). */
+  repeatEach?: number;
   /** Filter to only run tests matching this pattern. */
   grep?: RegExp | Array<RegExp>;
   /** Filter to skip tests matching this pattern. */
@@ -122,6 +124,12 @@ export interface MobilewrightConfig {
   expect?: MobilewrightExpectConfig;
   /** Maximum retry count for flaky tests. */
   retries?: number;
+  /** Run each test this many times. Useful for measuring flakiness. Default: 1. */
+  repeatEach?: number;
+  /** Stop the run after this many test failures. 0 means no limit. Default: 0. */
+  maxFailures?: number;
+  /** Fail the test run if any test is flagged as flaky. Default: false. */
+  failOnFlakyTests?: boolean;
   /** Number of concurrent workers. */
   workers?: number | string;
   /** Run all tests in parallel. Default: false. */
@@ -146,6 +154,29 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
     return [];
   }
   return Array.isArray(value) ? value : [value];
+}
+
+/** Folder the HTML report is written to; `mobilewright show-report` and report branding read it from here. */
+export const HTML_REPORT_DIR = 'mobilewright-report';
+
+/**
+ * Points every `html` reporter entry without an explicit `outputFolder` at
+ * HTML_REPORT_DIR, so `reporter: 'html'` in the config file lands in the same
+ * folder as `mobilewright test --reporter html`.
+ */
+function applyHtmlReportFolder(config: MobilewrightConfig): MobilewrightConfig {
+  const reporters = normalizeReporters(config.reporter);
+  if (!reporters.some(([name]) => name === 'html')) {
+    return config;
+  }
+  const reporter = reporters.map(([name, options]): ReporterEntry => {
+    if (name !== 'html') {
+      return options === undefined ? [name] : [name, options];
+    }
+    const htmlOptions = (options ?? {}) as Record<string, unknown>;
+    return ['html', { ...htmlOptions, outputFolder: htmlOptions['outputFolder'] ?? HTML_REPORT_DIR }];
+  });
+  return { ...config, reporter: reporter as MobilewrightConfig['reporter'] };
 }
 
 /** Normalizes `MobilewrightConfig['reporter']` into Playwright's array-of-tuples shape. */
@@ -275,7 +306,7 @@ export function defineConfig(config: MobilewrightConfig): MobilewrightConfig {
     globalTeardown: userTeardowns.length > 0 ? [...userTeardowns, ourTeardown] : ourTeardown,
   };
 
-  return injectObserverReporter(base);
+  return injectObserverReporter(applyHtmlReportFolder(base));
 }
 
 const CONFIG_FILES = [

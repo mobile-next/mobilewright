@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        For larger feature proposals, please open this issue to discuss the design **before** sending a PR. This helps avoid wasted effort and keeps changes aligned with the project direction.
+        Features and intentional public behavior changes require an issue and maintainer approval before implementation. A direct maintainer request supplies approval for its stated scope; record it here. See the [approval rules](https://github.com/mobile-next/mobilewright/blob/main/CONTRIBUTING.md#scope-and-approval).
 
   - type: textarea
     id: problem
@@ -19,7 +19,7 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: Describe the feature you'd like, including any API or behavior changes.
+      description: Show the test or API you wish worked, any behavior changes, and the equivalent Playwright API if one exists. Prefer a platform-neutral design.
     validations:
       required: true
 

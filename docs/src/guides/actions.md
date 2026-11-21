@@ -42,6 +42,12 @@ await screen.getByRole('textbox', { name: 'Email' }).clear();
 
 `fill` clears first, so you don't need to call `clear` before it. If the field can't be emptied, `fill` and `clear` throw rather than silently appending to leftover text.
 
+The typed text is part of the step title, so it shows in the HTML report and in results uploaded by a reporter. Pass `mask: true` for passwords and other secrets, and the step reads `locator.fill(***)` instead. It only changes the step title: a screenshot, video or view tree attached on failure still shows whatever the field displays.
+
+```ts
+await screen.getByRole('textbox', { name: 'Password' }).fill(process.env.PASSWORD!, { mask: true });
+```
+
 ### Check and uncheck
 
 `check()`, `uncheck()` and `setChecked(value)` work like Playwright's: they resolve the checkable control (a checkbox, radio button or switch — for an iOS Toggle row, the switch inside it), tap it only when its state differs from what you asked for, and fail with "Clicking the checkbox did not change its state" if the tap had no effect. Calling them on anything else fails with "Not a checkbox, radio button or switch".
@@ -112,6 +118,18 @@ await screen.goBack(); // Android — shorthand for pressButton('BACK')
 ```
 
 Available buttons: `HOME`, `BACK`, `POWER`, `VOLUME_UP`, `VOLUME_DOWN`, `ENTER`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`, `DPAD_CENTER`, `APP_SWITCH`, `LOCK`.
+
+### On-screen keyboard
+
+```ts
+if (await screen.keyboard.isVisible()) {
+  await screen.keyboard.hide();
+}
+```
+
+`isVisible()` tracks the software keyboard only, so it is `false` when a hardware keyboard is in use. `hide()` waits until the keyboard has closed, does nothing if none is showing, and throws if the keyboard stays up. On Android it never navigates back when the keyboard is already closed.
+
+On real iOS devices `hide()` only works in debuggable apps, so it throws for system apps, App Store apps and release builds. On iOS simulators it only works in apps you installed. On iOS the first call for an app can take several seconds, because Mobilewright attaches to the app.
 
 ### Custom gestures
 

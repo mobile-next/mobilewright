@@ -392,6 +392,29 @@ test.describe('WebLocator.fill()', () => {
     await loc.fill('hello@example.com');
     playwrightExpect(evaluateCalls.some(c => c.includes('hello@example.com'))).toBe(true);
   });
+
+  // React (and other frameworks) wrap the element's own `value` property to
+  // track changes; assigning `el.value = …` bypasses that tracker, so the
+  // following 'input' event is ignored and the controlled component never
+  // updates. Playwright writes through the prototype's native setter instead.
+  test('writes the value through the native prototype setter so React controlled inputs update', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, 'input');
+    await loc.fill('user@example.com');
+    const fillExpression = evaluateCalls.find(c => c.includes('user@example.com'))!;
+    playwrightExpect(fillExpression).toContain('Object.getOwnPropertyDescriptor(');
+    playwrightExpect(fillExpression).toContain('\'value\')');
+    playwrightExpect(fillExpression).toContain('.set.call(el,');
+  });
+
+  test('type() appends through the native prototype setter as well', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const loc = new WebLocator(session, 'input');
+    await loc.type('abc');
+    const typeExpression = evaluateCalls.find(c => c.includes('abc'))!;
+    playwrightExpect(typeExpression).toContain('\'value\')');
+    playwrightExpect(typeExpression).toContain('.set.call(el,');
+  });
 });
 
 test.describe('getByRole().click() via the injected engine', () => {
@@ -470,6 +493,29 @@ test.describe('WebLocator step instrumentation', () => {
       'locator.hover()',
       'locator.scrollIntoViewIfNeeded()',
     ]);
+  });
+
+  test('masked fill and type keep the value out of the step title, and still send it to the page', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const { stepFn, titles } = recordingStepFn();
+    const loc = new WebLocator(session, 'input');
+    loc._stepFn = stepFn;
+
+    await loc.fill('s3cret-sentinel', { mask: true });
+    await loc.type('s3cret-sentinel', { mask: true });
+
+    playwrightExpect(titles).toEqual(['locator.fill(***)', 'locator.type(***)']);
+    playwrightExpect(evaluateCalls.filter(c => c.includes('s3cret-sentinel'))).toHaveLength(2);
+  });
+
+  test('type() gives up after its own timeout when the element never becomes visible', async () => {
+    const { session } = sessionAlwaysReturning(false);
+    const loc = new WebLocator(session, 'input');
+    const startedAt = Date.now();
+
+    await playwrightExpect(loc.type('hello', { timeout: 50 })).rejects.toThrow();
+
+    playwrightExpect(Date.now() - startedAt).toBeLessThan(2000);
   });
 
   test('chaining composes the child selector within the parent', async () => {

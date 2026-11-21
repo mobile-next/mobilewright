@@ -39,13 +39,18 @@ npx mobilewright test --project ios
 
 | Flag | Description |
 |---|---|
-| `--workers <n>` | Number of concurrent workers (= concurrent devices). Default: `1`. |
+| `-j, --workers <n>` | Number of concurrent workers (= concurrent devices). Default: `1`. |
 | `--retries <n>` | Retry failing tests up to `n` times. |
+| `--repeat-each <n>` | Run each test `n` times. Useful for finding flaky tests. |
 | `--timeout <ms>` | Per-test timeout in milliseconds. |
 | `--reporter <name>` | Reporter: `list` (default), `html`, `json`, `junit`. |
-| `--grep <pattern>` | Only run tests matching the regex. |
-| `--grep-invert <pattern>` | Skip tests matching the regex. |
+| `-g, --grep <pattern>` | Only run tests matching the regex. |
+| `-G, --grep-invert <pattern>` | Skip tests matching the regex. |
 | `--project <name>` | Run only the named project(s). |
+| `-x` | Stop after the first failure. |
+| `--max-failures <n>` | Stop after `n` failures. |
+| `--fail-on-flaky-tests` | Fail the run if any test only passed on retry. |
+| `--forbid-only` | Fail the run if `test.only` is present (useful in CI). |
 | `--list` | List all tests without running them. |
 | `--pass-with-no-tests` | Exit 0 when no tests are found (useful in CI). |
 | `-c, --config <file>` | Use a specific config file. |

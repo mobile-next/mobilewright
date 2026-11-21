@@ -1,10 +1,13 @@
-export { Locator, LocatorError, type LocatorOptions, type ScrollIntoViewOptions, type StepFn } from './locator.js';
+export { Locator, LocatorError, type FillOptions, type LocatorOptions, type ScrollIntoViewOptions, type StepFn } from './locator.js';
 export { WebViewLocator } from './webview-locator.js';
-export { Screen, type GetByWebViewOptions } from './screen.js';
+export { Screen, type GetByWebViewOptions, type DialogPredicate, type WaitForDialogOptions } from './screen.js';
+export { Keyboard } from './keyboard.js';
+export { Dialog, type DialogType, type DialogHandler } from './dialog.js';
 export { Device, type DeviceOptions } from './device.js';
+export { App } from './app.js';
 export { MobileWebViewPage, MobileWebViewPage as Page } from './page.js';
 export { MobileWebViewLocator, MobileWebViewLocator as WebLocator, MobileWebViewFrameLocator } from './web-locator.js';
-export { expect, ExpectError, setSoftFailureHandler, setDefaultStepFn, type ExpectOptions, type SoftFailureHandler } from './expect.js';
+export { expect, ExpectError, setSoftFailureHandler, setDefaultStepFn, type ExpectOptions, type ExpectTextOptions, type SoftFailureHandler } from './expect.js';
 export { queryAll, ROLE_TYPE_MAP, bareTypeName, type LocatorStrategy, type Role } from './query-engine.js';
 export { sleep } from './sleep.js';
 export type { HardwareButton } from '@mobilewright/protocol';

@@ -57,3 +57,7 @@ npx mobilewright show-report ./path/to/downloaded/mobilewright-report
 The workflow above already triggers on pull requests to `main`. Test results appear in the Actions tab of the pull request, so failing tests are visible before merging.
 
 ```
+
+## Next steps
+
+See [Best Practices](../guides/best-practices.md) for splitting app builds from test runs, running cloud tests on Ubuntu, and choosing between sharding and workers.

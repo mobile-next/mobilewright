@@ -6,11 +6,14 @@ body:
     attributes:
       value: |
         Before opening a bug report, please [search existing issues](https://github.com/mobile-next/mobilewright/issues) to avoid duplicates.
+        Follow the [reporting guide](https://github.com/mobile-next/mobilewright/blob/main/CONTRIBUTING.md#bug-reports), including isolated latest-release reproduction when feasible.
+        Report security vulnerabilities [privately](https://github.com/mobile-next/mobilewright/security/advisories/new). Remove credentials and private app data from attachments.
 
   - type: input
     id: version
     attributes:
       label: Mobilewright version
+      description: Include mobilecli and Node.js versions when relevant. Say if you could not retest the latest release.
       placeholder: "e.g. 1.2.3"
     validations:
       required: true
@@ -19,7 +22,7 @@ body:
     id: os
     attributes:
       label: Operating system
-      placeholder: "e.g. macOS 15.4, Ubuntu 24.04"
+      placeholder: "e.g. macOS 15.4, Ubuntu 24.04, Windows 11"
     validations:
       required: true
 
@@ -31,6 +34,7 @@ body:
         - iOS
         - Android
         - Both
+        - Not applicable (device-independent)
     validations:
       required: true
 
@@ -38,6 +42,7 @@ body:
     id: device
     attributes:
       label: Device or simulator
+      description: Include the target OS version, or enter "not applicable" for device-independent problems.
       placeholder: "e.g. iPhone 16 Pro (simulator), Pixel 8 (real device)"
     validations:
       required: true
@@ -46,7 +51,7 @@ body:
     id: reproduction
     attributes:
       label: Minimal reproduction
-      description: Smallest possible code or steps to reproduce the issue.
+      description: Smallest possible code or CLI/configuration steps. Identify the app or sample when relevant; say if it is private.
       placeholder: |
         1. ...
         2. ...
@@ -73,4 +78,4 @@ body:
     id: extra
     attributes:
       label: Additional context
-      description: Logs, screenshots, or anything else that may be relevant.
+      description: Include relevant sanitized DEBUG=mw:* output, raw mobilecli UI dumps for locator/inspector problems (or backend equivalents), and what you tried. Explain unavailable diagnostics.

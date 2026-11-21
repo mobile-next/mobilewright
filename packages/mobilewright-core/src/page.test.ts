@@ -244,6 +244,59 @@ test.describe('expect(page).toHaveURL()', () => {
     const page = await Page.attach(session);
     await expect(page).not.toHaveURL('https://example.com/other');
   });
+
+  // A link click or script navigation changes the webview's URL without going
+  // through page.goto(); the assertion must read the live URL, not the value
+  // cached at attach time — otherwise it polls a constant until timeout.
+  test.describe('after an in-page navigation the page did not drive', () => {
+    function sessionWhoseUrlChanges(initial: string) {
+      let live = initial;
+      const base = fakeWebViewSession({ url: initial, title: 'Page' }).session;
+      return {
+        session: { ...base, url: async () => live },
+        navigateTo: (url: string) => { live = url; },
+      };
+    }
+
+    test('toHaveURL sees the new URL', async () => {
+      const { session, navigateTo } = sessionWhoseUrlChanges('https://example.com/login');
+      const page = await Page.attach(session);
+      navigateTo('https://example.com/dashboard');
+      await expect(page).toHaveURL(/dashboard/, { timeout: 1_000 });
+    });
+
+    test('not.toHaveURL no longer matches the old URL', async () => {
+      const { session, navigateTo } = sessionWhoseUrlChanges('https://example.com/login');
+      const page = await Page.attach(session);
+      navigateTo('https://example.com/dashboard');
+      await expect(page).not.toHaveURL(/login/, { timeout: 1_000 });
+    });
+
+    // A failed read must not count as "the URL is empty": a negated assertion
+    // would then pass without ever observing the page.
+    test('not.toHaveURL does not pass while the URL cannot be read', async () => {
+      const base = fakeWebViewSession({ url: 'https://example.com/login' }).session;
+      const session = { ...base, url: async (): Promise<string> => { throw new Error('webview gone'); } };
+      const page = await Page.attach({ ...base, url: async () => 'https://example.com/login' });
+      (page as any).session = session;
+      await playwrightExpect(expect(page).not.toHaveURL(/login/, { timeout: 500 })).rejects.toThrow(/webview gone/);
+    });
+
+    test('not.toHaveTitle does not pass while the title cannot be read', async () => {
+      const base = fakeWebViewSession({ url: 'https://example.com/', title: 'Login' }).session;
+      const page = await Page.attach(base);
+      (page as any).session = { ...base, title: async (): Promise<string> => { throw new Error('webview gone'); } };
+      await playwrightExpect(expect(page).not.toHaveTitle('Login', { timeout: 500 })).rejects.toThrow(/webview gone/);
+    });
+
+    test('page.url() reflects the URL the assertion observed', async () => {
+      const { session, navigateTo } = sessionWhoseUrlChanges('https://example.com/login');
+      const page = await Page.attach(session);
+      navigateTo('https://example.com/dashboard');
+      await expect(page).toHaveURL(/dashboard/, { timeout: 1_000 });
+      playwrightExpect(page.url()).toBe('https://example.com/dashboard');
+    });
+  });
 });
 
 test.describe('expect(page).toHaveTitle()', () => {
@@ -322,4 +375,30 @@ test('a custom message prefixes a page assertion failure', async () => {
   await playwrightExpect(
     expect(page, 'login should redirect to the dashboard').toHaveURL(/dashboard/, { timeout: 200 }),
   ).rejects.toThrow(/^login should redirect to the dashboard\n\n/);
+});
+
+// Playwright's page-level matchers gate on `receiver._apiName === 'Page'`
+// (web-first matchers do the same for 'Locator', which MobileWebViewLocator
+// sets). Without it, `expect(page)` from @playwright/test refuses the page:
+// "toHaveURL can be only used with Page object".
+test.describe('expect(page) from @playwright/test accepts a MobileWebViewPage', () => {
+  test('toHaveURL resolves through the page', async () => {
+    const { session } = sessionWithUrl('https://example.com/dashboard');
+    const page = await Page.attach(session);
+    await playwrightExpect(page as any).toHaveURL(/dashboard/, { timeout: 1_000 });
+  });
+
+  test('toHaveTitle resolves through the page', async () => {
+    const { session } = fakeWebViewSession({ url: 'https://example.com/', title: 'Dashboard' });
+    const page = await Page.attach(session);
+    await playwrightExpect(page as any).toHaveTitle('Dashboard', { timeout: 1_000 });
+  });
+
+  test('a mismatch is an ordinary assertion failure, not a type refusal', async () => {
+    const { session } = sessionWithUrl('https://example.com/home');
+    const page = await Page.attach(session);
+    const error = await playwrightExpect(page as any).toHaveURL(/dashboard/, { timeout: 300 }).then(() => null, (e: Error) => e);
+    playwrightExpect(error).toBeTruthy();
+    playwrightExpect(error!.message).not.toContain('can be only used with Page object');
+  });
 });

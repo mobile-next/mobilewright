@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { MobilecliDriver } from './driver.js';
 import { NoDeviceAvailableError, type DeviceInfo } from '@mobilewright/protocol';
 
@@ -329,26 +329,28 @@ test.describe('MobilecliDriver.webViewBridge', () => {
   });
 });
 
-test.describe('MobilecliDriver.clearText()', () => {
-  test('selects all with cmd+a then deletes on iOS', async () => {
-    const driver = createDriverWithSession({ platform: 'ios' });
-    const calls = recordRpc(driver, { 'device.io.keys': {} });
+test.describe('MobilecliDriver.fill()', () => {
+  for (const platform of ['ios', 'android'] as const) {
+    test(`asks mobilecli to fill the focused field on ${platform}`, async () => {
+      const driver = createDriverWithSession({ platform });
+      const calls = recordRpc(driver, { 'device.io.fill': {} });
 
-    await driver.clearText();
+      await driver.fill('Zaphod');
 
-    expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['cmd+a', 'backspace'] } },
-    ]);
-  });
+      expect(calls).toEqual([
+        { method: 'device.io.fill', params: { deviceId: SIMULATOR_DEVICE_ID, text: 'Zaphod' } },
+      ]);
+    });
+  }
 
-  test('selects all with ctrl+a then deletes on Android', async () => {
+  test('fills with an empty string to clear', async () => {
     const driver = createDriverWithSession({ platform: 'android' });
-    const calls = recordRpc(driver, { 'device.io.keys': {} });
+    const calls = recordRpc(driver, { 'device.io.fill': {} });
 
-    await driver.clearText();
+    await driver.fill('');
 
     expect(calls).toEqual([
-      { method: 'device.io.keys', params: { deviceId: SIMULATOR_DEVICE_ID, keys: ['ctrl+a', 'backspace'] } },
+      { method: 'device.io.fill', params: { deviceId: SIMULATOR_DEVICE_ID, text: '' } },
     ]);
   });
 });
@@ -499,5 +501,87 @@ test.describe('pointer coordinates are sent to mobilecli as integers', () => {
     expect(calls[0].method).toBe('device.io.longpress');
     expect(sentCoordinates(calls)).toEqual([{ x: 10, y: 21 }]);
     expect(calls[0].params.duration).toBe(300);
+  });
+});
+
+// The mobilecli server resolves a relative `path` against ITS cwd, which is
+// not the test's cwd when the server was started elsewhere. Always hand it an
+// absolute path.
+test('installApp() sends an absolute path to mobilecli even when given a relative one', async () => {
+  const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+  const calls = recordRpc(driver, { 'device.apps.install': {} });
+  const absolutePath = createValidZipFile('relative-install.apk');
+  const relativePath = relative(process.cwd(), absolutePath);
+  expect(relativePath.startsWith('/')).toBe(false);
+
+  await driver.installApp(relativePath);
+
+  expect(calls[0].method).toBe('device.apps.install');
+  expect(calls[0].params.path).toBe(resolve(absolutePath));
+});
+
+// Removing an app that is not there is not an error (real iOS already behaves
+// this way; Android answered `Failure [DELETE_FAILED_INTERNAL_ERROR]`).
+test.describe('uninstallApp() when the app is not installed', () => {
+  function driverWithInstalledApps(installed: string[]) {
+    const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+    const calls = recordRpc(driver, { 'device.apps.uninstall': {}, 'device.apps.list': { apps: installed.map((packageName) => ({ packageName })) } });
+    return { driver, calls };
+  }
+
+  test('is a no-op and never sends the uninstall RPC', async () => {
+    const { driver, calls } = driverWithInstalledApps(['com.other.app']);
+    await expect(driver.uninstallApp('com.example.app')).resolves.toBeUndefined();
+    expect(calls.map((c) => c.method)).toEqual(['device.apps.list']);
+  });
+
+  test('still uninstalls an installed app', async () => {
+    const { driver, calls } = driverWithInstalledApps(['com.example.app']);
+    await driver.uninstallApp('com.example.app');
+    expect(calls.map((c) => c.method)).toEqual(['device.apps.list', 'device.apps.uninstall']);
+    expect(calls[1].params.bundleId).toBe('com.example.app');
+  });
+});
+
+test('installApp() with a path that does not exist reports the path instead of a raw ENOENT', async () => {
+  const driver = createDriverWithSession({ platform: 'android', deviceType: 'emulator' });
+  await expect(driver.installApp('/no/such/dir/app.apk')).rejects.toThrow(`App file not found: ${resolve('/no/such/dir/app.apk')}`);
+});
+
+test.describe('keyboard RPC calls', () => {
+  function timeoutsOfRpcCalls(driver: MobilecliDriver): Array<number | undefined> {
+    const timeouts: Array<number | undefined> = [];
+    (driver as any).session.rpc.call = async (_method: string, _params: unknown, timeoutMs?: number) => {
+      timeouts.push(timeoutMs);
+    };
+    return timeouts;
+  }
+
+  test('isKeyboardVisible asks device.io.keyboard.status and returns visible', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const calls = recordRpc(driver, { 'device.io.keyboard.status': { visible: true } });
+
+    const visible = await driver.isKeyboardVisible();
+
+    expect(visible).toBe(true);
+    expect(calls).toEqual([{ method: 'device.io.keyboard.status', params: { deviceId: SIMULATOR_DEVICE_ID } }]);
+  });
+
+  test('hideKeyboard calls device.io.keyboard.hide', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const calls = recordRpc(driver, {});
+
+    await driver.hideKeyboard();
+
+    expect(calls).toEqual([{ method: 'device.io.keyboard.hide', params: { deviceId: SIMULATOR_DEVICE_ID } }]);
+  });
+
+  test('hideKeyboard allows longer than the default request timeout', async () => {
+    const driver = createDriverWithSession({ platform: 'ios', deviceType: 'simulator' });
+    const timeouts = timeoutsOfRpcCalls(driver);
+
+    await driver.hideKeyboard();
+
+    expect(timeouts).toEqual([60_000]);
   });
 });

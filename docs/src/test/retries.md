@@ -92,3 +92,19 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
 });
 ```
+
+## Finding flaky tests
+
+Run a test many times with retries turned off to see how often it fails:
+
+```bash
+npx mobilewright test tests/checkout.test.ts --repeat-each=20 --retries=0
+```
+
+`--repeat-each` overrides `repeatEach` in `mobilewright.config.ts`.
+
+A test that fails and then passes on retry is reported as **flaky**, and the run still passes. To fail the run instead, for example on CI, use `--fail-on-flaky-tests` or set `failOnFlakyTests: true` in the config:
+
+```bash
+npx mobilewright test --retries=2 --fail-on-flaky-tests
+```

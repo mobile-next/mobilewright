@@ -105,8 +105,7 @@ function parseFill({ x, y, text }: RequestBody): ParsedAction {
   return {
     run: async device => {
       await device.screen.tap(x as number, y as number);
-      await device.driver.clearText();
-      await device.driver.typeText(text);
+      await device.driver.fill(text);
     },
   };
 }

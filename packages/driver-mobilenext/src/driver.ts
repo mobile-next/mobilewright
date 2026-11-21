@@ -52,6 +52,14 @@ interface MobileNextElement {
   enabled?: boolean;
 }
 
+// The first hide in an app injects an agent, which can be slow. This matches
+// the write deadline mobilecli gives the method.
+const HIDE_KEYBOARD_TIMEOUT_MS = 60_000;
+
+interface MobileNextKeyboardStatusResponse {
+  visible: boolean;
+}
+
 interface MobileNextAppEntry {
   packageName?: string;
   bundleId?: string;
@@ -185,6 +193,8 @@ function appendQueryParam(url: string, key: string, value: string): string {
 }
 
 const ZIP_MAGIC = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+// An installApps entry naming a file already in Mobile Next storage, rather than a path on disk.
+const STORED_FILE_PREFIX = 'file:';
 
 function assertValidZipFile(path: string): void {
   const buf = Buffer.alloc(4);
@@ -307,9 +317,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.pressKeys([selectAll, 'backspace']);
+  async fill(text: string): Promise<void> {
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
@@ -348,6 +357,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobileNextKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide', undefined, HIDE_KEYBOARD_TIMEOUT_MS);
   }
 
   // ─── Screen ─────────────────────────────────────────────────
@@ -423,6 +441,10 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async terminateApp(bundleId: string): Promise<void> {
     await this.call('device.apps.terminate', { bundleId });
+  }
+
+  async clearAppData(bundleId: string): Promise<void> {
+    await this.call('device.apps.clear', { bundleId });
   }
 
   async listApps(): Promise<AppInfo[]> {
@@ -555,6 +577,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
   // Caches the promise so concurrent allocations share one upload; a failure is evicted so a later
   // call can retry.
   private uploadApp(path: string): Promise<string> {
+    if (path.startsWith(STORED_FILE_PREFIX)) {
+      return Promise.resolve(path.slice(STORED_FILE_PREFIX.length));
+    }
     let fileId = this.fileIdByPath.get(path);
     if (!fileId) {
       assertValidZipFile(path);
@@ -567,9 +592,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     return fileId;
   }
 
-  private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  private call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const session = this.requireSession();
-    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params });
+    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params }, timeoutMs);
   }
 
   private requireSession() {

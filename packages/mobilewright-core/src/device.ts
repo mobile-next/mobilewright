@@ -13,6 +13,7 @@ import type {
   ScreenSize,
   Session,
 } from '@mobilewright/protocol';
+import { App } from './app.js';
 import { Screen } from './screen.js';
 import type { LocatorOptions, StepFn } from './locator.js';
 import { runStep } from './stackTrace.js';
@@ -197,6 +198,16 @@ export class Device {
   async terminateApp(bundleId: string): Promise<void> {
     debug('terminating %s', bundleId);
     return this._step('device.terminateApp()', () => this.driver.terminateApp(bundleId));
+  }
+
+  /** Clear the app's data. On Android this also resets its runtime permissions, so permission dialogs show again. */
+  async clearAppData(bundleId: string): Promise<void> {
+    return this._step('device.clearAppData()', () => this.driver.clearAppData(bundleId));
+  }
+
+  /** The app with this bundle id, for app-level actions such as `app.clearData()`. */
+  app(bundleId: string): App {
+    return new App(this.driver, bundleId, (title, fn) => this._step(title, fn));
   }
 
   async listApps(): Promise<AppInfo[]> {
