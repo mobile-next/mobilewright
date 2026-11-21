@@ -136,3 +136,40 @@ test.describe('keyboard RPC calls', () => {
     expect(calls).toEqual([{ method: 'device.io.keyboard.hide', params: { deviceId: 'device-1' }, timeoutMs: 60_000 }]);
   });
 });
+
+test.describe('view hierarchy element state', () => {
+  function driverReturningUIDump(elements: unknown[]): MobileNextDriver {
+    const driver = new MobileNextDriver({ apiKey: 'test-key' } as any);
+    (driver as any).session = {
+      deviceId: 'device-1',
+      rpc: { call: async () => ({ elements }) },
+    };
+    return driver;
+  }
+
+  function elementWithState(state: object): object {
+    return { type: 'Switch', rect: { x: 0, y: 0, width: 50, height: 30 }, ...state };
+  }
+
+  test('checked, selected and focused in the UI dump are reported on the node', async () => {
+    const driver = driverReturningUIDump([elementWithState({ checked: true, selected: true, focused: true })]);
+
+    const [node] = await driver.getViewHierarchy();
+
+    expect([node?.isChecked, node?.isSelected, node?.isFocused]).toEqual([true, true, true]);
+  });
+
+  test('a state that is false or missing in the UI dump is reported as false', async () => {
+    const driver = driverReturningUIDump([
+      elementWithState({ checked: false, selected: false, focused: false }),
+      elementWithState({}),
+    ]);
+
+    const nodes = await driver.getViewHierarchy();
+
+    expect(nodes.map((node) => [node.isChecked, node.isSelected, node.isFocused])).toEqual([
+      [false, false, false],
+      [false, false, false],
+    ]);
+  });
+});
