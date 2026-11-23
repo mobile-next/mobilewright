@@ -7,6 +7,12 @@ hide_table_of_contents: true
 
 # Changelog
 
+## [0.0.72] (2026-11-23)
+* Feat: add the `@mobilewright/mcp` package, wrapping `@mobilenext/mobile-mcp` ([#449](https://github.com/mobile-next/mobilewright/pull/449))
+* Feat: webview `locator.tap()` is a real native touch, and `pressSequentially()` types through the device keyboard ([#396](https://github.com/mobile-next/mobilewright/pull/396)), thanks to [@MoemenMostafa](https://github.com/MoemenMostafa)
+* Fix: checked, selected and focused state work on Mobile Next cloud devices ([#464](https://github.com/mobile-next/mobilewright/pull/464))
+* Fix(iOS): the agent installs on a fresh iOS simulator ([#468](https://github.com/mobile-next/mobilewright/pull/468))
+
 ## [0.0.71] (2026-11-21)
 * Feat: `frameLocator()` and `contentFrame()` reach same-origin iframes inside a webview ([#395](https://github.com/mobile-next/mobilewright/pull/395)), thanks to [@MoemenMostafa](https://github.com/MoemenMostafa)
 * Feat: Playwright's `screenshot` option (`'on'`, `'only-on-failure'`, `'on-first-failure'`, `'off'`) controls when device screenshots are attached. It was silently ignored before ([#465](https://github.com/mobile-next/mobilewright/pull/465))
