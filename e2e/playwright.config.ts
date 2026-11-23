@@ -11,7 +11,8 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      // hasTouch: locator.tap() needs touch, as on a device.
+      use: { ...devices['Desktop Chrome'], hasTouch: true },
     },
   ],
 });

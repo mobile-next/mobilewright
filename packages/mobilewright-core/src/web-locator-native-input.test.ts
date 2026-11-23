@@ -11,30 +11,24 @@ interface FakeField {
   evaluateCalls: string[];
 }
 
-// A page with device input over a fake text field. The session answers the
-// in-page calls as a real field would after the native taps and typing so far:
-// it takes focus after `focusAfterTaps` taps, and typed text only lands from
-// typing pass `landsOnAttempt` on.
-function fakeField(opts: { focusAfterTaps?: number; landsOnAttempt?: number } = {}): FakeField {
+// A page with device input over a fake text field that takes keyboard focus
+// after `focusAfterTaps` native taps.
+interface FakeFieldOptions {
+  focusAfterTaps?: number;
+  viewportWidth?: number;
+}
+
+function fakeField(opts: FakeFieldOptions = {}): FakeField {
   const events: string[] = [];
   let taps = 0;
-  let typingPasses = 0;
-  let value = '';
   const { session, evaluateCalls } = fakeWebViewSession();
   session.evaluate = async <T>(expr: string): Promise<T> => {
     evaluateCalls.push(expr);
     if (expr.includes('getBoundingClientRect')) {
-      return { x: 10, y: 20, viewportWidth: 400 } as T;
+      return { x: 10, y: 20, viewportWidth: opts.viewportWidth ?? 400 } as T;
     }
     if (expr.includes('ownerDocument.activeElement')) {
       return (taps >= (opts.focusAfterTaps ?? 1)) as T;
-    }
-    if (expr.includes('if (el.value) { el.value = \'\'')) {
-      value = '';
-      return undefined as T;
-    }
-    if (expr.includes('String(el.value')) {
-      return value as T;
     }
     return true as T;
   };
@@ -42,19 +36,13 @@ function fakeField(opts: { focusAfterTaps?: number; landsOnAttempt?: number } = 
   page._nativeInput = {
     bounds: async () => ({ x: 0, y: 100, width: 800, height: 1600 }),
     tap: async (x, y) => { taps++; events.push(`tap ${x},${y}`); },
-    typeText: async (text) => {
-      typingPasses++;
-      events.push(`type ${text}`);
-      if (typingPasses >= (opts.landsOnAttempt ?? 1)) {
-        value = text;
-      }
-    },
+    typeText: async (text) => { events.push(`type ${text}`); },
   };
   return { page, events, evaluateCalls };
 }
 
-const typingPasses = (events: string[]): number => events.filter((e) => e.startsWith('type ')).length;
 const taps = (events: string[]): number => events.filter((e) => e.startsWith('tap ')).length;
+const typedKeys = (events: string[]): string[] => events.filter((e) => e.startsWith('type ')).map((e) => e.slice('type '.length));
 
 // ─── tap() ────────────────────────────────────────────────────
 
@@ -66,6 +54,12 @@ test.describe('MobileWebViewLocator.tap()', () => {
     playwrightExpect(events).toEqual(['tap 20,140']);
   });
 
+  test('fails clearly instead of tapping a bogus point when the webview has no width', async () => {
+    const { page, events } = fakeField({ viewportWidth: 0 });
+    await playwrightExpect(page.locator('button').tap()).rejects.toThrow(/no valid on-screen size/);
+    playwrightExpect(events).toEqual([]);
+  });
+
   test('waits until the element is visible, enabled and stable', async () => {
     const { page, evaluateCalls } = fakeField();
     await page.locator('button').tap();
@@ -75,7 +69,7 @@ test.describe('MobileWebViewLocator.tap()', () => {
   test('without device input it fails clearly instead of faking a click', async () => {
     const { session } = fakeWebViewSession({ evaluateAlways: true });
     await playwrightExpect(new WebLocator(session, 'button').tap()).rejects.toThrow(
-      /real touch needs the page from screen\.getByWebView\(\)\.page\(\); use click\(\)/,
+      /locator\.tap\(\): needs the page from screen\.getByWebView\(\)\.page\(\)/,
     );
   });
 
@@ -132,52 +126,61 @@ test.describe('tap() screen point', () => {
 
 // ─── fill() ───────────────────────────────────────────────────
 
-test.describe('MobileWebViewLocator.fill() with device input', () => {
-  test('taps the field, clears it in-page, then types through the device keyboard', async () => {
+test.describe('MobileWebViewLocator.fill()', () => {
+  test('sets the value in-page without tapping or typing, even with device input', async () => {
     const { page, events, evaluateCalls } = fakeField();
     await page.locator('input').fill('a@b.c');
-    playwrightExpect(events).toEqual(['tap 20,140', 'type a@b.c']);
-    const clear = evaluateCalls.find((c) => c.includes('if (el.value) { { const next = \'\';'));
-    playwrightExpect(clear).toBeDefined();
-    playwrightExpect(evaluateCalls.some((c) => c.includes('a@b.c'))).toBe(false);
+    playwrightExpect(events).toEqual([]);
+    playwrightExpect(evaluateCalls.some((c) => c.includes('const next = "a@b.c";'))).toBe(true);
+  });
+
+  test('clear() empties the field in-page, like fill(\'\')', async () => {
+    const { page, events, evaluateCalls } = fakeField();
+    await page.locator('input').clear();
+    playwrightExpect(events).toEqual([]);
+    playwrightExpect(evaluateCalls.some((c) => c.includes('const next = "";'))).toBe(true);
+  });
+
+  test('without device input sets the value in-page', async () => {
+    const { session, evaluateCalls } = fakeWebViewSession({ evaluateAlways: true });
+    await new WebLocator(session, 'input').fill('x1');
+    playwrightExpect(evaluateCalls.some((c) => c.includes('const next = "x1";'))).toBe(true);
+  });
+});
+
+// ─── pressSequentially() ──────────────────────────────────────
+
+test.describe('MobileWebViewLocator.pressSequentially()', () => {
+  test('taps the field, then sends the keys one by one through the device keyboard', async () => {
+    const { page, events, evaluateCalls } = fakeField();
+    await page.locator('input').pressSequentially('a@b');
+    playwrightExpect(events).toEqual(['tap 20,140', 'type a', 'type @', 'type b']);
+    playwrightExpect(evaluateCalls.some((c) => c.includes('a@b'))).toBe(false);
+  });
+
+  test('sends a character outside the basic plane as a single key', async () => {
+    const { page, events } = fakeField();
+    await page.locator('input').pressSequentially('a😀');
+    playwrightExpect(typedKeys(events)).toEqual(['a', '😀']);
   });
 
   test('taps again when the first tap did not give the field keyboard focus', async () => {
     const { page, events } = fakeField({ focusAfterTaps: 2 });
-    await page.locator('input').fill('a@b.c');
-    playwrightExpect(taps(events)).toBe(2);
-    playwrightExpect(typingPasses(events)).toBe(1);
+    await page.locator('input').pressSequentially('ab');
+    playwrightExpect(events.map((e) => e.split(' ')[0])).toEqual(['tap', 'tap', 'type', 'type']);
   });
 
-  test('types once more when the text did not reach the field', async () => {
-    const { page, events } = fakeField({ landsOnAttempt: 2 });
-    await page.locator('input').fill('Secret1!');
-    playwrightExpect(typingPasses(events)).toBe(2);
+  test('fails without typing when the field never takes keyboard focus', async () => {
+    const { page, events } = fakeField({ focusAfterTaps: 99 });
+    await playwrightExpect(page.locator('input').pressSequentially('ab')).rejects.toThrow(/did not take keyboard focus/);
+    playwrightExpect(typedKeys(events)).toEqual([]);
   });
 
-  test('fails clearly, without revealing the text, when it never reaches the field', async () => {
-    const { page } = fakeField({ landsOnAttempt: 99 });
-    const error = await page.locator('input').fill('Secret1!').then(() => null, (e: Error) => e);
-    playwrightExpect(error?.message).toContain('the typed text did not reach the field after 2 attempts (it holds 0 of 8 characters)');
-    playwrightExpect(error?.message).not.toContain('Secret1!');
-  });
-
-  test('verify: false types exactly once, without checking the value', async () => {
-    const { page, events } = fakeField({ landsOnAttempt: 99 });
-    await (page.locator('input') as WebLocator).fill('123456', { verify: false });
-    playwrightExpect(typingPasses(events)).toBe(1);
-  });
-
-  test('verify: false still waits for focus before typing', async () => {
-    const { page, events } = fakeField({ focusAfterTaps: 2 });
-    await (page.locator('input') as WebLocator).fill('123456', { verify: false });
-    playwrightExpect(events.map((e) => e.split(' ')[0])).toEqual(['tap', 'tap', 'type']);
-  });
-
-  test('without device input fill() still sets the value in-page', async () => {
-    const { session, evaluateCalls } = fakeWebViewSession({ evaluateAlways: true });
-    await new WebLocator(session, 'input').fill('x1');
-    playwrightExpect(evaluateCalls.some((c) => c.includes('const next = "x1";'))).toBe(true);
+  test('without device input it fails clearly instead of faking key events', async () => {
+    const { session } = fakeWebViewSession({ evaluateAlways: true });
+    await playwrightExpect(new WebLocator(session, 'input').pressSequentially('ab')).rejects.toThrow(
+      /needs the page from screen\.getByWebView\(\)\.page\(\)/,
+    );
   });
 });
 
