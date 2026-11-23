@@ -21,6 +21,38 @@ import { buildExpectEvaluate, missingElementVerdict, type FrameExpectParams, typ
 
 const DEFAULT_TIMEOUT = 5_000;
 const EXPECT_POLL_INTERVAL = 100;
+// How long pressSequentially() waits for a tapped field to take keyboard focus, and how often it looks.
+const FOCUS_TIMEOUT = 1_500;
+const FOCUS_POLL_INTERVAL = 150;
+
+// Device-level input for a webview page: where the webview sits on screen, and
+// native taps and typing. Present when the page comes from
+// screen.getByWebView().page(); tap() and fill() use it to send real input.
+export interface WebViewNativeInput {
+  // The webview's bounds in the driver's screen coordinates.
+  bounds(): Promise<Bounds>;
+  tap(x: number, y: number): Promise<void>;
+  typeText(text: string): Promise<void>;
+}
+
+// In-page body (with `el` bound to the element) that scrolls the element into
+// view and returns its center in the top window's CSS pixels — adding the
+// offsets of any iframes it sits in — plus the top window's CSS width, which
+// maps CSS pixels onto the webview's native bounds.
+export const SCREEN_POINT_BODY = `if (!el) { return null; }
+  el.scrollIntoView({ block: 'center', inline: 'center' });
+  const r = el.getBoundingClientRect();
+  let x = r.left + r.width / 2;
+  let y = r.top + r.height / 2;
+  let win = el.ownerDocument.defaultView;
+  while (win && win !== window && win.frameElement) {
+    const frame = win.frameElement;
+    const f = frame.getBoundingClientRect();
+    x += f.left + frame.clientLeft;
+    y += f.top + frame.clientTop;
+    win = win.parent;
+  }
+  return { x, y, viewportWidth: window.innerWidth };`;
 
 // The options Playwright's web-first matchers pass to Locator._expect(), and the
 // result shape they read back (see playwright/lib/matchers). Mirrors
@@ -71,6 +103,7 @@ export class MobileWebViewLocator {
   // accepts a MobileWebViewLocator.
   _apiName = 'Locator';
   _stepFn: StepFn | null = null;
+  _nativeInput: WebViewNativeInput | null = null;
 
   constructor(
     protected readonly session: WebViewSession,
@@ -83,6 +116,7 @@ export class MobileWebViewLocator {
   private derive(selector: string): MobileWebViewLocator {
     const loc = new MobileWebViewLocator(this.session, selector);
     loc._stepFn = this._stepFn;
+    loc._nativeInput = this._nativeInput;
     return loc;
   }
 
@@ -359,6 +393,13 @@ export class MobileWebViewLocator {
 
   // ─── Actions ─────────────────────────────────────────────────
 
+  // A real touch: a native tap at the element's on-screen center, so the page
+  // gets trusted touch, pointer and click events. Needs a page from
+  // screen.getByWebView().page(); click() stays a synthetic el.click().
+  async tap(opts?: { timeout?: number }): Promise<void> {
+    return this._step('locator.tap()', () => this.nativeTap(opts?.timeout ?? DEFAULT_TIMEOUT));
+  }
+
   async click(opts?: { timeout?: number }): Promise<void> {
     return this._step('locator.click()', async () => {
       await this.pollActionable(['visible', 'enabled'], opts?.timeout ?? DEFAULT_TIMEOUT);
@@ -366,6 +407,8 @@ export class MobileWebViewLocator {
     });
   }
 
+  // Sets the value in-page, like Playwright's fill(): no tap, no keyboard. For
+  // real key events, use pressSequentially().
   async fill(text: string, opts?: FillOptions): Promise<void> {
     return this._step(`locator.fill(${typedTextInTitle(text, opts?.mask)})`, async () => {
       await this.pollUntilVisible(opts?.timeout ?? DEFAULT_TIMEOUT);
@@ -373,6 +416,26 @@ export class MobileWebViewLocator {
         `el.focus(); ${assignValueScript(JSON.stringify(text))} el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));`,
         'locator.fill()',
       );
+    });
+  }
+
+  async clear(opts?: FillOptions): Promise<void> {
+    return this.fill('', opts);
+  }
+
+  // Real typing: tap the field natively, wait for keyboard focus (tapping once
+  // more if it does not come), then send the keys one by one through the device
+  // keyboard. Like Playwright, it appends: call clear() first to replace.
+  async pressSequentially(text: string, opts?: FillOptions & { delay?: number }): Promise<void> {
+    return this._step(`locator.pressSequentially(${typedTextInTitle(text, opts?.mask)})`, async () => {
+      const native = this.requireNativeInput('locator.pressSequentially()');
+      await this.tapUntilFocused(opts?.timeout ?? DEFAULT_TIMEOUT);
+      for (const key of Array.from(text)) {
+        await native.typeText(key);
+        if (opts?.delay) {
+          await sleep(opts.delay);
+        }
+      }
     });
   }
 
@@ -412,6 +475,61 @@ export class MobileWebViewLocator {
   }
 
   // ─── Private helpers ─────────────────────────────────────────
+
+  // The page's device input, or a clear error naming `what` when there is none
+  // (a page built directly on a WebViewSession has no device to tap or type on).
+  private requireNativeInput(what: string): WebViewNativeInput {
+    if (!this._nativeInput) {
+      throw new Error(`${what}: needs the page from screen.getByWebView().page() for a real touch or keyboard; use click() or fill() for in-page input`);
+    }
+    return this._nativeInput;
+  }
+
+  // Tap the element's on-screen center natively, once it is visible, enabled
+  // and not moving. The CSS point is scaled by the webview's native width over
+  // its CSS viewport width.
+  private async nativeTap(timeout: number): Promise<void> {
+    const native = this.requireNativeInput('locator.tap()');
+    await this.pollActionable(['visible', 'enabled', 'stable'], timeout);
+    const point = await this.evalOnFirst<{ x: number; y: number; viewportWidth: number } | null>(SCREEN_POINT_BODY);
+    if (!point) {
+      throw new Error('locator.tap(): element not found');
+    }
+    const box = await native.bounds();
+    if (!(box.width > 0) || !(point.viewportWidth > 0)) {
+      throw new Error('locator.tap(): the webview has no valid on-screen size to map the tap onto');
+    }
+    const scale = box.width / point.viewportWidth;
+    await native.tap(Math.round(box.x + point.x * scale), Math.round(box.y + point.y * scale));
+  }
+
+  // Whether the element has keyboard focus, polling for up to FOCUS_TIMEOUT:
+  // a tapped field can take a moment to focus on a slow device.
+  private async hasFocus(): Promise<boolean> {
+    const deadline = Date.now() + FOCUS_TIMEOUT;
+    while (true) {
+      const focused = await this.evalOnFirst<boolean>('return !!el && el.ownerDocument.activeElement === el;').catch(() => false);
+      if (focused || Date.now() >= deadline) {
+        return focused;
+      }
+      await sleep(FOCUS_POLL_INTERVAL);
+    }
+  }
+
+  // Tap the element natively until it has keyboard focus: a slow device can
+  // drop the first tap, and keys typed before focus would go elsewhere.
+  private async tapUntilFocused(timeout: number): Promise<void> {
+    await this.nativeTap(timeout);
+    const focused = await this.hasFocus();
+    if (focused) {
+      return;
+    }
+    await this.nativeTap(timeout);
+    const focusedOnRetry = await this.hasFocus();
+    if (!focusedOnRetry) {
+      throw new Error('locator.pressSequentially(): the field did not take keyboard focus after 2 taps');
+    }
+  }
 
   // Poll Playwright's own checkElementStates until the element satisfies all the
   // given states (it returns undefined when they all pass). Used by click to

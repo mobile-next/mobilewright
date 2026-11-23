@@ -6,7 +6,7 @@ export { Dialog, type DialogType, type DialogHandler } from './dialog.js';
 export { Device, type DeviceOptions } from './device.js';
 export { App } from './app.js';
 export { MobileWebViewPage, MobileWebViewPage as Page } from './page.js';
-export { MobileWebViewLocator, MobileWebViewLocator as WebLocator, MobileWebViewFrameLocator } from './web-locator.js';
+export { MobileWebViewLocator, MobileWebViewLocator as WebLocator, MobileWebViewFrameLocator, type WebViewNativeInput } from './web-locator.js';
 export { expect, ExpectError, setSoftFailureHandler, setDefaultStepFn, type ExpectOptions, type ExpectTextOptions, type SoftFailureHandler } from './expect.js';
 export { queryAll, ROLE_TYPE_MAP, bareTypeName, type LocatorStrategy, type Role } from './query-engine.js';
 export { sleep } from './sleep.js';
