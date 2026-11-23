@@ -128,6 +128,7 @@ if (process.env.MOBILENEXT_API_KEY) {
   config.driver = new MobileNextDriver();
   config.deviceType = 'real';
   config.installApps = ['./build/app.ipa'];
+  config.reporter = [['list'], ['html']];
 }
 
 export default defineConfig(config);
@@ -159,6 +160,8 @@ jobs:
 
   test:
     needs: build
+    # Pull requests from forks and Dependabot get no secrets, so skip them
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -173,7 +176,7 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
-      - run: npx mobilewright test --reporter list,html
+      - run: npx mobilewright test
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -187,6 +190,8 @@ Key points:
 
 - **Build once, test anywhere.** The `build` job compiles the app on a Mac. The `test` job only needs Node.js and the app file, so it runs on `ubuntu-latest`, which costs less and starts faster.
 - **Android** works the same way: point `installApps` at your `.apk` and set `platform: 'android'`, or add a [project](../test/projects.md) per platform.
+- **Reporters go in the config.** A `--reporter` flag on the command line replaces every reporter in the config, including the one that uploads results to Mobile Next, so set `reporter` in the config instead.
+- **Secrets.** Pull requests from forks and from Dependabot get no secrets. Without `MOBILENEXT_API_KEY` the config falls back to a local device, which `ubuntu-latest` doesn't have, so the `test` job skips those pull requests.
 - **More devices.** Raise `--workers` to run tests on several cloud devices at once.
 - **`if: ${{ !cancelled() }}`** uploads the report when tests fail, which is when you need it.
 
