@@ -6,7 +6,7 @@
 
 **Mobilewright is a framework for mobile automation and testing.** Control iOS and Android devices, simulators, and emulators from tests, scripts, coding agents, and MCP clients, with a developer experience inspired by Playwright.
 
-[Get Started](#get-started) · [Documentation](https://mobilewright.dev/docs/) · [API Reference](#api-reference) · [Roadmap](ROADMAP.md) · [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=hero)
+[Get Started](#get-started) · [API Examples](#api-at-a-glance) · [Documentation](https://mobilewright.dev/docs/) · [API Reference](#api-reference) · [Roadmap](ROADMAP.md) · [Mobile Next Cloud](https://mobilenext.ai/cloud?utm_source=github&utm_medium=readme&utm_campaign=mobilewright&utm_content=hero)
 
 ## Get Started
 
@@ -163,9 +163,7 @@ Use the references from your own snapshot to interact:
 
 ```bash
 mobilewright-cli fill e7 "user@example.com"
-mobilewright-cli snapshot
 mobilewright-cli fill e8 "password123"
-mobilewright-cli snapshot
 mobilewright-cli tap e9
 mobilewright-cli expect visible --text "Welcome back"
 mobilewright-cli screenshot -o welcome.png
@@ -276,6 +274,96 @@ For Android, import `android` and use `android.launch(...)`. Pass `deviceId` or 
 - **Developer tools** — explore screens with Inspector, record tests with Codegen, and inspect results in HTML reports.
 - **Remote devices** — connect to mobilecli on another machine or use a supported cloud provider.
 
+## API at a glance
+
+These are independent examples to use inside a test or library script. In tests, use the `screen` and `device` fixtures and import `expect` from `@mobilewright/test`. In scripts, use `device.screen` and import `expect` from `mobilewright`, as in the [library quick start](#mobilewright-library).
+
+### Locators
+
+Find native elements by what users see or by an accessibility identifier:
+
+```typescript
+screen.getByText('Welcome', { exact: true });       // exact text
+screen.getByText(/welcome/i);                      // case-insensitive RegExp match
+screen.getByText('welcome', { exact: false });      // substring match
+screen.getByLabel('Email');                        // accessibility label
+screen.getByTestId('login-button');                // accessibility identifier
+screen.getByRole('button', { name: 'Sign In' });    // semantic role and name
+screen.getByRole('button', { name: /sign in/i });   // role with a RegExp name
+screen.getByPlaceholder('Search...');              // placeholder text
+```
+
+Locators are lazy: creating one does not query the device. Chain and filter them to narrow a match:
+
+```typescript
+const cartItem = screen.getByRole('listitem').filter({ hasText: 'Milk' });
+await cartItem.getByRole('button', { name: 'Remove' }).tap();
+
+const items = screen.getByRole('listitem');
+const count = await items.count();                 // current number of matches
+await items.nth(1).tap();                          // second item, zero-based
+```
+
+### Actions and assertions
+
+Locator actions wait for elements to be visible, enabled, and stable before interacting:
+
+```typescript
+await screen.getByLabel('Email').fill('user@example.com');
+await screen.getByLabel('Search').clear();
+await screen.getByRole('button', { name: 'Continue' }).tap();
+await screen.getByRole('switch', { name: 'Notifications' }).check();
+await screen.getByTestId('photo').doubleTap();
+await screen.getByText('Message').longPress({ duration: 1000 });
+await screen.getByTestId('carousel').swipe({ direction: 'left' });
+await screen.getByText('Terms of service').scrollIntoViewIfNeeded();
+```
+
+Assertions retry until the condition is met or the timeout expires:
+
+```typescript
+await expect(screen.getByText(/welcome/i)).toBeVisible();
+await expect(screen.getByText('Loading')).not.toBeVisible();
+await expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+await expect(screen.getByRole('switch', { name: 'Notifications' })).toBeChecked();
+await expect(screen.getByTestId('status')).toHaveText(/ready/i);
+await expect(screen.getByLabel('Email')).toHaveValue('user@example.com');
+await expect(screen.getByRole('listitem')).toHaveCount(3);
+```
+
+### Device lifecycle and screenshots
+
+Control the app, open deep links, and capture the screen through the connected device:
+
+```typescript
+await device.terminateApp('com.example.myapp');
+await device.launchApp('com.example.myapp');
+await device.openUrl('myapp://settings');
+await device.setOrientation('landscape');
+
+await screen.screenshot({ path: 'screenshots/settings.png' });
+await screen.screenshot({ path: 'screenshots/settings.jpg', format: 'jpeg', quality: 80 });
+const image = await screen.getByTestId('profile-card').screenshot(); // cropped PNG Buffer
+const size = await device.screenSize();            // { width, height, scale }
+```
+
+In standalone scripts, call `device.close()` in a `finally` block, as shown in the [library example](#mobilewright-library). Test fixtures manage the connection for you. Device capabilities, such as orientation and deep links, depend on the platform and driver.
+
+### WebViews
+
+For a hybrid app, navigate to a screen containing an embedded WebView in a debug/development build, then use its Playwright-compatible Page and Locator APIs:
+
+```typescript
+const page = await screen.getByWebView().page();
+
+await page.getByLabel('Email').fill('user@example.com');
+await page.getByRole('button', { name: 'Sign In' }).click();
+await expect(page).toHaveURL(/dashboard/);
+await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+```
+
+Use `screen.getByWebView({ testId: 'checkout' })` to select a particular WebView. See the [WebViews guide](https://mobilewright.dev/docs/guides/webviews) for platform requirements, frames, navigation, and real touch input.
+
 ## API Reference
 
 Tests and library scripts share the same device, screen, locator, and assertion APIs. Start with these guides:
@@ -303,7 +391,7 @@ The `mobilewright` executable ships with the library and provides test running, 
 | `npx mobilewright doctor` | Check the local environment and report missing dependencies |
 | `npx mobilewright devices` | List devices, simulators, and emulators |
 | `npx mobilewright install` | Install the mobilecli device agent |
-| `npx mobilewright test` | Run tests using `mobilewright.config.ts` |
+| `npx mobilewright test` | Run tests using your Mobilewright configuration |
 | `npx mobilewright show-report` | Open an HTML test report |
 | `npx mobilewright merge-reports ./blob-reports` | Combine reports from sharded runs |
 | `npx mobilewright screenshot -o home.png` | Save a device screenshot |
@@ -381,7 +469,7 @@ Mobilewright collects anonymous usage telemetry via PostHog and Scarf. To disabl
 DO_NOT_TRACK=1 npx mobilewright test
 ```
 
-To opt out permanently, export one of them in your shell profile (for example `~/.zshrc` or `~/.bashrc`) or in your CI environment.
+To opt out permanently, set `export DO_NOT_TRACK=1` in your shell profile (for example `~/.zshrc` or `~/.bashrc`) or set `DO_NOT_TRACK=1` in your CI environment.
 
 When telemetry is enabled, a random identifier is generated and stored in `~/.config/mobilenext/mobilewright/config.json`. Mobilewright never sends personal information or test data. The Scarf pixel is a plain HTTP request, so Scarf receives the usual request metadata (source IP, user agent); Scarf states it does not retain raw IP addresses. Setting `MOBILEWRIGHT_DISABLE_TELEMETRY` (any value) or `DO_NOT_TRACK` (any value except `0` or `false`) opts out of both.
 
