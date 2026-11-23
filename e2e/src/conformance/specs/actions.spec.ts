@@ -31,7 +31,9 @@ export const actionsSpec = async (page: Page, expect: Expect): Promise<void> => 
   // clear, then pressSequentially types through the keyboard (appends)
   await page.locator('#keys').clear();
   await expect(page.locator('#keys')).toHaveValue('');
-  await page.locator('#keys').pressSequentially('hello42');
+  await page.locator('#keys').pressSequentially('hello');
+  await expect(page.locator('#keys')).toHaveValue('hello');
+  await page.locator('#keys').pressSequentially('42');
   await expect(page.locator('#keys')).toHaveValue('hello42');
 
   // type (appends)
