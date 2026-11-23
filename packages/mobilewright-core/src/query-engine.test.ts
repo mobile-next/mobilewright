@@ -720,3 +720,119 @@ test.describe('filter strategy on flat hierarchy (bounds-based)', () => {
     expect(results[0].label).toBe('Row 2');
   });
 });
+
+test.describe('Jetpack Compose role mapping', () => {
+  // Compose reports Button { Text("New Order") } as a clickable View with the caption on a child
+  const composeTree: ViewNode[] = [
+    node({
+      type: 'android.view.View',
+      raw: { clickable: true },
+      children: [node({ type: 'android.widget.TextView', text: 'New Order' })],
+    }),
+    node({
+      type: 'android.view.View',
+      raw: { clickable: true },
+      children: [node({ type: 'android.view.View', label: 'Account' })],
+    }),
+    node({
+      type: 'android.view.View',
+      children: [node({ type: 'android.widget.TextView', text: 'Welcome to Milliways' })],
+    }),
+  ];
+
+  test('a clickable View matches the button role', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button' });
+    expect(results).toHaveLength(2);
+  });
+
+  test('a View that is not clickable does not match the button role', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'Welcome to Milliways' });
+    expect(results).toHaveLength(0);
+  });
+
+  test('a button is named by the text of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'New Order' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeTree[0]);
+  });
+
+  test('a button is named by the label of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: 'Account' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeTree[1]);
+  });
+
+  test('a list is not named by the text of its children', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Coffee' })).toHaveLength(0);
+  });
+
+  test('a list is still named by its own label', () => {
+    const list = node({
+      type: 'android.widget.ListView',
+      label: 'Menu',
+      children: [node({ type: 'android.widget.TextView', text: 'Coffee' })],
+    });
+    expect(queryAll([list], { kind: 'role', value: 'list', name: 'Menu' })).toEqual([list]);
+  });
+
+  test('a button name regex matches the text of its children', () => {
+    const results = queryAll(composeTree, { kind: 'role', value: 'button', name: /order/i });
+    expect(results).toHaveLength(1);
+  });
+});
+
+test.describe('Jetpack Compose text field labels', () => {
+  // Compose reports a TextField's floating label as a child of the EditText
+  const composeForm: ViewNode[] = [
+    node({
+      type: 'android.widget.EditText',
+      text: 'Glorpax',
+      children: [node({ type: 'android.widget.TextView', text: 'Display name' })],
+    }),
+    node({
+      type: 'android.widget.EditText',
+      text: '',
+      children: [node({ type: 'android.widget.TextView', text: 'Phone' })],
+    }),
+    node({
+      type: 'android.view.View',
+      children: [node({ type: 'android.widget.TextView', text: 'Profile' })],
+    }),
+  ];
+
+  test('getByLabel finds a text field by its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'Display name' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[0]);
+  });
+
+  test('getByLabel with exact: false finds a text field by part of its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'display', exact: false });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[0]);
+  });
+
+  test('a floating label does not label a node that is not a text field', () => {
+    const results = queryAll(composeForm, { kind: 'label', value: 'Profile' });
+    expect(results).toHaveLength(0);
+  });
+
+  test('an empty text field is named by its floating label', () => {
+    const results = queryAll(composeForm, { kind: 'role', value: 'textfield', name: 'Phone' });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe(composeForm[1]);
+  });
+});
+
+test.describe('Jetpack Compose alert role', () => {
+  const dialogPane = node({ type: 'android.view.View', raw: { paneTitle: 'Dialog' } });
+  const bottomSheetPane = node({ type: 'android.view.View', raw: { paneTitle: 'Bottom Sheet' } });
+
+  test('a Material3 dialog pane matches the alert role', () => {
+    expect(queryAll([dialogPane, bottomSheetPane], { kind: 'role', value: 'alert' })).toEqual([dialogPane]);
+  });
+});

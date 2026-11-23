@@ -14,15 +14,32 @@ import { runStep } from './stackTrace.js';
 import { WebViewLocator } from './webview-locator.js';
 import type { Role } from './query-engine.js';
 import { findDialog, type Dialog, type DialogHandler } from './dialog.js';
+import { sleep } from './sleep.js';
+import { Keyboard } from './keyboard.js';
+
+const DEFAULT_TIMEOUT = 5_000;
+const DEFAULT_POLL_INTERVAL = 100;
 
 export interface GetByWebViewOptions {
   /** Match a web view whose native testId (accessibility id / resource-id) equals this. */
   testId?: string;
 }
 
+export type DialogPredicate = (dialog: Dialog) => boolean;
+
+export interface WaitForDialogOptions {
+  predicate?: DialogPredicate;
+  /** Maximum time to wait in ms. Default: the action timeout (5000). */
+  timeout?: number;
+}
+
 export class Screen {
+  /** The on-screen keyboard. */
+  readonly keyboard: Keyboard;
+
   private readonly root: Locator;
   private readonly driver: MobilewrightDriver;
+  private readonly dialogDriver: MobilewrightDriver;
   private dialogHandlers: DialogHandler[] = [];
   // key of the dialog last reported, so each dialog fires 'dialog' once rather than on every poll
   private lastDialogKey: string | undefined;
@@ -43,6 +60,20 @@ export class Screen {
       },
     });
     this.root = Locator.root(this.driver, locatorDefaults);
+    this.keyboard = new Keyboard(this.driver, (title, fn) => this._step(title, fn));
+    // Dialog buttons are tapped through this driver: an answered dialog that shows up again is a new event.
+    this.dialogDriver = new Proxy(rawDriver, {
+      get: (target, prop) => {
+        if (prop === 'tap') {
+          return (x: number, y: number) => {
+            this.lastDialogKey = undefined;
+            return target.tap(x, y);
+          };
+        }
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
   }
 
   // ─── Dialogs ──────────────────────────────────────────────────
@@ -70,12 +101,45 @@ export class Screen {
     return this;
   }
 
+  /**
+   * Wait for the next dialog, like Playwright's page.waitForEvent('dialog'). Start waiting before the
+   * action that opens it; the dialog is left for you to accept or dismiss. Unlike a browser, the device
+   * doesn't push dialog events, so this polls the screen until a dialog shows up.
+   */
+  async waitForEvent(event: 'dialog', optionsOrPredicate?: DialogPredicate | WaitForDialogOptions): Promise<Dialog> {
+    const options = typeof optionsOrPredicate === 'function' ? { predicate: optionsOrPredicate } : optionsOrPredicate ?? {};
+    const timeout = options.timeout ?? this.locatorDefaults.timeout ?? DEFAULT_TIMEOUT;
+    const pollInterval = this.locatorDefaults.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    let found: Dialog | undefined;
+    const handler: DialogHandler = (dialog) => {
+      if (!found && (options.predicate?.(dialog) ?? true)) {
+        found = dialog;
+      }
+    };
+    this.on(event, handler);
+    try {
+      const deadline = Date.now() + timeout;
+      while (!found) {
+        if (Date.now() > deadline) {
+          throw new Error(`Timeout ${timeout}ms exceeded while waiting for event "${event}"`);
+        }
+        await this.viewTreeHandlingDialogs();
+        if (!found) {
+          await sleep(pollInterval);
+        }
+      }
+      return found;
+    } finally {
+      this.off(event, handler);
+    }
+  }
+
   private async viewTreeHandlingDialogs(): Promise<ViewNode[]> {
     const roots = await this.rawDriver.getViewHierarchy();
     if (this.dialogHandlers.length === 0) {
       return roots;
     }
-    const dialog = findDialog(roots, this.rawDriver);
+    const dialog = findDialog(roots, this.dialogDriver);
     if (dialog?.key === this.lastDialogKey) {
       return roots;
     }

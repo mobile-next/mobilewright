@@ -36,6 +36,12 @@ export function runStep<T>(
   return stepFn(title, fn as () => Promise<unknown>, location) as Promise<T>;
 }
 
+// How typed text appears in a step title. Step titles are written to reports
+// and uploaded, so a masked value is replaced before it gets there.
+export function typedTextInTitle(text: string, mask: boolean | undefined): string {
+  return mask ? '***' : JSON.stringify(text);
+}
+
 export function captureLocation(): StepLocation | undefined {
   const frames = (new Error().stack ?? '').split('\n').slice(1);
   const userFrame = frames.find(line => line.includes('    at ') && !line.includes(FRAMEWORK_ROOT));

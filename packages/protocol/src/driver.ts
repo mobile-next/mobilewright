@@ -154,14 +154,18 @@ export interface MobilewrightSession {
   typeText(text: string): Promise<void>;
   /** Press one or more key combinations in order, e.g. ["ctrl+a", "backspace"]. */
   pressKeys(keys: string[]): Promise<void>;
-  /** Clear the currently-focused text field, using the platform's select-all chord. */
-  clearText(): Promise<void>;
+  /** Replace the text of the currently-focused field in one step; '' clears it. */
+  fill(text: string): Promise<void>;
   /** Swipe in the given direction, optionally from a start point and with extra options. */
   swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void>;
   /** Perform a custom multi-touch gesture sequence. */
   gesture(gestures: GestureSequence): Promise<void>;
   /** Press a hardware button (e.g. home, back, volume). */
   pressButton(button: HardwareButton): Promise<void>;
+  /** Whether the software keyboard is showing. */
+  isKeyboardVisible(): Promise<boolean>;
+  /** Close the software keyboard. Does nothing if none is showing, and fails if it stays up. On real iOS devices it only works in debuggable apps. */
+  hideKeyboard(): Promise<void>;
 
   // Screen
   /** Capture a screenshot of the device screen as a PNG buffer. */

@@ -16,10 +16,6 @@ screen.on('dialog', async (dialog) => {
 await screen.getByText('Find nearby stores').tap();  // the location prompt is accepted on the way
 ```
 
-:::note
-Dialogs are supported on Android. iOS support is coming.
-:::
-
 ## How it works
 
 Mobilewright reads the screen many times a second while an action or `expect()` is waiting. With a listener registered, each of those reads also checks for a dialog. A dialog that covers the element you're tapping is handled within one poll, well inside the action timeout.
@@ -34,7 +30,7 @@ Mobilewright reads the screen many times a second while an action or `expect()` 
 | Method | Does |
 |---|---|
 | `dialog.accept(promptText?)` | Presses the positive button: OK, Allow, While using the app. For a prompt, types `promptText` into its text field first. |
-| `dialog.dismiss()` | Presses the negative button: Cancel, Don't allow. On a single-button alert, presses that button. |
+| `dialog.dismiss()` | Presses the negative button: Cancel, Don't Allow. On a single-button alert, presses that button. |
 | `dialog.tap(name)` | Presses the button with this caption, ignoring case. |
 
 ## Reading
@@ -42,20 +38,42 @@ Mobilewright reads the screen many times a second while an action or `expect()` 
 | Method | Returns |
 |---|---|
 | `dialog.type()` | `'alert'`, `'confirm'`, `'prompt'` or `'permission'` |
-| `dialog.isSystem()` | `true` for prompts shown by the OS, like runtime permission requests |
+| `dialog.isSystem()` | `true` for prompts shown by the OS, like runtime permission requests. On iOS this is recognized by the app name in curly quotes in the title (“MyApp” Would Like to…). |
 | `dialog.title()` | The title, empty when there is none |
 | `dialog.message()` | The message text |
 | `dialog.buttons()` | The button captions, in on-screen order |
 
+On iOS, which button is positive comes from where it sits, following Apple's layout: with two buttons side by side, accept presses the right one and dismiss the left one. With stacked buttons, dismiss presses the bottom one. Accept presses the top one, or on a permission prompt the one just above Don't Allow (Allow While Using App). Use `dialog.tap(name)` when you need a specific button.
+
+On Android, Jetpack Compose's Material3 `AlertDialog` is recognized too. It has none of the ids a classic `AlertDialog` has, so Mobilewright finds it by the pane title Material3 gives it, `Dialog`. Its first text is the title, and the rest is the message. Material3 lays out the dismiss button before the confirm button, so accept presses the last button and dismiss the first. The pane title is localized, so for now this only works on a device set to English. A plain Compose `Dialog { }` has no pane title, and isn't detected.
+
 Use `screen.once('dialog', handler)` to handle only the next dialog, and `screen.off('dialog', handler)` to stop listening.
+
+## Waiting for a dialog
+
+To assert that an action opens a dialog, start waiting before the action, like Playwright's `page.waitForEvent('dialog')`:
+
+```typescript
+const dialogPromise = screen.waitForEvent('dialog');
+await screen.getByText('Scan a code').tap();
+const dialog = await dialogPromise;
+expect(dialog.type()).toBe('permission');
+await dialog.dismiss();
+```
+
+The dialog is left for you to answer. Pass a predicate, or `{ predicate, timeout }`, to wait for a specific one. The default timeout is the action timeout. A device doesn't push dialog events the way a browser does, so `waitForEvent` polls the screen until a dialog shows up.
 
 ## Resetting permissions between runs
 
-Once a permission is granted, or denied twice, Android stops asking. Clear the app's data before the test to get the prompt back:
+Once a permission is granted, the device stops asking. So does iOS after one denial, and Android after two. Clear the app's data before the test to get the prompt back:
 
 ```typescript
-test.beforeEach(async ({ device }) => {
-  await device.clearAppData('com.example.app');  // also resets runtime permissions
-  await device.launchApp('com.example.app');
+test.use({ bundleId: 'com.example.app' });
+
+test.beforeEach(async ({ app, device }) => {
+  await app.clearData();  // also resets permissions, and stops the app
+  await device.launchApp(app.bundleId);
 });
 ```
+
+`app.clearData()` resets permissions on Android and on iOS simulators. Notifications on an iOS simulator are the exception: they only reset when you reinstall the app. On a real iOS device `clearData()` throws, because clearing app data is not supported there.

@@ -1,10 +1,12 @@
 import { existsSync, openSync, readSync, closeSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { PlaywrightWorkerOptions } from '@playwright/test';
 import type { AllocatedDevice, Platform } from '@mobilewright/protocol';
-import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, type MobilewrightConfig } from 'mobilewright';
+import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, toArray, type MobilewrightConfig } from 'mobilewright';
 
 type VideoOption = PlaywrightWorkerOptions['video'] | undefined;
+type ScreenshotOption = PlaywrightWorkerOptions['screenshot'] | undefined;
+type TestOutcome = { failed: boolean; retry: number };
 type ProjectName = string;
 type DeviceOptions = {
   platform?: Platform;
@@ -64,6 +66,13 @@ export function assertSupportedPlatform(platform: string | undefined): Platform 
   return platform;
 }
 
+export function requireBundleIdForApp(bundleId: string | undefined): string {
+  if (!bundleId) {
+    throw new Error('The "app" fixture needs a bundleId. Set it in the config or with test.use({ bundleId }).');
+  }
+  return bundleId;
+}
+
 export function annotationsForDevice(handle: AllocatedDevice): Annotation[] {
   const optional = (type: string, description: string | undefined): Annotation[] =>
     description ? [{ type, description }] : [];
@@ -106,10 +115,34 @@ export function videoPlan(video: VideoOption, outputDir: string, testId: string)
   };
 }
 
+/** Playwright's `screenshot` option applied to the device screen. Unset means 'only-on-failure', mobilewright's default. */
+export function shouldAttachScreenshot(screenshot: ScreenshotOption, outcome: TestOutcome): boolean {
+  const mode = (typeof screenshot === 'object' ? screenshot.mode : screenshot) ?? 'only-on-failure';
+  switch (mode) {
+    case 'on':
+      return true;
+    case 'only-on-failure':
+      return outcome.failed;
+    case 'on-first-failure':
+      return outcome.failed && outcome.retry === 0;
+    default:
+      return false;
+  }
+}
+
 export function parseViewTreeOption(value: string | undefined): 'on-failure' | 'off' {
   const resolved = value ?? 'off';
   if (resolved !== 'on-failure' && resolved !== 'off') {
     throw new Error(`Invalid viewTree value: "${resolved}". Must be "on-failure" or "off".`);
   }
   return resolved;
+}
+
+/**
+ * Absolute paths for the configured `installApps`. Relative paths resolve
+ * against the config file's directory (Playwright's convention), not the
+ * worker's or the mobilecli server's cwd.
+ */
+export function resolveInstallAppPaths(installApps: string | string[] | undefined, configDir: string): string[] {
+  return toArray(installApps).map((appPath) => isRemoteAppReference(appPath) ? appPath : resolve(configDir, appPath));
 }

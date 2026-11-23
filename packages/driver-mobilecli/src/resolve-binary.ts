@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 
@@ -53,6 +54,9 @@ export function getPlatformBinary(platform: string, arch: string): PlatformBinar
  */
 export function resolveMobilecliBinary(explicitPath?: string): string {
   if (explicitPath) {
+    if (!existsSync(explicitPath)) {
+      throw new Error(`mobilecli binary not found at ${explicitPath}`);
+    }
     return explicitPath;
   }
 
@@ -68,5 +72,9 @@ export function resolveMobilecliBinary(explicitPath?: string): string {
     throw new Error(`Failed to find ${packageName}. Please reinstall mobilecli.`);
   }
 
-  return join(dirname(platformPkg), binaryName);
+  const binaryPath = join(dirname(platformPkg), binaryName);
+  if (!existsSync(binaryPath)) {
+    throw new Error(`mobilecli binary not found at ${binaryPath}. Please reinstall mobilecli.`);
+  }
+  return binaryPath;
 }

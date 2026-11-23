@@ -1,17 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { writeFileSync, mkdtempSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   assertValidZipFile,
   isRemoteAppReference,
   mergeDeviceConfig,
   assertSupportedPlatform,
+  requireBundleIdForApp,
   annotationsForDevice,
   connectOptionsFor,
   allocationTimeoutFor,
   videoPlan,
+  shouldAttachScreenshot,
   parseViewTreeOption,
+  resolveInstallAppPaths,
 } from './fixture-helpers.js';
 
 function writeTempFile(name: string, bytes: Buffer): string {
@@ -94,6 +97,17 @@ test.describe('assertSupportedPlatform', () => {
   });
 });
 
+test.describe('requireBundleIdForApp', () => {
+  test('returns the bundle id when there is one', () => {
+    expect(requireBundleIdForApp('com.example.app')).toBe('com.example.app');
+  });
+
+  test('rejects a missing or empty bundle id and says how to set it', () => {
+    expect(() => requireBundleIdForApp(undefined)).toThrow('The "app" fixture needs a bundleId');
+    expect(() => requireBundleIdForApp('')).toThrow('test.use({ bundleId })');
+  });
+});
+
 test.describe('annotationsForDevice', () => {
   test('always records platform and id', () => {
     expect(annotationsForDevice({ deviceId: 'd1', platform: 'ios' })).toEqual([
@@ -146,6 +160,43 @@ test.describe('timeout defaults', () => {
   });
 });
 
+test.describe('shouldAttachScreenshot', () => {
+  const passed = { failed: false, retry: 0 };
+  const failedFirstTry = { failed: true, retry: 0 };
+  const failedOnRetry = { failed: true, retry: 1 };
+
+  test('never attaches when screenshot is off', () => {
+    expect(shouldAttachScreenshot('off', passed)).toBe(false);
+    expect(shouldAttachScreenshot('off', failedFirstTry)).toBe(false);
+  });
+
+  test('always attaches when screenshot is on', () => {
+    expect(shouldAttachScreenshot('on', passed)).toBe(true);
+    expect(shouldAttachScreenshot('on', failedOnRetry)).toBe(true);
+  });
+
+  test('attaches every failure for only-on-failure', () => {
+    expect(shouldAttachScreenshot('only-on-failure', passed)).toBe(false);
+    expect(shouldAttachScreenshot('only-on-failure', failedFirstTry)).toBe(true);
+    expect(shouldAttachScreenshot('only-on-failure', failedOnRetry)).toBe(true);
+  });
+
+  test('attaches only the first try failure for on-first-failure', () => {
+    expect(shouldAttachScreenshot('on-first-failure', passed)).toBe(false);
+    expect(shouldAttachScreenshot('on-first-failure', failedFirstTry)).toBe(true);
+    expect(shouldAttachScreenshot('on-first-failure', failedOnRetry)).toBe(false);
+  });
+
+  test('reads the mode from the object form', () => {
+    expect(shouldAttachScreenshot({ mode: 'on', fullPage: true }, passed)).toBe(true);
+  });
+
+  test('attaches failures when screenshot is unset', () => {
+    expect(shouldAttachScreenshot(undefined, passed)).toBe(false);
+    expect(shouldAttachScreenshot(undefined, failedFirstTry)).toBe(true);
+  });
+});
+
 test.describe('videoPlan', () => {
   const outputDir = '/out';
   const testId = 'abc';
@@ -186,5 +237,35 @@ test.describe('parseViewTreeOption', () => {
 
   test('rejects any other value', () => {
     expect(() => parseViewTreeOption('always')).toThrow('Invalid viewTree value: "always"');
+  });
+});
+
+// `installApps` paths are configured relative to the project, but the worker's
+// cwd and the mobilecli server's cwd can both differ from the config directory
+// (e.g. `--config path/to/mobilewright.config.ts`, or a server started from
+// another folder). Resolve them against the config file's directory, as
+// Playwright does for its own path options, so an absolute path reaches the driver.
+test.describe('resolveInstallAppPaths', () => {
+  const configDir = '/projects/shop';
+
+  test('resolves a relative path against the config directory', () => {
+    expect(resolveInstallAppPaths('./builds/app.zip', configDir)).toEqual([resolve('/projects/shop/builds/app.zip')]);
+  });
+
+  test('leaves an absolute path untouched', () => {
+    expect(resolveInstallAppPaths('/tmp/app.apk', configDir)).toEqual([resolve('/tmp/app.apk')]);
+  });
+
+  test('leaves a remote app reference untouched', () => {
+    expect(resolveInstallAppPaths('bs://c700ce60cf13ae8ed97705a55b8e022f', configDir)).toEqual(['bs://c700ce60cf13ae8ed97705a55b8e022f']);
+  });
+
+  test('resolves every entry of an array', () => {
+    expect(resolveInstallAppPaths(['ios/App.zip', '/abs/other.apk'], configDir))
+      .toEqual([resolve('/projects/shop/ios/App.zip'), resolve('/abs/other.apk')]);
+  });
+
+  test('returns an empty list when nothing is configured', () => {
+    expect(resolveInstallAppPaths(undefined, configDir)).toEqual([]);
   });
 });

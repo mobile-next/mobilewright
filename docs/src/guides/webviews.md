@@ -94,6 +94,8 @@ const count = await page.getByRole('listitem').count();
 const value = await page.locator('#email').inputValue();
 ```
 
+`fill`, `type` and `pressSequentially` put the typed text in the step title, which reports show. Pass `{ mask: true }` to keep a password or other secret out of it.
+
 ### Real touch and typing
 
 `click()` dispatches a synthetic click in the page. `tap()` is a **real touch**: it scrolls the element into view and taps its on-screen center through the device, so the page receives trusted touch, pointer and click events, exactly as from a finger:
@@ -111,6 +113,27 @@ await email.pressSequentially('user@example.com');
 ```
 
 Real touch and typing need the web view to appear in the native view hierarchy, which gives its on-screen position. `tap()` and `pressSequentially()` throw on a page that has no device behind it.
+
+## Frames
+
+Hybrid apps (Ionic, Cordova, Capacitor and similar) often render part of their UI in an `<iframe>` inside the web view. Reach into a same-origin iframe the same way as in Playwright, with `page.frameLocator()` or `locator.contentFrame()`:
+
+```typescript
+const app = page.frameLocator('#app');
+await app.getByLabel('Email').fill('user@example.com');
+await app.getByRole('button', { name: 'Continue' }).click();
+await expect(app.getByText('Welcome')).toBeVisible();
+
+// The same frame, reached from a locator of the <iframe> element:
+const sameApp = page.locator('#app').contentFrame();
+
+// Nested iframes:
+await expect(app.frameLocator('#details').getByText('Total')).toBeVisible();
+```
+
+Locators from a frame support the same actions, queries and web-first assertions as page locators. Mobilewright injects its engine into an iframe the first time a locator enters it, and again after the iframe loads a new document.
+
+Only **same-origin** iframes can be entered: the browser does not let a page script into a cross-origin iframe, so a locator that crosses one fails with a clear error. `page.frameLocator()` needs a selector for the iframe; Playwright's selector-less form, which searches every frame, is not supported.
 
 ## Assertions
 

@@ -50,6 +50,17 @@ interface MobileNextElement {
   children?: MobileNextElement[];
   visible?: boolean;
   enabled?: boolean;
+  selected?: boolean;
+  checked?: boolean;
+  focused?: boolean;
+}
+
+// The first hide in an app injects an agent, which can be slow. This matches
+// the write deadline mobilecli gives the method.
+const HIDE_KEYBOARD_TIMEOUT_MS = 60_000;
+
+interface MobileNextKeyboardStatusResponse {
+  visible: boolean;
 }
 
 interface MobileNextAppEntry {
@@ -173,6 +184,9 @@ function elementToViewNode(el: MobileNextElement): ViewNode {
     placeholder: el.placeholder || undefined,
     isVisible: typeof el.visible === 'boolean' ? el.visible : bounds.width > 0 && bounds.height > 0,
     isEnabled: el.enabled ?? true,
+    isSelected: typeof el.selected === 'boolean' ? el.selected : false,
+    isChecked: typeof el.checked === 'boolean' ? el.checked : false,
+    isFocused: typeof el.focused === 'boolean' ? el.focused : false,
     bounds,
     children: el.children?.map(elementToViewNode) ?? [],
     raw: { ...el },
@@ -309,9 +323,8 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.pressKeys([selectAll, 'backspace']);
+  async fill(text: string): Promise<void> {
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
@@ -350,6 +363,15 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobileNextKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide', undefined, HIDE_KEYBOARD_TIMEOUT_MS);
   }
 
   // ─── Screen ─────────────────────────────────────────────────
@@ -576,9 +598,9 @@ export class MobileNextDriver implements MobilewrightSession, DeviceAllocator {
     return fileId;
   }
 
-  private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  private call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const session = this.requireSession();
-    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params });
+    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params }, timeoutMs);
   }
 
   private requireSession() {

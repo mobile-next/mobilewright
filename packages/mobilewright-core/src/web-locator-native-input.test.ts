@@ -73,6 +73,12 @@ test.describe('MobileWebViewLocator.tap()', () => {
     );
   });
 
+  test('device input carries over into iframe locators', async () => {
+    const { page, events } = fakeField();
+    await page.frameLocator('#app').getByRole('button').tap();
+    playwrightExpect(taps(events)).toBe(1);
+  });
+
   test('device input carries over to chained and derived locators', async () => {
     const { page, events } = fakeField();
     await page.locator('form').getByRole('button').first().tap();

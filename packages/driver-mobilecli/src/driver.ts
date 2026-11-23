@@ -1,6 +1,7 @@
 import createDebug from 'debug';
 import { execFileSync } from 'node:child_process';
 import { existsSync, openSync, readSync, closeSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type {
   AllocatedDevice,
   AllocationCriteria,
@@ -36,6 +37,7 @@ import type {
 import { NoDeviceAvailableError, gestureSequenceToTapActions, osVersionSatisfies, parseOsVersion } from '@mobilewright/protocol';
 import { RpcClient } from './rpc-client.js';
 import { resolveMobilecliBinary } from './resolve-binary.js';
+import { ensureAgentInstalled } from './agent.js';
 import { ensureMobilecliReachable, type ServerHandle } from './server.js';
 
 export const DEFAULT_URL = 'ws://localhost:12000/ws';
@@ -48,13 +50,6 @@ export interface MobilecliDriverOptions {
   /** Auto-start the mobilecli server if not running (local URLs only). Default: true. */
   autoStart?: boolean;
 }
-
-/**
- * Device IDs whose agent has already been verified in this process. connect()
- * runs once per test, but the agent doesn't come and go during a run, so the
- * `mobilecli agent status` subprocess only needs to be spawned once per device.
- */
-const agentVerified = new Set<string>();
 
 // ─── mobilecli RPC response types ─────────────────────────────
 
@@ -75,6 +70,14 @@ interface MobilecliElement {
   selected?: boolean;
   checked?: boolean;
   focused?: boolean;
+}
+
+// The first hide in an app injects an agent, which can be slow. This matches
+// the write deadline mobilecli gives the method.
+const HIDE_KEYBOARD_TIMEOUT_MS = 60_000;
+
+interface MobilecliKeyboardStatusResponse {
+  visible: boolean;
 }
 
 interface MobilecliAppEntry {
@@ -121,14 +124,6 @@ interface MobilecliUIDumpResponse {
 interface MobilecliDevicesResponse {
   status: string;
   data: { devices: MobilecliDeviceEntry[]; };
-}
-
-interface MobilecliAgentStatusResponse {
-  status: string;
-  data: {
-    message?: string;
-    agent?: { version: string; bundleId: string };
-  };
 }
 
 /** A single embedded webview as returned by device.webview.list */
@@ -309,7 +304,7 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       }
       debug('resolved device %s (platform=%s, type=%s)', device.id, platform, device.type);
 
-      this.ensureAgentInstalled(device);
+      ensureAgentInstalled(resolveMobilecliBinary(this.mobilecliPath), device);
 
       this.session = { deviceId: device.id, deviceName: device.name, platform, deviceType: device.type, rpc };
       return { deviceId: device.id, platform };
@@ -373,36 +368,6 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     }
 
     return candidates[0];
-  }
-
-  private ensureAgentInstalled(device: DeviceInfo): void {
-    if (agentVerified.has(device.id)) {
-      debug('agent already verified on %s, skipping status check', device.id);
-      return;
-    }
-    const binary = resolveMobilecliBinary(this.mobilecliPath);
-    debug('running: %s agent status --device %s', binary, device.id);
-    const statusOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
-    debug('agent status output: %s', statusOutput.trim());
-    const statusResponse = JSON.parse(statusOutput) as MobilecliAgentStatusResponse;
-    if (statusResponse.status === 'ok') {
-      agentVerified.add(device.id);
-      return;
-    }
-    if (device.type === 'simulator' || device.type === 'emulator') {
-      debug('agent not installed on %s %s, installing automatically', device.type, device.id);
-      debug('running: %s agent install --device %s --verbose', binary, device.id);
-      const installOutput = execFileSync(binary, ['agent', 'install', '--device', device.id, '--verbose'], { encoding: 'utf8' });
-      debug('agent install output: %s', installOutput.trim());
-      const verifyOutput = execFileSync(binary, ['agent', 'status', '--device', device.id], { encoding: 'utf8' });
-      const verifyResponse = JSON.parse(verifyOutput) as MobilecliAgentStatusResponse;
-      if (verifyResponse.status !== 'ok') {
-        throw new Error(`agent install failed on ${device.type} ${device.id}: ${verifyResponse.data?.message ?? 'unknown error'}`);
-      }
-      agentVerified.add(device.id);
-      return;
-    }
-    throw new Error(`agent not installed, run \`npx mobilewright install --device ${device.id}\` to get started`);
   }
 
   async disconnect(): Promise<void> {
@@ -514,9 +479,10 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
     await this.call('device.io.keys', { keys });
   }
 
-  async clearText(): Promise<void> {
-    const selectAll = this.requireSession().platform === 'ios' ? 'cmd+a' : 'ctrl+a';
-    await this.pressKeys([selectAll, 'backspace']);
+  async fill(text: string): Promise<void> {
+    // mobilecli sets the text through accessibility on Android, which doesn't race a Compose
+    // TextField moving its cursor after focus; on iOS it presses the HID clear key, then types
+    await this.call('device.io.fill', { text });
   }
 
   async swipe(direction: SwipeDirection, opts?: SwipeOptions): Promise<void> {
@@ -555,6 +521,15 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
 
   async pressButton(button: HardwareButton): Promise<void> {
     await this.call('device.io.button', { button });
+  }
+
+  async isKeyboardVisible(): Promise<boolean> {
+    const result = await this.call<MobilecliKeyboardStatusResponse>('device.io.keyboard.status');
+    return result.visible;
+  }
+
+  async hideKeyboard(): Promise<void> {
+    await this.call('device.io.keyboard.hide', undefined, HIDE_KEYBOARD_TIMEOUT_MS);
   }
 
   // ─── Screen Operations ───────────────────────────────────────
@@ -698,10 +673,12 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
       }
     }
 
-    assertValidZipFile(path);
-    debug('installing %s', path);
-    await this.call('device.apps.install', { path });
-    debug('installed %s', path);
+    // The server resolves a relative path against ITS cwd, so send an absolute one.
+    const absolutePath = resolve(path);
+    assertValidZipFile(absolutePath);
+    debug('installing %s', absolutePath);
+    await this.call('device.apps.install', { path: absolutePath });
+    debug('installed %s', absolutePath);
   }
 
   async uninstallApp(bundleId: string): Promise<void> {
@@ -773,9 +750,9 @@ export class MobilecliDriver implements MobilewrightSession, DeviceAllocator {
   // ─── Helpers ─────────────────────────────────────────────────
 
   /** RPC call on the active session, auto-injecting deviceId. */
-  private call<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  private call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const session = this.requireSession();
-    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params });
+    return session.rpc.call<T>(method, { deviceId: session.deviceId, ...params }, timeoutMs);
   }
 
   private requireSession() {

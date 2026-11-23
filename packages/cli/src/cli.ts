@@ -277,8 +277,7 @@ program
     const target = parseTarget(arg);
     const { x, y } = centerOfTarget(target, c.session.refs);
     await c.device.screen.tap(x, y);
-    await c.driver.clearText();
-    await c.driver.typeText(text);
+    await c.driver.fill(text);
     return { code: targetCode(target, c, 'fill', 'tap', quote(text)) };
   }));
 

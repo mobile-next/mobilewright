@@ -1,9 +1,12 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
-import { runStep, type StepLocation } from './stackTrace.js';
+import { runStep, typedTextInTitle, type StepLocation } from './stackTrace.js';
 
 export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
+
+/** Element states that require the element to exist (unlike visibility). */
+export type ElementState = 'enabled' | 'checked' | 'focused' | 'selected';
 
 export interface LocatorOptions {
   timeout?: number;
@@ -11,6 +14,12 @@ export interface LocatorOptions {
   stabilityDelay?: number;
   /** Default timeout for expect() assertions on this locator, in ms. */
   expectTimeout?: number;
+}
+
+export interface FillOptions {
+  timeout?: number;
+  /** Show `***` instead of the typed text in the step title. Use for passwords and other secrets. */
+  mask?: boolean;
 }
 
 export interface FilterOptions {
@@ -229,14 +238,11 @@ export class Locator {
   }
 
   async clear(opts?: { timeout?: number }): Promise<void> {
-    return this._step('locator.clear()', () => this._tapAndClear(opts?.timeout));
+    return this._step('locator.clear()', () => this._tapAndFill('', opts?.timeout));
   }
 
-  async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    return this._step(`locator.fill(${JSON.stringify(text)})`, async () => {
-      await this._tapAndClear(opts?.timeout);
-      await this.driver.typeText(text);
-    });
+  async fill(text: string, opts?: FillOptions): Promise<void> {
+    return this._step(`locator.fill(${typedTextInTitle(text, opts?.mask)})`, () => this._tapAndFill(text, opts?.timeout));
   }
 
   /** Resolve the element, tap its center to focus/activate it, and return the node. */
@@ -247,15 +253,13 @@ export class Locator {
     return node;
   }
 
-  /** Focus the element by tapping it, then clear its contents. */
-  private async _tapAndClear(timeout?: number): Promise<void> {
+  /** Focus the element by tapping it, then replace its text; '' clears it. */
+  private async _tapAndFill(text: string, timeout?: number): Promise<void> {
     await this._resolveAndTap(timeout);
-    await this.driver.clearText();
+    await this.driver.fill(text);
 
-    // Verify the clear actually emptied the field; if the driver's select-all
-    // didn't take, only a single character is removed and we'd otherwise
-    // silently leave residual text for fill() to append to.
-    if ((await this._currentValue()) !== '') {
+    // Verify a clear actually emptied the field, rather than leaving residual text behind
+    if (text === '' && (await this._currentValue()) !== '') {
       throw new LocatorError('Failed to clear element', this.strategy);
     }
   }
@@ -308,13 +312,21 @@ export class Locator {
     });
   }
 
-  // ─── Queries (with auto-wait for visibility) ─────────────────
+  // ─── Queries: read the state right now, without waiting ──────
 
+  /**
+   * Whether a matching element is on screen right now. Doesn't wait.
+   * To assert, prefer `expect(locator).toHaveCount()`, which retries.
+   */
   async exists(): Promise<boolean> {
     const node = await this.resolve(0);
     return node !== null;
   }
 
+  /**
+   * Whether the element is visible right now; waits only up to `timeout`, 0 by default.
+   * To assert, prefer `expect(locator).toBeVisible()`, which retries.
+   */
   async isVisible(opts?: { timeout?: number }): Promise<boolean> {
     try {
       await this.waitFor({ state: 'visible', timeout: opts?.timeout ?? 0 });
@@ -327,24 +339,58 @@ export class Locator {
     }
   }
 
+  /**
+   * Whether the element is enabled right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeEnabled()`, which retries until it passes.
+   */
   async isEnabled(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isEnabled;
   }
 
+  /**
+   * Whether the element is selected right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeSelected()`, which retries until it passes.
+   */
   async isSelected(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isSelected === true;
   }
 
+  /**
+   * Whether the element has focus right now. Doesn't wait for the state to change: a tapped
+   * text field takes focus a moment after the tap returns, so read right away it may be false.
+   * To assert, prefer `expect(locator).toBeFocused()`, which retries until it passes.
+   */
   async isFocused(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isFocused === true;
   }
 
+  /**
+   * Whether the element is checked right now. Doesn't wait for the state to change.
+   * To assert, prefer `expect(locator).toBeChecked()`, which retries until it passes.
+   */
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isChecked === true;
+  }
+
+  /**
+   * Read one element state without waiting: null when no element matches, so
+   * assertions can tell "not found" apart from "found but false". Internal.
+   */
+  async _resolveState(state: ElementState): Promise<boolean | null> {
+    const node = await this.resolve(0);
+    if (node === null) {
+      return null;
+    }
+    switch (state) {
+      case 'enabled': return node.isEnabled;
+      case 'checked': return node.isChecked === true;
+      case 'focused': return node.isFocused === true;
+      case 'selected': return node.isSelected === true;
+    }
   }
 
   async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number }> {

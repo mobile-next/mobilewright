@@ -27,11 +27,31 @@ await expect(screen.getByRole('tab', { name: 'Home' })).toBeSelected();
 |-----------|-------------|
 | `toBeVisible()` | Element exists and is visible |
 | `toBeHidden()` | Element does not exist or is not visible |
-| `toBeEnabled()` | Element is enabled |
-| `toBeDisabled()` | Element is not enabled |
-| `toBeChecked()` | Element is checked |
-| `toBeFocused()` | Element has focus |
-| `toBeSelected()` | Element is selected |
+| `toBeEnabled()` | Element exists and is enabled |
+| `toBeDisabled()` | Element exists and is not enabled |
+| `toBeChecked()` | Element exists and is checked |
+| `toBeFocused()` | Element exists and has focus |
+| `toBeSelected()` | Element exists and is selected |
+
+Like Playwright, only the visibility assertions tolerate a missing element: `toBeHidden()` and `not.toBeVisible()` pass when nothing matches. Every other state assertion needs an element to read the state from, so `toBeDisabled()` or `not.toBeChecked()` on a locator that matches nothing fails with "no matching element was found" instead of passing vacuously.
+
+### Prefer assertions over `is*` reads
+
+`locator.isVisible()`, `isEnabled()`, `isChecked()`, `isFocused()`, `isSelected()` and `exists()` return the state **right now**, without waiting for it to change. On a device, an action's effect often lands a moment after the action returns. For example, a tapped text field takes focus slightly later, so reading `isFocused()` right after the tap can return `false`.
+
+To check a state, use the matching assertion, which retries until it passes:
+
+```typescript
+await screen.getByLabel('Email').tap();
+
+// ✗ flaky: reads focus once, maybe before the field has it
+expect(await screen.getByLabel('Email').isFocused()).toBe(true);
+
+// ✓ retries until the field has focus
+await expect(screen.getByLabel('Email')).toBeFocused();
+```
+
+Use the `is*` methods to branch on the current state, not to assert it.
 
 ### Text content
 
@@ -131,4 +151,30 @@ expect('hello world').toContain('world');
 ```typescript
 expect(value).toBeNull();
 expect(value).toBeUndefined();
+```
+
+### Promises
+
+`.rejects` and `.resolves` wait for a promise, then run any value matcher on the rejection reason or the resolved value. `rejects.toThrow()` matches the error's message, like Playwright.
+
+```typescript
+await expect(screen.getByText('Vogon Poetry').tap({ timeout: 1000 })).rejects.toThrow('timed out');
+await expect(device.getOrientation()).resolves.toBe('portrait');
+```
+
+## Polling
+
+`expect.poll` turns any value matcher into a retrying one: it calls the function until the matcher passes or the timeout runs out. If the function throws, that attempt counts as a failure and polling continues.
+
+```typescript
+await expect.poll(async () => (await device.getForegroundApp()).bundleId).not.toBe(bundleId);
+
+await expect.poll(() => device.getOrientation(), {
+  message: 'device should rotate',  // step title, and prefix of the failure
+  timeout: 10_000,                  // default 5000; 0 polls with no limit
+  intervals: [100, 250, 500, 1000], // default; the last interval repeats
+}).toBe('landscape');
+
+// soft: record the failure and keep running
+await expect.soft.poll(() => device.getOrientation()).toBe('landscape');
 ```

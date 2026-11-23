@@ -1,6 +1,7 @@
 import { test as base, type TestInfo } from '@playwright/test';
 import { createWriteStream } from 'node:fs';
 import { mkdir, unlink } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import createDebug from 'debug';
@@ -8,24 +9,26 @@ import {
   createDevicePoolClient,
   connectDevice,
   loadConfig,
-  toArray,
   type DevicePoolClient,
   type AllocationCriteria,
   type AllocationHandle,
   terminateAppIfRunning,
 } from 'mobilewright';
 import { expect, setSoftFailureHandler, setDefaultStepFn } from '@mobilewright/core';
-import type { Device, Screen, StepFn } from '@mobilewright/core';
+import type { App, Device, Screen, StepFn } from '@mobilewright/core';
 import {
   assertValidZipFile,
   isRemoteAppReference,
   mergeDeviceConfig,
   assertSupportedPlatform,
+  requireBundleIdForApp,
   annotationsForDevice,
   connectOptionsFor,
   allocationTimeoutFor,
   videoPlan,
+  shouldAttachScreenshot,
   parseViewTreeOption,
+  resolveInstallAppPaths,
 } from './fixture-helpers.js';
 
 const debug = createDebug('mw:test:fixtures');
@@ -67,8 +70,15 @@ type MobilewrightTestFixtures = {
   installApps: string | string[] | undefined;
   viewTree: 'on-failure' | 'off';
   device: Device;
+  app: App;
   expectStepReporting: void;
 };
+
+// Playwright re-applies config and project `use` values only after a fixture declared with
+// { option: true }, so a plain default here would silently win over them. Its types don't allow
+// `option` when overriding a built-in option, hence the cast.
+type ScreenshotDefault = ['only-on-failure', { scope: 'worker' }];
+const SCREENSHOT_DEFAULT = ['only-on-failure', { scope: 'worker', option: true }] as unknown as ScreenshotDefault;
 
 async function allocateWithinTimeout(client: DevicePoolClient, criteria: AllocationCriteria, timeoutMs: number): Promise<AllocationHandle> {
   const controller = new AbortController();
@@ -110,6 +120,8 @@ export const test = base.extend<MobilewrightTestFixtures>({
   deviceType: [undefined, { option: true }],
   osVersion: [undefined, { option: true }],
   installApps: [undefined, { option: true }],
+  // Playwright's own option, defaulted to 'only-on-failure' so failures keep their screenshot
+  screenshot: SCREENSHOT_DEFAULT,
 
   viewTree: [async ({}, use, testInfo) => {
     const config = await loadConfig(process.cwd(), testInfo.config.configFile);
@@ -137,7 +149,9 @@ export const test = base.extend<MobilewrightTestFixtures>({
     const merged = mergeDeviceConfig(config, { platform, deviceId, deviceName, deviceType, osVersion, installApps }, testInfo.project.name);
     const supportedPlatform = assertSupportedPlatform(merged.platform);
 
-    for (const appPath of toArray(merged.installApps)) {
+    const configDir = testInfo.config.configFile ? dirname(testInfo.config.configFile) : process.cwd();
+    const appsToInstall = resolveInstallAppPaths(merged.installApps, configDir);
+    for (const appPath of appsToInstall) {
       if (!isRemoteAppReference(appPath)) {
         assertValidZipFile(appPath);
       }
@@ -151,7 +165,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
       deviceId: merged.deviceId,
       deviceType: merged.deviceType,
       osVersion: merged.osVersion,
-      installApps: toArray(merged.installApps),
+      installApps: appsToInstall,
     }, allocationTimeoutFor(merged));
     debug('allocated device %s', handle.deviceId);
 
@@ -162,7 +176,7 @@ export const test = base.extend<MobilewrightTestFixtures>({
     debug('connected to device %s', handle.deviceId);
 
     try {
-      for (const appPath of toArray(merged.installApps)) {
+      for (const appPath of appsToInstall) {
         const installed = await client.isAppInstalled(handle.allocationId, appPath);
         if (!installed) {
           await device.installApp(appPath);
@@ -184,7 +198,15 @@ export const test = base.extend<MobilewrightTestFixtures>({
     }
   }, { timeout: 0 }],
 
-  screen: async ({ device, video, viewTree }, use, testInfo) => {
+  app: async ({ device, bundleId }, use) => {
+    // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests app
+    if (!device) {
+      throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
+    }
+    await use(device.app(requireBundleIdForApp(bundleId)));
+  },
+
+  screen: async ({ device, video, screenshot, viewTree }, use, testInfo) => {
     // device is null when its setup was aborted (e.g. test timed out while allocating) and an afterEach still requests screen
     if (!device) {
       throw new Error('device is not available, its setup did not complete (did the test time out while allocating?)');
@@ -219,13 +241,18 @@ export const test = base.extend<MobilewrightTestFixtures>({
       }
     }
 
-    if (testInfo.status !== testInfo.expectedStatus) {
+    const failed = testInfo.status !== testInfo.expectedStatus;
+
+    if (shouldAttachScreenshot(screenshot, { failed, retry: testInfo.retry })) {
       try {
-        const screenshot = await device.screen.screenshot();
-        await testInfo.attach('screenshot-on-failure', { body: screenshot, contentType: 'image/png' });
+        const image = await device.screen.screenshot();
+        await testInfo.attach(failed ? 'screenshot-on-failure' : 'screenshot', { body: image, contentType: 'image/png' });
       } catch {
         // device may be disconnected
       }
+    }
+
+    if (failed) {
       if (viewTree === 'on-failure') {
         try {
           const tree = await device.screen.viewTree();
