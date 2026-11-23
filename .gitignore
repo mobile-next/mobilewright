@@ -48,3 +48,4 @@ examples/**/*.js
 examples/**/*.js.map
 examples/**/*.d.ts
 examples/**/*.d.ts.map
+docs/superpowers
