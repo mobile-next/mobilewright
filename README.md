@@ -67,7 +67,7 @@ npx mobilewright init
 
 ### Configure your app
 
-Edit the generated `mobilewright.config.ts`:
+Edit the generated `mobilewright.config.ts` (or `mobilewright.config.js` if you chose JavaScript):
 
 ```typescript
 import { defineConfig } from 'mobilewright';
