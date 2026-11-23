@@ -1,9 +1,12 @@
 import type { MobilewrightDriver, ViewNode, Bounds, SwipeDirection, ScreenSize } from '@mobilewright/protocol';
 import { queryAll, matchesRole, type LocatorStrategy, type Role } from './query-engine.js';
 import { sleep } from './sleep.js';
-import { runStep, type StepLocation } from './stackTrace.js';
+import { runStep, typedTextInTitle, type StepLocation } from './stackTrace.js';
 
 export type StepFn = (title: string, fn: () => Promise<unknown>, location: StepLocation | undefined) => Promise<unknown>;
+
+/** Element states that require the element to exist (unlike visibility). */
+export type ElementState = 'enabled' | 'checked' | 'focused' | 'selected';
 
 export interface LocatorOptions {
   timeout?: number;
@@ -11,6 +14,12 @@ export interface LocatorOptions {
   stabilityDelay?: number;
   /** Default timeout for expect() assertions on this locator, in ms. */
   expectTimeout?: number;
+}
+
+export interface FillOptions {
+  timeout?: number;
+  /** Show `***` instead of the typed text in the step title. Use for passwords and other secrets. */
+  mask?: boolean;
 }
 
 export interface FilterOptions {
@@ -232,8 +241,8 @@ export class Locator {
     return this._step('locator.clear()', () => this._tapAndFill('', opts?.timeout));
   }
 
-  async fill(text: string, opts?: { timeout?: number }): Promise<void> {
-    return this._step(`locator.fill(${JSON.stringify(text)})`, () => this._tapAndFill(text, opts?.timeout));
+  async fill(text: string, opts?: FillOptions): Promise<void> {
+    return this._step(`locator.fill(${typedTextInTitle(text, opts?.mask)})`, () => this._tapAndFill(text, opts?.timeout));
   }
 
   /** Resolve the element, tap its center to focus/activate it, and return the node. */
@@ -365,6 +374,23 @@ export class Locator {
   async isChecked(opts?: { timeout?: number }): Promise<boolean> {
     const node = await this.resolve(opts?.timeout ?? 0);
     return node !== null && node.isChecked === true;
+  }
+
+  /**
+   * Read one element state without waiting: null when no element matches, so
+   * assertions can tell "not found" apart from "found but false". Internal.
+   */
+  async _resolveState(state: ElementState): Promise<boolean | null> {
+    const node = await this.resolve(0);
+    if (node === null) {
+      return null;
+    }
+    switch (state) {
+      case 'enabled': return node.isEnabled;
+      case 'checked': return node.isChecked === true;
+      case 'focused': return node.isFocused === true;
+      case 'selected': return node.isSelected === true;
+    }
   }
 
   async boundingBox(opts?: { timeout?: number }): Promise<{ x: number; y: number; width: number; height: number }> {

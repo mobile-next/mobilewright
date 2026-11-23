@@ -21,6 +21,22 @@ function node(
   };
 }
 
+// Runs an action on a locator for the given test id and returns the titles of the steps it emitted.
+async function stepTitlesOf(
+  driver: MobilewrightDriver,
+  testId: string,
+  action: (locator: Locator) => Promise<void>,
+): Promise<string[]> {
+  const titles: string[] = [];
+  const locator = new Locator(driver, { kind: 'testId', value: testId });
+  locator._stepFn = (title, body) => {
+    titles.push(title);
+    return body();
+  };
+  await action(locator);
+  return titles;
+}
+
 type CallTracker = {
   tapCalls: any[][];
   doubleTapCalls: any[][];
@@ -221,6 +237,23 @@ test.describe('Locator', () => {
       expect(driver._tracker.tapCalls).toEqual([[195, 222]]);
       expect(driver._tracker.fillCalls).toEqual([['test@example.com']]);
       expect(driver._tracker.typeTextCalls).toEqual([]);
+    });
+
+    test('shows the typed text in the step title', async () => {
+      const driver = createMockDriver(hierarchy);
+
+      const titles = await stepTitlesOf(driver, 'emailField', locator => locator.fill('test@example.com'));
+
+      expect(titles).toEqual(['locator.fill("test@example.com")']);
+    });
+
+    test('keeps a masked value out of the step title, and still fills the field with it', async () => {
+      const driver = createMockDriver(hierarchy);
+
+      const titles = await stepTitlesOf(driver, 'emailField', locator => locator.fill('s3cret-sentinel', { mask: true }));
+
+      expect(titles).toEqual(['locator.fill(***)']);
+      expect(driver._tracker.fillCalls).toEqual([['s3cret-sentinel']]);
     });
   });
 

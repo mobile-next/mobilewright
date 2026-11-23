@@ -40,6 +40,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
       - run: npm ci --ignore-scripts
       - run: |
           # make sure we have playwright's injected engine
@@ -49,7 +50,9 @@ jobs:
             exit 1
           }
       - run: npm run build
+      # lint and typecheck results do not depend on the OS, and the Linux jobs already run them
       - run: npm run lint
+        if: runner.os != 'Windows'
       - run: npm test
       - name: Smoke test CLI binary resolution
         run: |

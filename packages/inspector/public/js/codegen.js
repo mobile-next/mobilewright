@@ -1,5 +1,6 @@
 import { DetailPane, Inspector, ScreenshotPane, applyTheme, escQ, locatorCode, makeResizable } from './app.js'
 import { ViewTreePane } from './view-tree.js'
+import { insertBeforeBodyEnd } from './codegen-source.js'
 
 // What the generated code runs under: the @mobilewright/test runner, or a plain script using the library.
 // Recorded lines are the same for both, since each exposes `device` and `screen`; only the wrapper differs.
@@ -101,14 +102,6 @@ function readTreeOpen() {
 
 function centerOf({ x, y, width, height }) {
   return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) }
-}
-
-function insertBeforeBodyEnd(source, bodyEnd, line) {
-  const end = source.lastIndexOf(bodyEnd)
-  if (end === -1) {
-    return source + line + '\n'
-  }
-  return source.slice(0, end) + line + '\n' + source.slice(end)
 }
 
 class Recorder {

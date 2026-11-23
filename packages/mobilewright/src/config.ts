@@ -32,6 +32,8 @@ export interface MobilewrightUseOptions {
   installApps?: string | string[];
   /** System animations on the device: 'on' or 'off'. If omitted, the device is left unchanged. */
   animations?: 'on' | 'off';
+  /** Playwright's screenshot option, applied to the device screen. Default: 'only-on-failure'. */
+  screenshot?: 'off' | 'on' | 'only-on-failure' | 'on-first-failure';
   /** Default timeout for locator actions (tap, fill, etc.) in ms. Default: 5000. */
   actionTimeout?: number;
   /** Timeout waiting for the app to reach foreground after launch, in ms. Default: 20000. */

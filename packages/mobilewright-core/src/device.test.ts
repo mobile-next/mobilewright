@@ -9,6 +9,7 @@ import type {
   ScreenSize,
 } from '@mobilewright/protocol';
 import { Device } from './device.js';
+import { App } from './app.js';
 
 function createMockDriver(screenSize: ScreenSize): MobilewrightDriver {
   return {
@@ -229,5 +230,67 @@ test.describe('Device step reporting', () => {
     await device.screen.tap(10, 20);
 
     expect(titles).toEqual(['screen.tap()']);
+  });
+});
+
+test.describe('Device.app', () => {
+  function createClearRecordingDriver(): { driver: MobilewrightDriver; clearedBundleIds: string[] } {
+    const clearedBundleIds: string[] = [];
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    driver.clearAppData = async (bundleId) => {
+      clearedBundleIds.push(bundleId);
+    };
+    return { driver, clearedBundleIds };
+  }
+
+  test('returns a new App on each call', () => {
+    const device = new Device(createMockDriver({ width: 390, height: 844, scale: 3 }));
+
+    const first = device.app('com.test');
+    const second = device.app('com.test');
+
+    expect(first).toBeInstanceOf(App);
+    expect(second).not.toBe(first);
+  });
+
+  test('the App knows its bundle id', () => {
+    const device = new Device(createMockDriver({ width: 390, height: 844, scale: 3 }));
+
+    expect(device.app('com.test').bundleId).toBe('com.test');
+  });
+
+  test('clearData clears the data of that app', async () => {
+    const { driver, clearedBundleIds } = createClearRecordingDriver();
+    const device = new Device(driver);
+
+    await device.app('com.test').clearData();
+
+    expect(clearedBundleIds).toEqual(['com.test']);
+  });
+
+  test('clearData is reported as one app.clearData() step', async () => {
+    const { driver } = createClearRecordingDriver();
+    const device = new Device(driver);
+    const app = device.app('com.test');
+    const titles: string[] = [];
+    // set after app() on purpose: the test fixture wires steps late, and an App must still report
+    device.setStepFn((title, fn) => {
+      titles.push(title);
+      return fn();
+    });
+
+    await app.clearData();
+
+    expect(titles).toEqual(['app.clearData()']);
+  });
+
+  test('clearData surfaces the driver error', async () => {
+    const driver = createMockDriver({ width: 390, height: 844, scale: 3 });
+    driver.clearAppData = async () => {
+      throw new Error('clearing app data is not supported on real iOS devices');
+    };
+    const device = new Device(driver);
+
+    await expect(device.app('com.test').clearData()).rejects.toThrow('not supported on real iOS devices');
   });
 });

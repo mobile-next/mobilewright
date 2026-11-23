@@ -5,6 +5,8 @@ import type { AllocatedDevice, Platform } from '@mobilewright/protocol';
 import { DEFAULT_INSTALL_TIMEOUT, DEFAULT_ALLOCATION_TIMEOUT, toArray, type MobilewrightConfig } from 'mobilewright';
 
 type VideoOption = PlaywrightWorkerOptions['video'] | undefined;
+type ScreenshotOption = PlaywrightWorkerOptions['screenshot'] | undefined;
+type TestOutcome = { failed: boolean; retry: number };
 type ProjectName = string;
 type DeviceOptions = {
   platform?: Platform;
@@ -64,6 +66,13 @@ export function assertSupportedPlatform(platform: string | undefined): Platform 
   return platform;
 }
 
+export function requireBundleIdForApp(bundleId: string | undefined): string {
+  if (!bundleId) {
+    throw new Error('The "app" fixture needs a bundleId. Set it in the config or with test.use({ bundleId }).');
+  }
+  return bundleId;
+}
+
 export function annotationsForDevice(handle: AllocatedDevice): Annotation[] {
   const optional = (type: string, description: string | undefined): Annotation[] =>
     description ? [{ type, description }] : [];
@@ -104,6 +113,21 @@ export function videoPlan(video: VideoOption, outputDir: string, testId: string)
     path: shouldRecord ? join(outputDir, `video-${testId}.mp4`) : '',
     shouldAttach: (failed) => mode === 'on' || (mode === 'retain-on-failure' && failed),
   };
+}
+
+/** Playwright's `screenshot` option applied to the device screen. Unset means 'only-on-failure', mobilewright's default. */
+export function shouldAttachScreenshot(screenshot: ScreenshotOption, outcome: TestOutcome): boolean {
+  const mode = (typeof screenshot === 'object' ? screenshot.mode : screenshot) ?? 'only-on-failure';
+  switch (mode) {
+    case 'on':
+      return true;
+    case 'only-on-failure':
+      return outcome.failed;
+    case 'on-first-failure':
+      return outcome.failed && outcome.retry === 0;
+    default:
+      return false;
+  }
 }
 
 export function parseViewTreeOption(value: string | undefined): 'on-failure' | 'off' {

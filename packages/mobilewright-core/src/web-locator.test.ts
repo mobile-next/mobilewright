@@ -495,6 +495,29 @@ test.describe('WebLocator step instrumentation', () => {
     ]);
   });
 
+  test('masked fill and type keep the value out of the step title, and still send it to the page', async () => {
+    const { session, evaluateCalls } = sessionAlwaysReturning(true);
+    const { stepFn, titles } = recordingStepFn();
+    const loc = new WebLocator(session, 'input');
+    loc._stepFn = stepFn;
+
+    await loc.fill('s3cret-sentinel', { mask: true });
+    await loc.type('s3cret-sentinel', { mask: true });
+
+    playwrightExpect(titles).toEqual(['locator.fill(***)', 'locator.type(***)']);
+    playwrightExpect(evaluateCalls.filter(c => c.includes('s3cret-sentinel'))).toHaveLength(2);
+  });
+
+  test('type() gives up after its own timeout when the element never becomes visible', async () => {
+    const { session } = sessionAlwaysReturning(false);
+    const loc = new WebLocator(session, 'input');
+    const startedAt = Date.now();
+
+    await playwrightExpect(loc.type('hello', { timeout: 50 })).rejects.toThrow();
+
+    playwrightExpect(Date.now() - startedAt).toBeLessThan(2000);
+  });
+
   test('chaining composes the child selector within the parent', async () => {
     const { session, evaluateCalls } = sessionAlwaysReturning(0);
     const loc = new WebLocator(session, '.form');
