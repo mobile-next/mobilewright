@@ -40,6 +40,7 @@ Keep device-backend details in the appropriate driver and shared contracts in `p
 - Dependency changes in `package.json` require a matching regenerated `package-lock.json`; registry versions must exist on npm.
 - New dependencies, telemetry, or runtime network behavior require an issue and maintainer approval. This rule concerns product changes, not research or normal development tooling.
 - Update user-facing documentation with behavior changes. Do not edit `CHANGELOG.md`; maintainers write it at release time.
+- Present Mobilewright as mobile automation and testing, with four primary workflows: Test, CLI, MCP, and Library.
 
 ## Tests and verification
 
