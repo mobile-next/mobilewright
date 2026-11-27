@@ -42,7 +42,7 @@ export function createInspectRouter(deviceManager: DeviceManager) {
       }
 
       res.json({
-        screenshot: `data:${SCREENSHOT_MIME_TYPE};base64,${screenshot.toString('base64')}`,
+        screenshot: screenshot && `data:${SCREENSHOT_MIME_TYPE};base64,${screenshot.toString('base64')}`,
         screen,
         elements,
         etag,
